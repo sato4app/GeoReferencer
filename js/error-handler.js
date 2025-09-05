@@ -1,5 +1,5 @@
 // エラーハンドリングのユーティリティ
-import { CONFIG, CSS_CLASSES } from '../constants.js';
+import { CONFIG, CSS_CLASSES } from './constants.js';
 import { Logger } from './logger.js';
 
 export class ErrorHandler {

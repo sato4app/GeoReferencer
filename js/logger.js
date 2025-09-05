@@ -1,8 +1,8 @@
 // ログ機能のユーティリティ
-import { LOG_LEVELS } from '../constants.js';
+import { LOG_LEVELS } from './constants.js';
 
 export class Logger {
-    constructor(context = 'RouteEditor') {
+    constructor(context = 'GeoReferencer') {
         this.context = context;
         this.isDebugMode = this.checkDebugMode();
     }
@@ -11,7 +11,7 @@ export class Logger {
         // URLパラメータまたはlocalStorageでデバッグモードを確認
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('debug') === 'true' || 
-               localStorage.getItem('routeEditor.debug') === 'true';
+               localStorage.getItem('geoReferencer.debug') === 'true';
     }
     
     formatMessage(level, message, data = null) {
@@ -60,7 +60,7 @@ export class Logger {
     
     logToStorage(level, message, data) {
         try {
-            const logs = JSON.parse(localStorage.getItem('routeEditor.logs') || '[]');
+            const logs = JSON.parse(localStorage.getItem('geoReferencer.logs') || '[]');
             const logEntry = {
                 timestamp: new Date().toISOString(),
                 context: this.context,
@@ -76,7 +76,7 @@ export class Logger {
                 logs.splice(0, logs.length - 1000);
             }
             
-            localStorage.setItem('routeEditor.logs', JSON.stringify(logs));
+            localStorage.setItem('geoReferencer.logs', JSON.stringify(logs));
         } catch (e) {
             // ストレージエラーは無視（プライベートモードなど）
             console.warn('ログの保存に失敗しました:', e.message);
@@ -85,7 +85,7 @@ export class Logger {
     
     getLogs() {
         try {
-            return JSON.parse(localStorage.getItem('routeEditor.logs') || '[]');
+            return JSON.parse(localStorage.getItem('geoReferencer.logs') || '[]');
         } catch (e) {
             return [];
         }
@@ -93,7 +93,7 @@ export class Logger {
     
     clearLogs() {
         try {
-            localStorage.removeItem('routeEditor.logs');
+            localStorage.removeItem('geoReferencer.logs');
             this.info('ログがクリアされました');
         } catch (e) {
             this.error('ログのクリアに失敗しました', e);
