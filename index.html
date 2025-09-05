@@ -55,9 +55,9 @@
                 <span class="unit-label">%</span>
             </div>
             
-            <!-- ルート・スポットの読み込み(JSON) -->
-            <input type="file" id="routeSpotJsonInput" accept=".json" style="display: none;">
-            <button id="loadRouteSpotJsonBtn" title="ルートやスポット情報のJSONファイルを読み込む" class="leaflet-bar leaflet-control">ルート・スポットの読み込み(JSON)</button>
+            <!-- ポイント(座標)の読み込み(JSON) -->
+            <input type="file" id="pointCoordJsonInput" accept=".json" style="display: none;">
+            <button id="loadPointCoordJsonBtn" title="ポイント座標情報のJSONファイルを読み込む" class="leaflet-bar leaflet-control">ポイント(座標)の読み込み(JSON)</button>
             
             <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
             <button id="matchPointsBtn" title="ポイントのマッチングと画像の重ね合わせを実行" class="leaflet-bar leaflet-control">画像の重ね合わせ（ジオリファレンス）</button>
@@ -74,6 +74,10 @@
                 <label for="unmatchedPointsField">不一致ポイント</label>
                 <textarea id="unmatchedPointsField" readonly placeholder="マッチングしなかったポイント" style="width: 100%; font-size: 12px;"></textarea>
             </div>
+            
+            <!-- ルート・スポット(座標)の読み込み(JSON) -->
+            <input type="file" id="routeSpotJsonInput" accept=".json" style="display: none;">
+            <button id="loadRouteSpotJsonBtn" title="ルート・スポット座標情報のJSONファイルを読み込む" class="leaflet-bar leaflet-control">ルート・スポット(座標)の読み込み(JSON)</button>
             
             <!-- 座標をGPSに変換して出力(GeoJSON) -->
             <button id="exportGeoJsonBtn" title="画像座標をGPS座標に変換してGeoJSON形式で出力" class="leaflet-bar leaflet-control">座標をGPSに変換して出力(GeoJSON)</button>

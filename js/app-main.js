@@ -95,7 +95,21 @@ class GeoReferencerApp {
                 });
             }
 
-            // ルート・スポットJSON読み込みボタン
+            // ポイント(座標)JSON読み込みボタン
+            const loadPointCoordJsonBtn = document.getElementById('loadPointCoordJsonBtn');
+            const pointCoordJsonInput = document.getElementById('pointCoordJsonInput');
+            
+            if (loadPointCoordJsonBtn && pointCoordJsonInput) {
+                loadPointCoordJsonBtn.addEventListener('click', () => {
+                    pointCoordJsonInput.click();
+                });
+                
+                pointCoordJsonInput.addEventListener('change', (event) => {
+                    this.handlePointCoordJsonLoad(event);
+                });
+            }
+
+            // ルート・スポット(座標)JSON読み込みボタン
             const loadRouteSpotJsonBtn = document.getElementById('loadRouteSpotJsonBtn');
             const routeSpotJsonInput = document.getElementById('routeSpotJsonInput');
             
@@ -183,23 +197,51 @@ class GeoReferencerApp {
         }
     }
 
+    async handlePointCoordJsonLoad(event) {
+        try {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            this.logger.info('ポイント(座標)JSONファイル読み込み開始', file.name);
+            
+            // JSONファイルを読み込んでポイント座標情報を処理
+            const text = await file.text();
+            const data = JSON.parse(text);
+            
+            // imageX, imageYを持つポイントを画像上に表示
+            if (this.imageOverlay && data) {
+                await this.displayImageCoordinates(data, 'points');
+            }
+            
+            this.logger.info('ポイント(座標)JSON読み込み完了', data);
+            
+        } catch (error) {
+            this.logger.error('ポイント(座標)JSON読み込みエラー', error);
+            errorHandler.handle(error, 'ポイント(座標)JSONファイルの読み込みに失敗しました。', 'ポイント(座標)JSON読み込み');
+        }
+    }
+
     async handleRouteSpotJsonLoad(event) {
         try {
             const file = event.target.files[0];
             if (!file) return;
 
-            this.logger.info('ルート・スポットJSONファイル読み込み開始', file.name);
+            this.logger.info('ルート・スポット(座標)JSONファイル読み込み開始', file.name);
             
-            // JSONファイルを読み込んでルートやスポット情報を処理
+            // JSONファイルを読み込んでルートやスポット座標情報を処理
             const text = await file.text();
             const data = JSON.parse(text);
             
-            // ここで必要に応じてルートやスポット情報を地図上に表示
-            this.logger.info('ルート・スポットJSON読み込み完了', data);
+            // imageX, imageYを持つルート・スポットを画像上に表示
+            if (this.imageOverlay && data) {
+                await this.displayImageCoordinates(data, 'routes-spots');
+            }
+            
+            this.logger.info('ルート・スポット(座標)JSON読み込み完了', data);
             
         } catch (error) {
-            this.logger.error('ルート・スポットJSON読み込みエラー', error);
-            errorHandler.handle(error, 'ルート・スポットJSONファイルの読み込みに失敗しました。', 'ルート・スポットJSON読み込み');
+            this.logger.error('ルート・スポット(座標)JSON読み込みエラー', error);
+            errorHandler.handle(error, 'ルート・スポット(座標)JSONファイルの読み込みに失敗しました。', 'ルート・スポット(座標)JSON読み込み');
         }
     }
 
@@ -279,6 +321,136 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('マッチング結果表示エラー', error);
+        }
+    }
+
+    async displayImageCoordinates(data, type) {
+        try {
+            if (!this.imageOverlay || !this.mapCore || !this.mapCore.map) {
+                throw new Error('地図または画像オーバーレイが初期化されていません。');
+            }
+
+            // 既存の座標マーカーを削除
+            this.clearImageCoordinateMarkers();
+
+            // データから座標を抽出して表示
+            const coordinates = this.extractImageCoordinates(data);
+            
+            this.logger.info(`${type}の座標表示開始`, coordinates.length + 'ポイント');
+
+            // 画像座標をLeaflet座標に変換して表示
+            coordinates.forEach((coord, index) => {
+                if (coord.imageX !== undefined && coord.imageY !== undefined) {
+                    // 簡易的な座標変換（実際のジオリファレンス機能実装まで）
+                    const latLng = this.convertImageToLatLng(coord.imageX, coord.imageY);
+                    
+                    // マーカーを作成
+                    const marker = L.circleMarker(latLng, {
+                        radius: 5,
+                        color: type === 'points' ? '#ff0000' : '#0000ff',
+                        fillColor: type === 'points' ? '#ff0000' : '#0000ff',
+                        fillOpacity: 0.7,
+                        weight: 2
+                    }).addTo(this.mapCore.map);
+                    
+                    // ポップアップを追加
+                    const popupContent = `
+                        <div>
+                            <strong>${coord.name || `${type} ${index + 1}`}</strong><br>
+                            画像座標: (${coord.imageX}, ${coord.imageY})<br>
+                            ${coord.description || ''}
+                        </div>
+                    `;
+                    marker.bindPopup(popupContent);
+                    
+                    // マーカーを保存（後で削除できるように）
+                    if (!this.imageCoordinateMarkers) {
+                        this.imageCoordinateMarkers = [];
+                    }
+                    this.imageCoordinateMarkers.push(marker);
+                }
+            });
+
+            this.logger.info(`${type}の座標表示完了`, coordinates.length + 'ポイント表示');
+            
+        } catch (error) {
+            this.logger.error('画像座標表示エラー', error);
+            throw error;
+        }
+    }
+
+    extractImageCoordinates(data) {
+        const coordinates = [];
+        
+        try {
+            if (Array.isArray(data)) {
+                // 配列の場合、各要素から座標を抽出
+                data.forEach(item => {
+                    if (item.imageX !== undefined && item.imageY !== undefined) {
+                        coordinates.push({
+                            imageX: item.imageX,
+                            imageY: item.imageY,
+                            name: item.name || item.id,
+                            description: item.description || ''
+                        });
+                    }
+                });
+            } else if (data && typeof data === 'object') {
+                // オブジェクトの場合、プロパティから座標を抽出
+                if (data.points && Array.isArray(data.points)) {
+                    data.points.forEach(point => {
+                        if (point.imageX !== undefined && point.imageY !== undefined) {
+                            coordinates.push({
+                                imageX: point.imageX,
+                                imageY: point.imageY,
+                                name: point.name || point.id,
+                                description: point.description || ''
+                            });
+                        }
+                    });
+                }
+                
+                if (data.routes && Array.isArray(data.routes)) {
+                    data.routes.forEach(route => {
+                        if (route.points && Array.isArray(route.points)) {
+                            route.points.forEach(point => {
+                                if (point.imageX !== undefined && point.imageY !== undefined) {
+                                    coordinates.push({
+                                        imageX: point.imageX,
+                                        imageY: point.imageY,
+                                        name: point.name || `${route.name || 'Route'} Point`,
+                                        description: point.description || ''
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            this.logger.error('座標抽出エラー', error);
+        }
+        
+        return coordinates;
+    }
+
+    convertImageToLatLng(imageX, imageY) {
+        // 簡易的な座標変換（実際のジオリファレンス実装まで）
+        // デフォルトの地図中心から適当にオフセット
+        const center = this.mapCore.getInitialCenter();
+        const lat = center[0] + (imageY - 500) / 10000; // 適当な変換式
+        const lng = center[1] + (imageX - 500) / 10000;
+        return [lat, lng];
+    }
+
+    clearImageCoordinateMarkers() {
+        if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
+            this.imageCoordinateMarkers.forEach(marker => {
+                if (this.mapCore && this.mapCore.map) {
+                    this.mapCore.map.removeLayer(marker);
+                }
+            });
+            this.imageCoordinateMarkers = [];
         }
     }
 
