@@ -1,10 +1,23 @@
 // GeoReferencerメインアプリケーションファイル - 画像重ね合わせ機能のみ
+console.log('app-main.js: インポート開始');
+
 import { MapCore } from './map-core.js';
+console.log('MapCore インポート完了');
+
 import { ImageOverlay } from './image-overlay.js';
+console.log('ImageOverlay インポート完了');
+
 import { GPSData } from './gps-data.js';
+console.log('GPSData インポート完了');
+
 import { CONFIG, EVENTS, DEFAULTS } from './constants.js';
+console.log('Constants インポート完了:', { CONFIG: !!CONFIG, EVENTS: !!EVENTS, DEFAULTS: !!DEFAULTS });
+
 import { Logger } from './logger.js';
+console.log('Logger インポート完了');
+
 import { errorHandler } from './error-handler.js';
+console.log('ErrorHandler インポート完了');
 
 class GeoReferencerApp {
     constructor() {
@@ -301,9 +314,34 @@ class GeoReferencerApp {
 // アプリケーション初期化
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        console.log('DOMContentLoaded イベント開始');
+        console.log('GeoReferencerApp クラス:', GeoReferencerApp);
+        
         const app = new GeoReferencerApp();
+        console.log('アプリケーションインスタンス作成完了');
+        
         await app.init();
+        console.log('アプリケーション初期化完了');
+        
+        // グローバルスコープでデバッグ用にアクセス可能にする
+        window.geoApp = app;
+        
     } catch (error) {
         console.error('アプリケーション起動エラー:', error);
+        console.error('エラースタック:', error.stack);
+        
+        // エラーをユーザーにも表示
+        document.body.innerHTML = `
+            <div style="padding: 20px; color: red; font-family: monospace;">
+                <h2>アプリケーション起動エラー</h2>
+                <p>エラー: ${error.message}</p>
+                <details>
+                    <summary>詳細情報</summary>
+                    <pre>${error.stack}</pre>
+                </details>
+                <p>ローカルサーバーが起動していることを確認してください。</p>
+                <p>例: <code>python -m http.server 8000</code></p>
+            </div>
+        `;
     }
 });
