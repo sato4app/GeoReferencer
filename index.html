@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PNG画像を国土地理院の地形図上に重ね合わせるジオリファレンスツール">
+    <meta name="keywords" content="地形図, ジオリファレンス, 画像重ね合わせ, 国土地理院, マップ">
+    <meta name="author" content="GeoReferencer">
+    <title>GeoReferencer - 画像重ね合わせツール</title>
+
+    <!-- セキュリティとパフォーマンスのためのメタタグ -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    
+    <!-- ファビコンのリクエストを抑制して404エラーを防ぐ -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
+    <!-- 外部CDNリソースの事前接続でパフォーマンス向上 -->
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    
+    <!-- Leaflet.js の CSS と JS を読み込み -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+
+    <!-- SheetJS ライブラリを読み込み -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- アプリケーション固有のスタイルシート -->
+    <link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+    <!-- メイン地図コンテナ -->
+    <main id="map" role="main" aria-label="国土地理院地形図"></main>
+
+    <!-- アプリケーション制御パネル -->
+    <aside class="overlay-controls" role="complementary" aria-label="画像重ね合わせツール">
+        <!-- 画像重ね合わせセクション -->
+        <section id="geoReferencerPanel" class="editor-panel" aria-labelledby="geo-ref-title">
+            <h2 id="geo-ref-title" class="visually-hidden">画像重ね合わせツール</h2>
+            
+            <!-- ポイントGPS読み込み(GeoJSON) -->
+            <input type="file" id="gpsGeoJsonInput" accept=".geojson,.json" style="display: none;">
+            <button id="loadGpsGeoJsonBtn" title="GeoJSONファイルからGPS座標データを読み込む" class="leaflet-bar leaflet-control">ポイントGPS読み込み(GeoJSON)</button>
+            
+            <!-- PNG画像読み込み -->
+            <input type="file" id="imageInput" accept="image/png" style="display: none;">
+            <button id="loadImageBtn" title="画像を読み込む" class="leaflet-bar leaflet-control">PNG画像読み込み</button>
+            
+            <!-- 透過度設定 -->
+            <div class="point-count-container">
+                <label for="opacityInput">透過度</label>
+                <input type="number" id="opacityInput" min="0" max="100" value="50">
+                <span class="unit-label">%</span>
+            </div>
+            
+            <!-- ルート・スポットの読み込み(JSON) -->
+            <input type="file" id="routeSpotJsonInput" accept=".json" style="display: none;">
+            <button id="loadRouteSpotJsonBtn" title="ルートやスポット情報のJSONファイルを読み込む" class="leaflet-bar leaflet-control">ルート・スポットの読み込み(JSON)</button>
+            
+            <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
+            <button id="matchPointsBtn" title="ポイントのマッチングと画像の重ね合わせを実行" class="leaflet-bar leaflet-control">画像の重ね合わせ（ジオリファレンス）</button>
+            
+            <!-- 一致するポイント数表示フィールド -->
+            <div class="point-count-container">
+                <label for="matchedPointCountField">一致するポイント数</label>
+                <input type="text" id="matchedPointCountField" readonly value="0">
+                <span class="unit-label">個</span>
+            </div>
+            
+            <!-- 不一致ポイント表示フィールド -->
+            <div class="point-count-container unmatched-points">
+                <label for="unmatchedPointsField">不一致ポイント</label>
+                <textarea id="unmatchedPointsField" readonly placeholder="マッチングしなかったポイント" style="width: 100%; font-size: 12px;"></textarea>
+            </div>
+            
+            <!-- 座標をGPSに変換して出力(GeoJSON) -->
+            <button id="exportGeoJsonBtn" title="画像座標をGPS座標に変換してGeoJSON形式で出力" class="leaflet-bar leaflet-control">座標をGPSに変換して出力(GeoJSON)</button>
+            
+        </section>
+    </aside>
+
+    <!-- 分離したJavaScriptファイルを読み込む -->
+    <!-- type="module"により、ES6モジュールとして読み込む -->
+    <script type="module" src="js/app-main.js"></script>
+</body>
+</html>
