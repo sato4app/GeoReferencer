@@ -129,7 +129,7 @@ export class GPSData {
             
         } catch (error) {
             this.logger.error('GPS ポイント表示エラー', error);
-            errorHandler.handle(error, 'GPSポイントの表示に失敗しました。');
+            errorHandler.handle(error, 'GPSポイントの表示に失敗しました。', 'GPS ポイント表示');
         }
     }
 

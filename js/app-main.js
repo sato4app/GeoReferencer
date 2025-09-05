@@ -1,23 +1,10 @@
 // GeoReferencerメインアプリケーションファイル - 画像重ね合わせ機能のみ
-console.log('app-main.js: インポート開始');
-
 import { MapCore } from './map-core.js';
-console.log('MapCore インポート完了');
-
 import { ImageOverlay } from './image-overlay.js';
-console.log('ImageOverlay インポート完了');
-
 import { GPSData } from './gps-data.js';
-console.log('GPSData インポート完了');
-
 import { CONFIG, EVENTS, DEFAULTS } from './constants.js';
-console.log('Constants インポート完了:', { CONFIG: !!CONFIG, EVENTS: !!EVENTS, DEFAULTS: !!DEFAULTS });
-
 import { Logger } from './logger.js';
-console.log('Logger インポート完了');
-
 import { errorHandler } from './error-handler.js';
-console.log('ErrorHandler インポート完了');
 
 class GeoReferencerApp {
     constructor() {
@@ -51,7 +38,7 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('アプリケーション初期化エラー', error);
-            errorHandler.handle(error, 'アプリケーション初期化中にエラーが発生しました。');
+            errorHandler.handle(error, 'アプリケーション初期化中にエラーが発生しました。', 'アプリケーション初期化');
         }
     }
 
@@ -63,7 +50,7 @@ class GeoReferencerApp {
             }
 
             // ImageOverlayを初期化
-            this.imageOverlay = new ImageOverlay(this.mapCore.map);
+            this.imageOverlay = new ImageOverlay(this.mapCore);
             this.logger.debug('ImageOverlay初期化完了');
 
             // GPSDataを初期化
@@ -150,7 +137,7 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('イベントハンドラー設定エラー', error);
-            errorHandler.handle(error, 'イベントハンドラーの設定中にエラーが発生しました。');
+            errorHandler.handle(error, 'イベントハンドラーの設定中にエラーが発生しました。', 'イベントハンドラー設定');
         }
     }
 
@@ -174,7 +161,7 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('GPS GeoJSON読み込みエラー', error);
-            errorHandler.handle(error, 'GPS GeoJSONファイルの読み込みに失敗しました。');
+            errorHandler.handle(error, 'GPS GeoJSONファイルの読み込みに失敗しました。', 'GPS GeoJSON読み込み');
         }
     }
 
@@ -192,7 +179,7 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('画像読み込みエラー', error);
-            errorHandler.handle(error, '画像ファイルの読み込みに失敗しました。');
+            errorHandler.handle(error, '画像ファイルの読み込みに失敗しました。', '画像読み込み');
         }
     }
 
@@ -212,7 +199,7 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('ルート・スポットJSON読み込みエラー', error);
-            errorHandler.handle(error, 'ルート・スポットJSONファイルの読み込みに失敗しました。');
+            errorHandler.handle(error, 'ルート・スポットJSONファイルの読み込みに失敗しました。', 'ルート・スポットJSON読み込み');
         }
     }
 
@@ -234,7 +221,7 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('画像重ね合わせエラー', error);
-            errorHandler.handle(error, '画像の重ね合わせ処理に失敗しました。');
+            errorHandler.handle(error, '画像の重ね合わせ処理に失敗しました。', '画像重ね合わせ');
         }
     }
 
@@ -267,7 +254,7 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('GeoJSON出力エラー', error);
-            errorHandler.handle(error, 'GeoJSONの出力に失敗しました。');
+            errorHandler.handle(error, 'GeoJSONの出力に失敗しました。', 'GeoJSON出力');
         }
     }
 
@@ -314,21 +301,14 @@ class GeoReferencerApp {
 // アプリケーション初期化
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        console.log('DOMContentLoaded イベント開始');
-        console.log('GeoReferencerApp クラス:', GeoReferencerApp);
-        
         const app = new GeoReferencerApp();
-        console.log('アプリケーションインスタンス作成完了');
-        
         await app.init();
-        console.log('アプリケーション初期化完了');
         
         // グローバルスコープでデバッグ用にアクセス可能にする
         window.geoApp = app;
         
     } catch (error) {
         console.error('アプリケーション起動エラー:', error);
-        console.error('エラースタック:', error.stack);
         
         // エラーをユーザーにも表示
         document.body.innerHTML = `

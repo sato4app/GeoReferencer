@@ -149,6 +149,21 @@ export class ErrorHandler {
     }
     
     /**
+     * エラーを統一的に処理するメソッド
+     * @param {Error} error - エラーオブジェクト
+     * @param {string} userMessage - ユーザー向けメッセージ
+     * @param {string} context - エラーのコンテキスト
+     */
+    handle(error, userMessage = null, context = 'Unknown') {
+        // ログに記録
+        this.logger.error(`${context}でエラーが発生`, error);
+        
+        // ユーザーにエラーメッセージを表示
+        const message = userMessage || error.message || '予期しないエラーが発生しました';
+        this.showError('エラー', message);
+    }
+
+    /**
      * 非同期関数をラップしてエラーハンドリングを追加
      * @param {Function} asyncFn - 非同期関数
      * @param {string} context - エラーのコンテキスト
@@ -159,8 +174,7 @@ export class ErrorHandler {
             try {
                 return await asyncFn.apply(this, args);
             } catch (error) {
-                this.logger.error(`${context}でエラーが発生しました`, error);
-                this.showError('エラー', `${context}中にエラーが発生しました: ${error.message}`);
+                this.handle(error, `${context}中にエラーが発生しました`, context);
                 throw error;
             }
         };
