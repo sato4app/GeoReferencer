@@ -131,13 +131,6 @@ class GeoReferencerApp {
                 });
             }
 
-            // 透過度スライダー
-            const opacityInput = document.getElementById('opacityInput');
-            if (opacityInput) {
-                opacityInput.addEventListener('input', (event) => {
-                    this.handleOpacityChange(event.target.value);
-                });
-            }
 
             // GeoJSON出力ボタン
             const exportGeoJsonBtn = document.getElementById('exportGeoJsonBtn');
@@ -271,16 +264,6 @@ class GeoReferencerApp {
         }
     }
 
-    handleOpacityChange(value) {
-        try {
-            if (this.imageOverlay) {
-                this.imageOverlay.setOpacity(value / 100);
-                this.logger.debug('透過度変更', value);
-            }
-        } catch (error) {
-            this.logger.error('透過度変更エラー', error);
-        }
-    }
 
     async handleExportGeoJson() {
         try {

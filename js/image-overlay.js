@@ -24,8 +24,6 @@ export class ImageOverlay {
         // 初期スケール値を設定
         this.initializeScaleInput();
         
-        // 初期透過度を取得してUIに設定
-        this.initializeOpacityInput();
         
         // 中心マーカーは画像読み込み後に表示するため、初期化のみ行う
         this.initializeCenterMarker(mapCore.getInitialCenter(), false);
@@ -38,14 +36,6 @@ export class ImageOverlay {
         this.currentScale = this.getDefaultScale();
     }
 
-    // 初期透過度を取得してUIに設定
-    initializeOpacityInput() {
-        const opacityInput = document.getElementById('opacityInput');
-        if (opacityInput) {
-            const defaultOpacity = this.getDefaultOpacity();
-            opacityInput.value = defaultOpacity.toString();
-        }
-    }
 
     // デフォルトスケール値を取得
     getDefaultScale() {
@@ -375,8 +365,7 @@ export class ImageOverlay {
 
 
     getDisplayOpacity() {
-        const opacityInput = document.getElementById('opacityInput');
-        return opacityInput ? parseInt(opacityInput.value) / 100 : 0.5;
+        return this.getDefaultOpacity() / 100;
     }
 
     updateImageDisplay() {
@@ -466,20 +455,9 @@ export class ImageOverlay {
         this.notifyImageUpdate();
     }
 
-    updateOpacity() {
-        if (this.imageOverlay) {
-            this.imageOverlay.setOpacity(this.getDisplayOpacity());
-        }
-    }
 
     setupEventHandlers() {
-        const opacityInput = document.getElementById('opacityInput');
-        
-        // scaleInputフィールドは削除済み
-        
-        if (opacityInput) {
-            opacityInput.addEventListener('input', () => this.updateOpacity());
-        }
+        // 透過度は固定値のみ使用するため、イベントハンドラーは不要
     }
 
     loadImage(file) {
