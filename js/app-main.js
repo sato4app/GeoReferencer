@@ -435,11 +435,57 @@ class GeoReferencerApp {
     }
 
     convertImageToLatLng(imageX, imageY) {
-        // 簡易的な座標変換（実際のジオリファレンス実装まで）
-        // デフォルトの地図中心から適当にオフセット
-        const center = this.mapCore.getInitialCenter();
-        const lat = center[0] + (imageY - 500) / 10000; // 適当な変換式
-        const lng = center[1] + (imageX - 500) / 10000;
+        // 画像がロードされていない場合は、地図の中心付近に表示
+        if (!this.imageOverlay || !this.imageOverlay.imageOverlay) {
+            const center = this.mapCore.getInitialCenter();
+            // 画像座標を正規化してオフセットを計算
+            const normalizedX = (imageX - 500) / 1000; // 仮定：画像は1000x1000ピクセル
+            const normalizedY = (imageY - 500) / 1000;
+            const lat = center[0] + normalizedY * 0.01; // より適切なスケール
+            const lng = center[1] + normalizedX * 0.01;
+            return [lat, lng];
+        }
+        
+        // 画像が読み込まれている場合は、実際の画像境界を使用して変換
+        const imageBounds = this.imageOverlay.imageOverlay.getBounds();
+        const imageInfo = this.imageOverlay.getCurrentImageInfo();
+        
+        if (!imageBounds || !imageInfo.isLoaded) {
+            // フォールバック：地図中心周辺に表示
+            const center = this.mapCore.getInitialCenter();
+            const normalizedX = (imageX - 500) / 1000;
+            const normalizedY = (imageY - 500) / 1000;
+            const lat = center[0] + normalizedY * 0.01;
+            const lng = center[1] + normalizedX * 0.01;
+            return [lat, lng];
+        }
+        
+        // 画像のピクセル情報を取得
+        const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
+        const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+        
+        if (!imageWidth || !imageHeight) {
+            // フォールバック
+            const center = this.mapCore.getInitialCenter();
+            const normalizedX = (imageX - 500) / 1000;
+            const normalizedY = (imageY - 500) / 1000;
+            const lat = center[0] + normalizedY * 0.01;
+            const lng = center[1] + normalizedX * 0.01;
+            return [lat, lng];
+        }
+        
+        // 画像座標（0,0は左上）をLeaflet座標に変換
+        const southWest = imageBounds.getSouthWest();
+        const northEast = imageBounds.getNorthEast();
+        
+        // X座標（西→東）の変換
+        const xRatio = imageX / imageWidth;
+        const lng = southWest.lng + (northEast.lng - southWest.lng) * xRatio;
+        
+        // Y座標（北→南）の変換（画像座標系では上が0、下が正の値）
+        const yRatio = imageY / imageHeight;
+        const lat = northEast.lat - (northEast.lat - southWest.lat) * yRatio;
+        
         return [lat, lng];
     }
 
