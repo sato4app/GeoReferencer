@@ -370,6 +370,14 @@ class GeoReferencerApp {
             // ポイントJSONデータ(key:'Id')とGPSポイント(key:'pointId')の比較
             const matchResult = this.matchPointJsonWithGPS(gpsPoints);
 
+            // マッチしたペアが2つ以上ある場合、画像を自動的に位置合わせ
+            if (matchResult.matchedPairs.length >= 2) {
+                await this.performAutomaticGeoreferencing(matchResult.matchedPairs);
+            } else if (matchResult.matchedPairs.length === 1) {
+                // 1つのポイントのみマッチした場合は中心合わせのみ
+                await this.centerImageOnSinglePoint(matchResult.matchedPairs[0]);
+            }
+
             // 画像位置変更時のコールバック通知システム
             this.imageOverlay.addImageUpdateCallback(() => {
                 this.logger.debug('画像位置更新通知受信');
@@ -389,6 +397,181 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('ジオリファレンス計算エラー', error);
+            throw error;
+        }
+    }
+
+    async performAutomaticGeoreferencing(matchedPairs) {
+        try {
+            this.logger.info('自動ジオリファレンシング開始', matchedPairs.length + 'ペア');
+
+            // 最低2ペア、最適には3-4ペアを使用してアフィン変換を計算
+            const controlPoints = matchedPairs.slice(0, 4); // 最大4ペアまで使用
+
+            // アフィン変換パラメータを計算
+            const transformation = this.calculateAffineTransformation(controlPoints);
+            
+            if (transformation) {
+                // 変換パラメータを使って画像を配置
+                await this.applyTransformationToImage(transformation, controlPoints);
+                this.logger.info('自動ジオリファレンシング完了');
+            } else {
+                this.logger.warn('変換パラメータの計算に失敗しました');
+            }
+
+        } catch (error) {
+            this.logger.error('自動ジオリファレンシングエラー', error);
+            throw error;
+        }
+    }
+
+    async centerImageOnSinglePoint(matchedPair) {
+        try {
+            this.logger.info('単一ポイント中心合わせ開始', matchedPair.pointJsonId);
+
+            // GPSポイントの位置に画像中心を移動
+            const gpsLat = matchedPair.gpsPoint.lat;
+            const gpsLng = matchedPair.gpsPoint.lng;
+
+            this.imageOverlay.setCenterPosition([gpsLat, gpsLng]);
+            this.logger.info('単一ポイント中心合わせ完了');
+
+        } catch (error) {
+            this.logger.error('単一ポイント中心合わせエラー', error);
+        }
+    }
+
+    calculateAffineTransformation(controlPoints) {
+        try {
+            if (controlPoints.length < 2) {
+                this.logger.warn('アフィン変換には最低2つのコントロールポイントが必要です');
+                return null;
+            }
+
+            // 2ポイントの場合：スケールと平行移動のみ（回転なし）
+            if (controlPoints.length === 2) {
+                return this.calculateSimpleTransformation(controlPoints);
+            }
+
+            // 3ポイント以上の場合：完全なアフィン変換
+            return this.calculateFullAffineTransformation(controlPoints);
+
+        } catch (error) {
+            this.logger.error('アフィン変換計算エラー', error);
+            return null;
+        }
+    }
+
+    calculateSimpleTransformation(controlPoints) {
+        try {
+            const point1 = controlPoints[0];
+            const point2 = controlPoints[1];
+
+            // 画像座標系での2点間距離
+            const imageDistanceX = point2.pointJson.imageX - point1.pointJson.imageX;
+            const imageDistanceY = point2.pointJson.imageY - point1.pointJson.imageY;
+            const imageDistance = Math.sqrt(imageDistanceX * imageDistanceX + imageDistanceY * imageDistanceY);
+
+            // GPS座標系での2点間距離（メートル単位）
+            const gpsDistance = this.mapCore.getMap().distance(
+                [point1.gpsPoint.lat, point1.gpsPoint.lng],
+                [point2.gpsPoint.lat, point2.gpsPoint.lng]
+            );
+
+            if (imageDistance === 0 || gpsDistance === 0) {
+                this.logger.warn('距離が0のため変換計算できません');
+                return null;
+            }
+
+            // スケール係数（メートル/ピクセル）
+            const scale = gpsDistance / imageDistance;
+
+            // 中心点を計算
+            const imageCenterX = (point1.pointJson.imageX + point2.pointJson.imageX) / 2;
+            const imageCenterY = (point1.pointJson.imageY + point2.pointJson.imageY) / 2;
+            const gpsCenterLat = (point1.gpsPoint.lat + point2.gpsPoint.lat) / 2;
+            const gpsCenterLng = (point1.gpsPoint.lng + point2.gpsPoint.lng) / 2;
+
+            return {
+                type: 'simple',
+                scale: scale,
+                centerImageX: imageCenterX,
+                centerImageY: imageCenterY,
+                centerGpsLat: gpsCenterLat,
+                centerGpsLng: gpsCenterLng,
+                controlPoints: controlPoints
+            };
+
+        } catch (error) {
+            this.logger.error('簡易変換計算エラー', error);
+            return null;
+        }
+    }
+
+    calculateFullAffineTransformation(controlPoints) {
+        try {
+            // アフィン変換は複雑な数学処理が必要なため、
+            // 現在は簡易版として最初の2ポイントを使用
+            this.logger.info('フルアフィン変換を簡易版で実行');
+            return this.calculateSimpleTransformation(controlPoints.slice(0, 2));
+        } catch (error) {
+            this.logger.error('フルアフィン変換計算エラー', error);
+            return null;
+        }
+    }
+
+    async applyTransformationToImage(transformation, controlPoints) {
+        try {
+            if (transformation.type === 'simple') {
+                // 簡易変換を適用
+                await this.applySimpleTransformation(transformation);
+            }
+
+            this.logger.info('画像変換適用完了');
+
+        } catch (error) {
+            this.logger.error('画像変換適用エラー', error);
+        }
+    }
+
+    async applySimpleTransformation(transformation) {
+        try {
+            // 画像中心をGPS座標に合わせる
+            this.imageOverlay.setCenterPosition([
+                transformation.centerGpsLat, 
+                transformation.centerGpsLng
+            ]);
+
+            // 画像のピクセル寸法を取得
+            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
+            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+
+            if (!imageWidth || !imageHeight) {
+                throw new Error('画像サイズの取得に失敗しました');
+            }
+
+            // 現在のズームレベルでのメートル/ピクセル値を計算
+            const centerPos = [transformation.centerGpsLat, transformation.centerGpsLng];
+            const metersPerPixel = 156543.03392 * Math.cos(centerPos[0] * Math.PI / 180) / Math.pow(2, this.mapCore.getMap().getZoom());
+
+            // 新しいスケール値を計算（ImageOverlayのスケール値として）
+            const newScale = transformation.scale / metersPerPixel;
+
+            this.logger.info('変換パラメータ', {
+                centerGps: centerPos,
+                scale: transformation.scale,
+                metersPerPixel: metersPerPixel,
+                newScale: newScale
+            });
+
+            // スケールを適用
+            this.imageOverlay.setCurrentScale(newScale);
+
+            // 画像表示を更新
+            this.imageOverlay.updateImageDisplay();
+
+        } catch (error) {
+            this.logger.error('簡易変換適用エラー', error);
             throw error;
         }
     }
