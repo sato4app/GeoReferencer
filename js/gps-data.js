@@ -113,7 +113,8 @@ export class GPSData {
                 
                 const marker = L.marker([point.lat, point.lng], {
                     title: point.pointId,
-                    icon: greenCircleIcon
+                    icon: greenCircleIcon,
+                    pane: 'gpsMarkers'
                 }).addTo(map);
                 
                 // ポップアップを設定

@@ -65,6 +65,23 @@ export class MapCore {
             });
             tileLayer.addTo(this.map);
 
+            // マーカー用のペインを作成（z軸順序: 下から画像、ポイントGPS、ポイントJSON、ルート中間点、スポット）
+            // ポイントGPSマーカー用ペイン
+            this.map.createPane('gpsMarkers');
+            this.map.getPane('gpsMarkers').style.zIndex = 610;
+
+            // ポイントJSONマーカー用ペイン
+            this.map.createPane('pointJsonMarkers');
+            this.map.getPane('pointJsonMarkers').style.zIndex = 620;
+
+            // ルート中間点マーカー用ペイン
+            this.map.createPane('wayPointMarkers');
+            this.map.getPane('wayPointMarkers').style.zIndex = 630;
+
+            // スポットマーカー用ペイン
+            this.map.createPane('spotMarkers');
+            this.map.getPane('spotMarkers').style.zIndex = 630; // ルート中間点と同じ
+
             // ドラッグハンドル用の専用ペインを作成
             this.map.createPane('dragHandles');
             this.map.getPane('dragHandles').style.zIndex = 650;
@@ -72,10 +89,6 @@ export class MapCore {
             // 中心マーカー用の専用ペインを作成
             this.map.createPane('centerMarker');
             this.map.getPane('centerMarker').style.zIndex = 700;
-
-            // wayPointマーカー用の専用ペインを作成
-            this.map.createPane('waypointMarkers');
-            this.map.getPane('waypointMarkers').style.zIndex = 750;
 
             // 経路線用の専用ペインを作成
             this.map.createPane('routeLines');

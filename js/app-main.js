@@ -1122,13 +1122,20 @@ class GeoReferencerApp {
     // マーカーの種類を判定
     determineMarkerType(coord, type) {
         // データの内容に基づいてマーカーの種類を判定
+        console.log('determineMarkerType - coord:', coord, 'type:', type);
+        console.log('coord.type:', coord.type, 'coord.id:', coord.id, 'coord.name:', coord.name);
+        
         if (coord.type === 'waypoint') {
+            console.log('判定結果: wayPoint');
             return 'wayPoint'; // ルート中間点
         } else if (coord.type === 'spot' && coord.name) {
+            console.log('判定結果: spot');
             return 'spot'; // スポット
         } else if (!coord.type && coord.id) {
+            console.log('判定結果: pointJSON');
             return 'pointJSON'; // ポイントJSON
         }
+        console.log('判定結果: pointJSON (デフォルト)');
         return 'pointJSON'; // デフォルト
     }
 
@@ -1141,7 +1148,8 @@ class GeoReferencerApp {
                     color: '#ff0000',
                     fillColor: '#ff0000',
                     fillOpacity: 1,
-                    weight: 0
+                    weight: 0,
+                    pane: 'pointJsonMarkers'
                 });
                 
             case 'wayPoint': // ルート中間点 - 菱形、4px、オレンジ
@@ -1151,7 +1159,10 @@ class GeoReferencerApp {
                     iconSize: [8, 8],
                     iconAnchor: [4, 4]
                 });
-                return L.marker(latLng, { icon: diamondIcon });
+                return L.marker(latLng, { 
+                    icon: diamondIcon,
+                    pane: 'wayPointMarkers'
+                });
                 
             case 'spot': // スポット - 正方形、12px、青色
                 const squareIcon = L.divIcon({
@@ -1160,7 +1171,10 @@ class GeoReferencerApp {
                     iconSize: [12, 12],
                     iconAnchor: [6, 6]
                 });
-                return L.marker(latLng, { icon: squareIcon });
+                return L.marker(latLng, { 
+                    icon: squareIcon,
+                    pane: 'spotMarkers'
+                });
                 
             default:
                 return L.circleMarker(latLng, {
@@ -1168,7 +1182,8 @@ class GeoReferencerApp {
                     color: '#ff0000',
                     fillColor: '#ff0000',
                     fillOpacity: 1,
-                    weight: 0
+                    weight: 0,
+                    pane: 'pointJsonMarkers'
                 });
         }
     }
