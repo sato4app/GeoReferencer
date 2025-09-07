@@ -13,6 +13,7 @@ class GeoReferencerApp {
         this.imageOverlay = null;
         this.gpsData = null;
         this.pointJsonData = null; // ポイントJSONデータを保存
+        this.currentTransformation = null; // 現在の変換パラメータを保存
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -433,7 +434,20 @@ class GeoReferencerApp {
             const gpsLat = matchedPair.gpsPoint.lat;
             const gpsLng = matchedPair.gpsPoint.lng;
 
+            // 単純な中心移動用の変換パラメータを作成
+            this.currentTransformation = {
+                type: 'center_only',
+                targetPointImageX: matchedPair.pointJson.imageX,
+                targetPointImageY: matchedPair.pointJson.imageY,
+                targetPointGpsLat: gpsLat,
+                targetPointGpsLng: gpsLng
+            };
+
             this.imageOverlay.setCenterPosition([gpsLat, gpsLng]);
+
+            // ポイントJSONマーカーの位置を更新
+            await this.updatePointJsonMarkersAfterCentering();
+
             this.logger.info('単一ポイント中心合わせ完了');
 
         } catch (error) {
@@ -536,6 +550,9 @@ class GeoReferencerApp {
 
     async applySimpleTransformation(transformation) {
         try {
+            // 変換パラメータを保存
+            this.currentTransformation = transformation;
+
             // 画像中心をGPS座標に合わせる
             this.imageOverlay.setCenterPosition([
                 transformation.centerGpsLat, 
@@ -569,6 +586,9 @@ class GeoReferencerApp {
 
             // 画像表示を更新
             this.imageOverlay.updateImageDisplay();
+
+            // ポイントJSONマーカーの位置を更新
+            await this.updatePointJsonMarkersAfterTransformation();
 
         } catch (error) {
             this.logger.error('簡易変換適用エラー', error);
@@ -643,6 +663,187 @@ class GeoReferencerApp {
                 unmatchedPointJsonIds: [],
                 totalPointJsons: 0
             };
+        }
+    }
+
+    async updatePointJsonMarkersAfterTransformation() {
+        try {
+            if (!this.currentTransformation || !this.imageCoordinateMarkers || this.imageCoordinateMarkers.length === 0) {
+                this.logger.debug('変換パラメータまたはポイントJSONマーカーが存在しません');
+                return;
+            }
+
+            this.logger.info('ポイントJSONマーカー位置更新開始', this.imageCoordinateMarkers.length + '個');
+
+            // 既存マーカーの更新
+            for (let i = 0; i < this.imageCoordinateMarkers.length; i++) {
+                const marker = this.imageCoordinateMarkers[i];
+                
+                // マーカーからポイント情報を取得
+                const pointInfo = this.getPointInfoFromMarker(marker);
+                if (!pointInfo) continue;
+
+                // 画像座標をGPS座標に変換
+                const transformedGpsCoords = this.transformImageCoordsToGps(
+                    pointInfo.imageX, 
+                    pointInfo.imageY, 
+                    this.currentTransformation
+                );
+
+                if (transformedGpsCoords) {
+                    // マーカー位置を更新
+                    marker.setLatLng(transformedGpsCoords);
+                    
+                    // ポップアップ内容も更新
+                    const updatedPopupContent = this.createUpdatedPopupContent(pointInfo, transformedGpsCoords);
+                    marker.bindPopup(updatedPopupContent);
+                }
+            }
+
+            this.logger.info('ポイントJSONマーカー位置更新完了');
+            
+        } catch (error) {
+            this.logger.error('ポイントJSONマーカー位置更新エラー', error);
+        }
+    }
+
+    getPointInfoFromMarker(marker) {
+        try {
+            const popup = marker.getPopup();
+            if (!popup) return null;
+
+            const content = popup.getContent();
+            if (!content) return null;
+
+            // ポップアップ内容から画像座標を抽出
+            const imageXMatch = content.match(/画像座標: \((\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\)/);
+            if (!imageXMatch) return null;
+
+            // 名前を抽出
+            const nameMatch = content.match(/<strong>([^<]+)<\/strong>/);
+            const name = nameMatch ? nameMatch[1] : 'Unknown';
+
+            return {
+                imageX: parseFloat(imageXMatch[1]),
+                imageY: parseFloat(imageXMatch[2]),
+                name: name
+            };
+            
+        } catch (error) {
+            this.logger.error('マーカー情報抽出エラー', error);
+            return null;
+        }
+    }
+
+    transformImageCoordsToGps(imageX, imageY, transformation) {
+        try {
+            if (transformation.type === 'simple') {
+                // 簡易変換：画像中心を基準とした比例変換
+                const deltaImageX = imageX - transformation.centerImageX;
+                const deltaImageY = imageY - transformation.centerImageY;
+
+                // 地球半径とスケールを使って緯度経度オフセットを計算
+                const earthRadius = 6378137;
+                const latOffset = (deltaImageY * transformation.scale) / earthRadius * (180 / Math.PI);
+                const lngOffset = (deltaImageX * transformation.scale) / (earthRadius * Math.cos(transformation.centerGpsLat * Math.PI / 180)) * (180 / Math.PI);
+
+                // GPS座標系での新しい座標
+                const newLat = transformation.centerGpsLat - latOffset; // Y軸は上が正、緯度は北が正なので反転
+                const newLng = transformation.centerGpsLng + lngOffset;
+
+                return [newLat, newLng];
+                
+            } else if (transformation.type === 'center_only') {
+                // 中心移動のみ：基準ポイントからの相対位置を保持
+                const deltaImageX = imageX - transformation.targetPointImageX;
+                const deltaImageY = imageY - transformation.targetPointImageY;
+
+                // 現在のズームレベルとデフォルトスケールで距離を計算
+                const currentZoom = this.mapCore.getMap().getZoom();
+                const metersPerPixel = 156543.03392 * Math.cos(transformation.targetPointGpsLat * Math.PI / 180) / Math.pow(2, currentZoom);
+                const defaultScale = this.imageOverlay.getDefaultScale();
+                
+                // ピクセル距離をメートル距離に変換
+                const deltaMetersX = deltaImageX * defaultScale * metersPerPixel;
+                const deltaMetersY = deltaImageY * defaultScale * metersPerPixel;
+
+                // メートル距離を緯度経度オフセットに変換
+                const earthRadius = 6378137;
+                const latOffset = deltaMetersY / earthRadius * (180 / Math.PI);
+                const lngOffset = deltaMetersX / (earthRadius * Math.cos(transformation.targetPointGpsLat * Math.PI / 180)) * (180 / Math.PI);
+
+                // GPS座標系での新しい座標
+                const newLat = transformation.targetPointGpsLat - latOffset; // Y軸反転
+                const newLng = transformation.targetPointGpsLng + lngOffset;
+
+                return [newLat, newLng];
+            }
+
+            return null;
+            
+        } catch (error) {
+            this.logger.error('座標変換エラー', error);
+            return null;
+        }
+    }
+
+    async updatePointJsonMarkersAfterCentering() {
+        try {
+            if (!this.currentTransformation || !this.imageCoordinateMarkers || this.imageCoordinateMarkers.length === 0) {
+                this.logger.debug('変換パラメータまたはポイントJSONマーカーが存在しません');
+                return;
+            }
+
+            this.logger.info('ポイントJSONマーカー中心移動更新開始', this.imageCoordinateMarkers.length + '個');
+
+            // 既存マーカーの更新（中心移動版）
+            for (let i = 0; i < this.imageCoordinateMarkers.length; i++) {
+                const marker = this.imageCoordinateMarkers[i];
+                
+                // マーカーからポイント情報を取得
+                const pointInfo = this.getPointInfoFromMarker(marker);
+                if (!pointInfo) continue;
+
+                // 画像座標をGPS座標に変換（中心移動版）
+                const transformedGpsCoords = this.transformImageCoordsToGps(
+                    pointInfo.imageX, 
+                    pointInfo.imageY, 
+                    this.currentTransformation
+                );
+
+                if (transformedGpsCoords) {
+                    // マーカー位置を更新
+                    marker.setLatLng(transformedGpsCoords);
+                    
+                    // ポップアップ内容も更新
+                    const updatedPopupContent = this.createUpdatedPopupContent(pointInfo, transformedGpsCoords);
+                    marker.bindPopup(updatedPopupContent);
+                }
+            }
+
+            this.logger.info('ポイントJSONマーカー中心移動更新完了');
+            
+        } catch (error) {
+            this.logger.error('ポイントJSONマーカー中心移動更新エラー', error);
+        }
+    }
+
+    createUpdatedPopupContent(pointInfo, transformedCoords) {
+        try {
+            const [lat, lng] = transformedCoords;
+            
+            return `
+                <div>
+                    <strong>${pointInfo.name}</strong><br>
+                    画像座標: (${pointInfo.imageX}, ${pointInfo.imageY})<br>
+                    変換後GPS: (${lat.toFixed(6)}, ${lng.toFixed(6)})<br>
+                    <small>ジオリファレンス変換適用済み</small>
+                </div>
+            `;
+            
+        } catch (error) {
+            this.logger.error('ポップアップ内容作成エラー', error);
+            return 'ポップアップ作成エラー';
         }
     }
 
