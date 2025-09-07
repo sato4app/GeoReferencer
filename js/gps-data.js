@@ -106,9 +106,9 @@ export class GPSData {
                 // 緑の丸マーカーのカスタムアイコンを作成
                 const greenCircleIcon = L.divIcon({
                     className: 'gps-green-circle-marker',
-                    html: '<div style="width: 12px; height: 12px; background-color: #28a745; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                    iconSize: [12, 12],
-                    iconAnchor: [6, 6]
+                    html: '<div style="width: 16px; height: 16px; background-color: #008000; border-radius: 50%;"></div>',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
                 });
                 
                 const marker = L.marker([point.lat, point.lng], {

@@ -966,14 +966,11 @@ class GeoReferencerApp {
                     // 簡易的な座標変換（実際のジオリファレンス機能実装まで）
                     const latLng = this.convertImageToLatLng(coord.imageX, coord.imageY);
                     
+                    // マーカーの種類を判定
+                    const markerType = this.determineMarkerType(coord, type);
+                    
                     // マーカーを作成
-                    const marker = L.circleMarker(latLng, {
-                        radius: 5,
-                        color: type === 'points' ? '#ff0000' : '#0000ff',
-                        fillColor: type === 'points' ? '#ff0000' : '#0000ff',
-                        fillOpacity: 0.7,
-                        weight: 2
-                    }).addTo(this.mapCore.map);
+                    const marker = this.createCustomMarker(latLng, markerType).addTo(this.mapCore.map);
                     
                     // ポップアップを追加
                     const popupContent = `
@@ -1119,6 +1116,63 @@ class GeoReferencerApp {
                 }
             });
             this.imageCoordinateMarkers = [];
+        }
+    }
+
+    // マーカーの種類を判定
+    determineMarkerType(coord, type) {
+        // データの内容に基づいてマーカーの種類を判定
+        if (type === 'points') {
+            return 'pointJSON'; // ポイントJSON
+        } else if (type === 'routes-spots') {
+            // ルートの中間点かスポットかを判定
+            if (coord.name && coord.name.toLowerCase().includes('route')) {
+                return 'wayPoint'; // ルート中間点
+            } else {
+                return 'spot'; // スポット
+            }
+        }
+        return 'pointJSON'; // デフォルト
+    }
+
+    // カスタムマーカーを作成
+    createCustomMarker(latLng, markerType) {
+        switch (markerType) {
+            case 'pointJSON': // ポイントJSON - 円形、半径6px、赤色
+                return L.circleMarker(latLng, {
+                    radius: 6,
+                    color: '#ff0000',
+                    fillColor: '#ff0000',
+                    fillOpacity: 1,
+                    weight: 0
+                });
+                
+            case 'wayPoint': // ルート中間点 - 菱形、4px、オレンジ
+                const diamondIcon = L.divIcon({
+                    className: 'diamond-marker',
+                    html: '<div style="width: 8px; height: 8px; background-color: #ffa500; transform: rotate(45deg);"></div>',
+                    iconSize: [8, 8],
+                    iconAnchor: [4, 4]
+                });
+                return L.marker(latLng, { icon: diamondIcon });
+                
+            case 'spot': // スポット - 正方形、8px、青色
+                const squareIcon = L.divIcon({
+                    className: 'square-marker',
+                    html: '<div style="width: 8px; height: 8px; background-color: #0000ff;"></div>',
+                    iconSize: [8, 8],
+                    iconAnchor: [4, 4]
+                });
+                return L.marker(latLng, { icon: squareIcon });
+                
+            default:
+                return L.circleMarker(latLng, {
+                    radius: 6,
+                    color: '#ff0000',
+                    fillColor: '#ff0000',
+                    fillOpacity: 1,
+                    weight: 0
+                });
         }
     }
 
