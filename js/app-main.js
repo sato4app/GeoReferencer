@@ -366,8 +366,6 @@ class GeoReferencerApp {
     async performGeoreferencingCalculations() {
         try {
             const gpsPoints = this.gpsData.getPoints();
-            let matchedCount = 0;
-            const unmatchedPoints = [];
 
             // デバッグ：GPSポイントIDを出力（最初の3件）
             console.log('=== GPS ポイント ID（最初の3件）===');
@@ -379,21 +377,6 @@ class GeoReferencerApp {
                     structure: point
                 });
             });
-
-            // デバッグ：ポイントJSONのIDを出力（imageCoordinateMarkersから最初の3件）
-            console.log('=== ポイントJSON ID（最初の3件）===');
-            if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
-                this.imageCoordinateMarkers.slice(0, 3).forEach((marker, index) => {
-                    const popup = marker.getPopup();
-                    const content = popup ? popup.getContent() : 'No popup';
-                    console.log(`Point JSON ${index + 1}:`, {
-                        popupContent: content,
-                        marker: marker
-                    });
-                });
-            } else {
-                console.log('ポイントJSONマーカーが見つかりません');
-            }
 
             // 現在保存されているポイントJSONデータを確認
             if (this.pointJsonData) {
@@ -408,34 +391,8 @@ class GeoReferencerApp {
                 console.log('ポイントJSONデータが保存されていません');
             }
 
-            // WGS84座標系での緯度経度境界の計算
-            if (this.imageOverlay.imageOverlay) {
-                const bounds = this.imageOverlay.imageOverlay.getBounds();
-                
-                // 緯度による経度補正（cos補正）の適用
-                const centerLat = bounds.getCenter().lat;
-                const latCorrection = Math.cos(centerLat * Math.PI / 180);
-                
-                this.logger.debug('WGS84境界計算完了', {
-                    bounds: bounds.toBBoxString(),
-                    centerLat,
-                    latCorrection
-                });
-
-                // GPSポイントが画像境界内にあるかチェック（正しい構造で）
-                gpsPoints.forEach(point => {
-                    // GPSDataクラスで処理済みのデータ構造を使用
-                    if (point.lat !== undefined && point.lng !== undefined) {
-                        if (bounds.contains([point.lat, point.lng])) {
-                            matchedCount++;
-                        } else {
-                            unmatchedPoints.push(`${point.pointId} (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})`);
-                        }
-                    } else {
-                        unmatchedPoints.push(`${point.pointId} (座標データなし)`);
-                    }
-                });
-            }
+            // ポイントJSONデータ(key:'Id')とGPSポイント(key:'pointId')の比較
+            const matchResult = this.matchPointJsonWithGPS(gpsPoints);
 
             // 画像位置変更時のコールバック通知システム
             this.imageOverlay.addImageUpdateCallback(() => {
@@ -446,15 +403,97 @@ class GeoReferencerApp {
             });
 
             return {
-                matchedCount,
-                unmatchedPoints,
+                matchedCount: matchResult.matchedPairs.length,
+                unmatchedPoints: matchResult.unmatchedPointJsonIds,
                 totalPoints: gpsPoints.length,
+                totalPointJsons: matchResult.totalPointJsons,
+                matchedPairs: matchResult.matchedPairs,
                 georeferenceCompleted: true
             };
             
         } catch (error) {
             this.logger.error('ジオリファレンス計算エラー', error);
             throw error;
+        }
+    }
+
+    matchPointJsonWithGPS(gpsPoints) {
+        try {
+            const matchedPairs = [];
+            const unmatchedPointJsonIds = [];
+            let totalPointJsons = 0;
+
+            if (!this.pointJsonData) {
+                this.logger.warn('ポイントJSONデータが存在しません');
+                return {
+                    matchedPairs: [],
+                    unmatchedPointJsonIds: [],
+                    totalPointJsons: 0
+                };
+            }
+
+            // ポイントJSONデータから配列を抽出
+            const pointJsonArray = Array.isArray(this.pointJsonData) ? this.pointJsonData : 
+                (this.pointJsonData.points ? this.pointJsonData.points : [this.pointJsonData]);
+
+            totalPointJsons = pointJsonArray.length;
+
+            // GPSポイントをpointIdでインデックス化
+            const gpsPointMap = new Map();
+            gpsPoints.forEach(gpsPoint => {
+                gpsPointMap.set(gpsPoint.pointId, gpsPoint);
+            });
+
+            console.log('=== ID マッチング処理開始 ===');
+            console.log(`ポイントJSON数: ${pointJsonArray.length}, GPS数: ${gpsPoints.length}`);
+
+            // ポイントJSONの各要素について、対応するGPSポイントを検索
+            pointJsonArray.forEach((pointJson, index) => {
+                const pointJsonId = pointJson.Id || pointJson.id || pointJson.name;
+                
+                if (!pointJsonId) {
+                    this.logger.warn(`ポイントJSON[${index}]にIdが見つかりません:`, pointJson);
+                    unmatchedPointJsonIds.push(`[${index}] (IDなし)`);
+                    return;
+                }
+
+                // 対応するGPSポイントを検索
+                const matchingGpsPoint = gpsPointMap.get(pointJsonId);
+
+                if (matchingGpsPoint) {
+                    // マッチした場合
+                    const pair = {
+                        pointJsonId: pointJsonId,
+                        pointJson: pointJson,
+                        gpsPoint: matchingGpsPoint
+                    };
+                    matchedPairs.push(pair);
+                    
+                    console.log(`マッチ成功: JSON Id="${pointJsonId}" <-> GPS pointId="${matchingGpsPoint.pointId}"`);
+                } else {
+                    // マッチしなかった場合
+                    unmatchedPointJsonIds.push(pointJsonId);
+                    console.log(`マッチ失敗: JSON Id="${pointJsonId}" - 対応するGPSポイントが見つかりません`);
+                }
+            });
+
+            console.log('=== マッチング結果 ===');
+            console.log(`マッチ成功: ${matchedPairs.length}ペア`);
+            console.log(`マッチ失敗: ${unmatchedPointJsonIds.length}件`);
+
+            return {
+                matchedPairs,
+                unmatchedPointJsonIds,
+                totalPointJsons
+            };
+
+        } catch (error) {
+            this.logger.error('IDマッチング処理エラー', error);
+            return {
+                matchedPairs: [],
+                unmatchedPointJsonIds: [],
+                totalPointJsons: 0
+            };
         }
     }
 
@@ -511,9 +550,12 @@ class GeoReferencerApp {
             if (unmatchedPointsField) {
                 let displayText = '';
                 if (result.unmatchedPoints && result.unmatchedPoints.length > 0) {
+                    // 不一致ポイント：一致するGPSポイントが見つからなかったポイントJSONのIdを表示
                     displayText = result.unmatchedPoints.join('\n');
+                } else if (result.georeferenceCompleted && result.matchedCount > 0) {
+                    displayText = 'IDマッチング完了：全ポイントJSONでGPSポイントが見つかりました';
                 } else if (result.georeferenceCompleted) {
-                    displayText = 'ジオリファレンス完了：全ポイントが画像境界内にマッチしました';
+                    displayText = 'ポイントJSONまたはGPSデータが存在しません';
                 }
                 unmatchedPointsField.value = displayText;
             }
@@ -521,12 +563,21 @@ class GeoReferencerApp {
             // ジオリファレンス完了時の追加情報をログに記録
             if (result.georeferenceCompleted) {
                 this.logger.info('ジオリファレンス詳細結果', {
-                    totalPoints: result.totalPoints,
-                    matchedCount: result.matchedCount,
-                    unmatchedCount: result.unmatchedPoints ? result.unmatchedPoints.length : 0,
-                    matchPercentage: result.totalPoints > 0 ? 
-                        Math.round((result.matchedCount / result.totalPoints) * 100) : 0
+                    totalGpsPoints: result.totalPoints,
+                    totalPointJsons: result.totalPointJsons || 0,
+                    matchedPairs: result.matchedCount,
+                    unmatchedPointJsonCount: result.unmatchedPoints ? result.unmatchedPoints.length : 0,
+                    matchPercentage: result.totalPointJsons > 0 ? 
+                        Math.round((result.matchedCount / result.totalPointJsons) * 100) : 0
                 });
+
+                // マッチングペアの詳細情報をコンソールに出力
+                if (result.matchedPairs && result.matchedPairs.length > 0) {
+                    console.log('=== マッチングペア詳細 ===');
+                    result.matchedPairs.forEach((pair, index) => {
+                        console.log(`ペア${index + 1}: JSON "${pair.pointJsonId}" <-> GPS "${pair.gpsPoint.pointId}"`);
+                    });
+                }
             }
             
         } catch (error) {
