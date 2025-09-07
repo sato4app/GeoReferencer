@@ -103,8 +103,17 @@ export class GPSData {
             }
 
             this.gpsPoints.forEach((point, index) => {
+                // 緑の丸マーカーのカスタムアイコンを作成
+                const greenCircleIcon = L.divIcon({
+                    className: 'gps-green-circle-marker',
+                    html: '<div style="width: 12px; height: 12px; background-color: #28a745; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
+                
                 const marker = L.marker([point.lat, point.lng], {
-                    title: point.pointId
+                    title: point.pointId,
+                    icon: greenCircleIcon
                 }).addTo(map);
                 
                 // ポップアップを設定
