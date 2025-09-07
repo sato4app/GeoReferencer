@@ -1131,20 +1131,13 @@ class GeoReferencerApp {
     // マーカーの種類を判定
     determineMarkerType(coord, type) {
         // データの内容に基づいてマーカーの種類を判定
-        console.log('determineMarkerType - coord:', coord, 'type:', type);
-        console.log('coord.type:', coord.type, 'coord.id:', coord.id, 'coord.name:', coord.name);
-        
         if (coord.type === 'waypoint') {
-            console.log('判定結果: wayPoint');
             return 'wayPoint'; // ルート中間点
         } else if (coord.type === 'spot' && coord.name) {
-            console.log('判定結果: spot');
             return 'spot'; // スポット
         } else if (!coord.type && coord.id) {
-            console.log('判定結果: pointJSON');
             return 'pointJSON'; // ポイントJSON
         }
-        console.log('判定結果: pointJSON (デフォルト)');
         return 'pointJSON'; // デフォルト
     }
 
