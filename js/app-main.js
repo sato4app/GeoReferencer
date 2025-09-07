@@ -12,6 +12,7 @@ class GeoReferencerApp {
         this.mapCore = null;
         this.imageOverlay = null;
         this.gpsData = null;
+        this.pointJsonData = null; // ポイントJSONデータを保存
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -201,6 +202,9 @@ class GeoReferencerApp {
             const text = await file.text();
             const data = JSON.parse(text);
             
+            // ポイントJSONデータを保存
+            this.pointJsonData = data;
+            
             // imageX, imageYを持つポイントを画像上に表示
             if (this.imageOverlay && data) {
                 await this.displayImageCoordinates(data, 'points');
@@ -365,6 +369,45 @@ class GeoReferencerApp {
             let matchedCount = 0;
             const unmatchedPoints = [];
 
+            // デバッグ：GPSポイントIDを出力（最初の3件）
+            console.log('=== GPS ポイント ID（最初の3件）===');
+            gpsPoints.slice(0, 3).forEach((point, index) => {
+                console.log(`GPS Point ${index + 1}:`, {
+                    pointId: point.pointId,
+                    lat: point.lat,
+                    lng: point.lng,
+                    structure: point
+                });
+            });
+
+            // デバッグ：ポイントJSONのIDを出力（imageCoordinateMarkersから最初の3件）
+            console.log('=== ポイントJSON ID（最初の3件）===');
+            if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
+                this.imageCoordinateMarkers.slice(0, 3).forEach((marker, index) => {
+                    const popup = marker.getPopup();
+                    const content = popup ? popup.getContent() : 'No popup';
+                    console.log(`Point JSON ${index + 1}:`, {
+                        popupContent: content,
+                        marker: marker
+                    });
+                });
+            } else {
+                console.log('ポイントJSONマーカーが見つかりません');
+            }
+
+            // 現在保存されているポイントJSONデータを確認
+            if (this.pointJsonData) {
+                console.log('=== 保存されているポイントJSONデータ（最初の3件）===');
+                const pointsArray = Array.isArray(this.pointJsonData) ? this.pointJsonData : 
+                    (this.pointJsonData.points ? this.pointJsonData.points : [this.pointJsonData]);
+                
+                pointsArray.slice(0, 3).forEach((point, index) => {
+                    console.log(`Point JSON Data ${index + 1}:`, point);
+                });
+            } else {
+                console.log('ポイントJSONデータが保存されていません');
+            }
+
             // WGS84座標系での緯度経度境界の計算
             if (this.imageOverlay.imageOverlay) {
                 const bounds = this.imageOverlay.imageOverlay.getBounds();
@@ -379,17 +422,17 @@ class GeoReferencerApp {
                     latCorrection
                 });
 
-                // GPSポイントが画像境界内にあるかチェック
+                // GPSポイントが画像境界内にあるかチェック（正しい構造で）
                 gpsPoints.forEach(point => {
-                    if (point.coordinates && Array.isArray(point.coordinates) && point.coordinates.length >= 2) {
-                        const [lng, lat] = point.coordinates;
-                        if (bounds.contains([lat, lng])) {
+                    // GPSDataクラスで処理済みのデータ構造を使用
+                    if (point.lat !== undefined && point.lng !== undefined) {
+                        if (bounds.contains([point.lat, point.lng])) {
                             matchedCount++;
                         } else {
-                            unmatchedPoints.push(`${point.properties?.name || 'Unknown'} (${lat.toFixed(6)}, ${lng.toFixed(6)})`);
+                            unmatchedPoints.push(`${point.pointId} (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})`);
                         }
                     } else {
-                        unmatchedPoints.push(`${point.properties?.name || 'Unknown'} (座標データなし)`);
+                        unmatchedPoints.push(`${point.pointId} (座標データなし)`);
                     }
                 });
             }
