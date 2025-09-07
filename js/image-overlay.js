@@ -56,6 +56,11 @@ export class ImageOverlay {
     setCurrentScale(scale) {
         this.currentScale = scale;
         // scaleInputフィールドは削除されたため、内部scaleのみ更新
+        
+        // スケール変更時に画像表示を更新
+        if (this.imageOverlay && this.centerMarker) {
+            this.updateImageDisplay();
+        }
     }
 
     initializeCenterMarker(position, addToMap = true) {
