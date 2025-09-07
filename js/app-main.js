@@ -1122,15 +1122,12 @@ class GeoReferencerApp {
     // マーカーの種類を判定
     determineMarkerType(coord, type) {
         // データの内容に基づいてマーカーの種類を判定
-        if (type === 'points') {
+        if (coord.type === 'waypoint') {
+            return 'wayPoint'; // ルート中間点
+        } else if (coord.type === 'spot' && coord.name) {
+            return 'spot'; // スポット
+        } else if (!coord.type && coord.id) {
             return 'pointJSON'; // ポイントJSON
-        } else if (type === 'routes-spots') {
-            // ルートの中間点かスポットかを判定
-            if (coord.name && coord.name.toLowerCase().includes('route')) {
-                return 'wayPoint'; // ルート中間点
-            } else {
-                return 'spot'; // スポット
-            }
         }
         return 'pointJSON'; // デフォルト
     }
@@ -1156,12 +1153,12 @@ class GeoReferencerApp {
                 });
                 return L.marker(latLng, { icon: diamondIcon });
                 
-            case 'spot': // スポット - 正方形、8px、青色
+            case 'spot': // スポット - 正方形、12px、青色
                 const squareIcon = L.divIcon({
                     className: 'square-marker',
-                    html: '<div style="width: 8px; height: 8px; background-color: #0000ff;"></div>',
-                    iconSize: [8, 8],
-                    iconAnchor: [4, 4]
+                    html: '<div style="width: 12px; height: 12px; background-color: #0000ff;"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
                 });
                 return L.marker(latLng, { icon: squareIcon });
                 
