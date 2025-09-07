@@ -500,19 +500,41 @@ class GeoReferencerApp {
             // スケール係数（メートル/ピクセル）
             const scale = gpsDistance / imageDistance;
 
-            // 中心点を計算
-            const imageCenterX = (point1.pointJson.imageX + point2.pointJson.imageX) / 2;
-            const imageCenterY = (point1.pointJson.imageY + point2.pointJson.imageY) / 2;
-            const gpsCenterLat = (point1.gpsPoint.lat + point2.gpsPoint.lat) / 2;
-            const gpsCenterLng = (point1.gpsPoint.lng + point2.gpsPoint.lng) / 2;
+            // 画像の実際の中心座標を取得
+            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
+            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+            const actualImageCenterX = imageWidth / 2;
+            const actualImageCenterY = imageHeight / 2;
+
+            // 最初のポイントを基準にして画像中心のGPS座標を計算
+            const referencePoint = point1;
+            const deltaX = actualImageCenterX - referencePoint.pointJson.imageX;
+            const deltaY = actualImageCenterY - referencePoint.pointJson.imageY;
+
+            // 画像座標の差分をGPS座標差分に変換
+            const earthRadius = 6378137;
+            const latOffset = (deltaY * scale) / earthRadius * (180 / Math.PI);
+            const lngOffset = (deltaX * scale) / (earthRadius * Math.cos(referencePoint.gpsPoint.lat * Math.PI / 180)) * (180 / Math.PI);
+
+            // 画像中心のGPS座標
+            const imageCenterGpsLat = referencePoint.gpsPoint.lat - latOffset; // Y軸反転
+            const imageCenterGpsLng = referencePoint.gpsPoint.lng + lngOffset;
+
+            this.logger.info('変換パラメータ詳細', {
+                referencePoint: `${referencePoint.pointJsonId} - Image:(${referencePoint.pointJson.imageX}, ${referencePoint.pointJson.imageY}) GPS:(${referencePoint.gpsPoint.lat}, ${referencePoint.gpsPoint.lng})`,
+                imageSize: `${imageWidth}x${imageHeight}`,
+                actualImageCenter: `(${actualImageCenterX}, ${actualImageCenterY})`,
+                scale: scale,
+                calculatedCenter: `GPS:(${imageCenterGpsLat}, ${imageCenterGpsLng})`
+            });
 
             return {
                 type: 'simple',
                 scale: scale,
-                centerImageX: imageCenterX,
-                centerImageY: imageCenterY,
-                centerGpsLat: gpsCenterLat,
-                centerGpsLng: gpsCenterLng,
+                centerImageX: actualImageCenterX,
+                centerImageY: actualImageCenterY,
+                centerGpsLat: imageCenterGpsLat,
+                centerGpsLng: imageCenterGpsLng,
                 controlPoints: controlPoints
             };
 
