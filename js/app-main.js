@@ -1010,7 +1010,10 @@ class GeoReferencerApp {
                             imageX: item.imageX,
                             imageY: item.imageY,
                             name: item.name || item.id,
-                            description: item.description || ''
+                            description: item.description || '',
+                            type: item.type,
+                            id: item.id,
+                            index: item.index
                         });
                     }
                 });
@@ -1023,7 +1026,10 @@ class GeoReferencerApp {
                                 imageX: point.imageX,
                                 imageY: point.imageY,
                                 name: point.name || point.id,
-                                description: point.description || ''
+                                description: point.description || '',
+                                type: point.type,
+                                id: point.id,
+                                index: point.index
                             });
                         }
                     });
@@ -1038,7 +1044,10 @@ class GeoReferencerApp {
                                         imageX: point.imageX,
                                         imageY: point.imageY,
                                         name: point.name || `${route.name || 'Route'} Point`,
-                                        description: point.description || ''
+                                        description: point.description || '',
+                                        type: point.type,
+                                        id: point.id,
+                                        index: point.index
                                     });
                                 }
                             });
