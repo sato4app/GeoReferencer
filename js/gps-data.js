@@ -118,13 +118,6 @@ export class GPSData {
                     index: index
                 });
             });
-            
-            // 地図の表示範囲を調整
-            if (this.gpsMarkers.length > 0) {
-                const group = new L.featureGroup(this.gpsMarkers.map(item => item.marker));
-                map.fitBounds(group.getBounds().pad(0.1));
-            }
-            
             this.logger.info('GPS ポイント表示完了', this.gpsMarkers.length + 'ポイント');
             
         } catch (error) {

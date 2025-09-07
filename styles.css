@@ -176,13 +176,20 @@ html, body, #map {
 #loadGpsBtn,
 #loadPointJsonBtn,
 #loadRouteJsonBtn,
-#matchPointsBtn {
+#matchPointsBtn,
+#loadGpsGeoJsonBtn,
+#loadPointCoordJsonBtn,
+#loadRouteSpotJsonBtn,
+#exportGeoJsonBtn {
     padding: 8px;
     cursor: pointer;
     display: block;
     width: 100%;
     text-align: center;
     margin-bottom: 10px;
+    height: 40px;
+    box-sizing: border-box;
+    line-height: 1.4;
 }
 
 /* ポイント数表示コンテナ */
