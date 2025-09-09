@@ -253,8 +253,8 @@ html, body, #map {
 }
 
 #loadFileBtn,
+#loadRouteSpotBtn,
 #matchPointsBtn,
-#loadRouteSpotJsonBtn,
 #exportGeoJsonBtn {
     padding: 8px;
     cursor: pointer;
@@ -265,6 +265,12 @@ html, body, #map {
     height: 40px;
     box-sizing: border-box;
     line-height: 1.4;
+}
+
+/* 読み込みボタンの幅を60pxに固定 */
+#loadFileBtn,
+#loadRouteSpotBtn {
+    width: 60px !important;
 }
 
 /* ポイント数表示コンテナ */
