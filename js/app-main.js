@@ -69,43 +69,47 @@ class GeoReferencerApp {
 
     setupEventHandlers() {
         try {
-            // GPS GeoJSON読み込みボタン
-            const loadGpsGeoJsonBtn = document.getElementById('loadGpsGeoJsonBtn');
+            // 統合された読み込みボタン
+            const loadFileBtn = document.getElementById('loadFileBtn');
             const gpsGeoJsonInput = document.getElementById('gpsGeoJsonInput');
+            const imageInput = document.getElementById('imageInput');
+            const pointCoordJsonInput = document.getElementById('pointCoordJsonInput');
             
-            if (loadGpsGeoJsonBtn && gpsGeoJsonInput) {
-                loadGpsGeoJsonBtn.addEventListener('click', () => {
-                    gpsGeoJsonInput.click();
+            if (loadFileBtn) {
+                loadFileBtn.addEventListener('click', () => {
+                    // 選択されているラジオボタンの値を取得
+                    const selectedFileType = document.querySelector('input[name="fileType"]:checked')?.value;
+                    
+                    switch (selectedFileType) {
+                        case 'gpsGeoJson':
+                            if (gpsGeoJsonInput) gpsGeoJsonInput.click();
+                            break;
+                        case 'image':
+                            if (imageInput) imageInput.click();
+                            break;
+                        case 'pointCoord':
+                            if (pointCoordJsonInput) pointCoordJsonInput.click();
+                            break;
+                        default:
+                            this.logger.warn('ファイル種類が選択されていません');
+                    }
                 });
-                
+            }
+
+            // ファイル入力の変更イベント
+            if (gpsGeoJsonInput) {
                 gpsGeoJsonInput.addEventListener('change', (event) => {
                     this.handleGpsGeoJsonLoad(event);
                 });
             }
-
-            // PNG画像読み込みボタン
-            const loadImageBtn = document.getElementById('loadImageBtn');
-            const imageInput = document.getElementById('imageInput');
             
-            if (loadImageBtn && imageInput) {
-                loadImageBtn.addEventListener('click', () => {
-                    imageInput.click();
-                });
-                
+            if (imageInput) {
                 imageInput.addEventListener('change', (event) => {
                     this.handleImageLoad(event);
                 });
             }
-
-            // ポイント(座標)JSON読み込みボタン
-            const loadPointCoordJsonBtn = document.getElementById('loadPointCoordJsonBtn');
-            const pointCoordJsonInput = document.getElementById('pointCoordJsonInput');
             
-            if (loadPointCoordJsonBtn && pointCoordJsonInput) {
-                loadPointCoordJsonBtn.addEventListener('click', () => {
-                    pointCoordJsonInput.click();
-                });
-                
+            if (pointCoordJsonInput) {
                 pointCoordJsonInput.addEventListener('change', (event) => {
                     this.handlePointCoordJsonLoad(event);
                 });

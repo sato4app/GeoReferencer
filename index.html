@@ -40,18 +40,32 @@
         <section id="geoReferencerPanel" class="editor-panel" aria-labelledby="geo-ref-title">
             <h2 id="geo-ref-title" class="visually-hidden">画像重ね合わせツール</h2>
             
-            <!-- ポイントGPS読み込み(GeoJSON) -->
+            <!-- 読み込みボタンとラジオボタンの横並び配置 -->
+            <div class="load-file-container">
+                <!-- 統合された読み込みボタン -->
+                <button id="loadFileBtn" title="選択した種類のファイルを読み込む" class="leaflet-bar leaflet-control" style="width: 60px;">読み込み</button>
+                
+                <!-- ファイル種類選択ラジオボタン -->
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="fileType" value="gpsGeoJson" checked>
+                        ポイントGPS
+                    </label>
+                    <label>
+                        <input type="radio" name="fileType" value="image">
+                        PNG画像
+                    </label>
+                    <label>
+                        <input type="radio" name="fileType" value="pointCoord">
+                        ポイント座標
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 統合されたファイル入力 -->
             <input type="file" id="gpsGeoJsonInput" accept=".geojson,.json" style="display: none;">
-            <button id="loadGpsGeoJsonBtn" title="GeoJSONファイルからGPS座標データを読み込む" class="leaflet-bar leaflet-control">ポイントGPS読み込み(GeoJSON)</button>
-            
-            <!-- PNG画像読み込み -->
             <input type="file" id="imageInput" accept="image/png" style="display: none;">
-            <button id="loadImageBtn" title="画像を読み込む" class="leaflet-bar leaflet-control">PNG画像読み込み</button>
-            
-            
-            <!-- ポイント(座標)の読み込み(JSON) -->
             <input type="file" id="pointCoordJsonInput" accept=".json" style="display: none;">
-            <button id="loadPointCoordJsonBtn" title="ポイント座標情報のJSONファイルを読み込む" class="leaflet-bar leaflet-control">ポイント(座標)の読み込み(JSON)</button>
             
             <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
             <button id="matchPointsBtn" title="ポイントのマッチングと画像の重ね合わせを実行" class="leaflet-bar leaflet-control">画像の重ね合わせ（ジオリファレンス）</button>

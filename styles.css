@@ -165,6 +165,50 @@ html, body, #map {
     color: var(--color-primary);
 }
 
+/* 読み込みボタンとラジオボタンの横並びコンテナ */
+.load-file-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+/* ファイル種類選択ラジオボタン */
+.radio-group {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding: 6px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: var(--border-radius-small);
+    flex: 1;
+}
+
+.radio-group label {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: var(--font-weight-normal);
+    color: var(--color-dark);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color var(--transition-fast);
+}
+
+.radio-group input[type="radio"] {
+    margin: 0;
+}
+
+.radio-group input[type="radio"]:checked + span,
+.radio-group label:has(input[type="radio"]:checked) {
+    color: var(--color-primary);
+    font-weight: var(--font-weight-bold);
+}
+
+.radio-group label:hover {
+    color: var(--color-primary);
+}
+
 /* エディターパネル */
 .editor-panel {
     display: flex;
@@ -172,13 +216,8 @@ html, body, #map {
     gap: 8px;
 }
 
-#loadImageBtn,
-#loadGpsBtn,
-#loadPointJsonBtn,
-#loadRouteJsonBtn,
+#loadFileBtn,
 #matchPointsBtn,
-#loadGpsGeoJsonBtn,
-#loadPointCoordJsonBtn,
 #loadRouteSpotJsonBtn,
 #exportGeoJsonBtn {
     padding: 8px;
