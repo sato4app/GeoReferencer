@@ -16,6 +16,8 @@ class GeoReferencerApp {
         this.pointJsonData = null; // ポイントJSONデータを保存
         this.currentTransformation = null; // 現在の変換パラメータを保存
         this.fileHandler = new FileHandler(); // Excel読み込み用
+        this.routeData = null; // ルートデータを保存
+        this.spotData = null; // スポットデータを保存
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -117,15 +119,24 @@ class GeoReferencerApp {
                 });
             }
 
-            // ルート・スポット(座標)JSON読み込みボタン
-            const loadRouteSpotJsonBtn = document.getElementById('loadRouteSpotJsonBtn');
+            // ルート・スポット読み込みボタン
+            const loadRouteSpotBtn = document.getElementById('loadRouteSpotBtn');
             const routeSpotJsonInput = document.getElementById('routeSpotJsonInput');
             
-            if (loadRouteSpotJsonBtn && routeSpotJsonInput) {
-                loadRouteSpotJsonBtn.addEventListener('click', () => {
-                    routeSpotJsonInput.click();
+            if (loadRouteSpotBtn) {
+                loadRouteSpotBtn.addEventListener('click', () => {
+                    // 選択されているラジオボタンの値を取得
+                    const selectedRouteSpotType = document.querySelector('input[name="routeSpotType"]:checked')?.value;
+                    
+                    if (selectedRouteSpotType && routeSpotJsonInput) {
+                        routeSpotJsonInput.click();
+                    } else {
+                        this.logger.warn('ルート・スポット種類が選択されていません');
+                    }
                 });
-                
+            }
+            
+            if (routeSpotJsonInput) {
                 routeSpotJsonInput.addEventListener('change', (event) => {
                     this.handleRouteSpotJsonLoad(event);
                 });
@@ -253,10 +264,23 @@ class GeoReferencerApp {
             const text = await file.text();
             const data = JSON.parse(text);
             
+            // 選択されているラジオボタンの値を取得
+            const selectedRouteSpotType = document.querySelector('input[name="routeSpotType"]:checked')?.value;
+            
+            // データを保存（ルート・スポット別に）
+            if (selectedRouteSpotType === 'route') {
+                this.routeData = data;
+            } else if (selectedRouteSpotType === 'spot') {
+                this.spotData = data;
+            }
+            
             // imageX, imageYを持つルート・スポットを画像上に表示
             if (this.imageOverlay && data) {
                 await this.displayImageCoordinates(data, 'routes-spots');
             }
+            
+            // ルート・スポット数を更新
+            this.updateRouteSpotCount();
             
             this.logger.info('ルート・スポット(座標)JSON読み込み完了', data);
             
@@ -1263,6 +1287,44 @@ class GeoReferencerApp {
             }
         } catch (error) {
             this.logger.error('ポイント座標数更新エラー', error);
+        }
+    }
+
+    updateRouteSpotCount() {
+        try {
+            const routeCountField = document.getElementById('routeCount');
+            const spotCountField = document.getElementById('spotCount');
+            
+            // ルート数を更新
+            if (routeCountField && this.routeData) {
+                let routeCount = 0;
+                if (Array.isArray(this.routeData)) {
+                    routeCount = this.routeData.length;
+                } else if (this.routeData.routes && Array.isArray(this.routeData.routes)) {
+                    routeCount = this.routeData.routes.length;
+                } else if (this.routeData.route) {
+                    routeCount = 1;
+                }
+                routeCountField.value = routeCount;
+                this.logger.debug(`ルート数更新: ${routeCount}本`);
+            }
+            
+            // スポット数を更新
+            if (spotCountField && this.spotData) {
+                let spotCount = 0;
+                if (Array.isArray(this.spotData)) {
+                    spotCount = this.spotData.length;
+                } else if (this.spotData.spots && Array.isArray(this.spotData.spots)) {
+                    spotCount = this.spotData.spots.length;
+                } else if (this.spotData.spot) {
+                    spotCount = 1;
+                }
+                spotCountField.value = spotCount;
+                this.logger.debug(`スポット数更新: ${spotCount}個`);
+            }
+            
+        } catch (error) {
+            this.logger.error('ルート・スポット数更新エラー', error);
         }
     }
 

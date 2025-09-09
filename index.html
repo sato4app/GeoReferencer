@@ -98,9 +98,38 @@
                 <textarea id="unmatchedPointsField" readonly placeholder="マッチングしなかったポイント" style="width: 100%; font-size: 12px;"></textarea>
             </div>
             
-            <!-- ルート・スポット(座標)の読み込み(JSON) -->
+            <!-- ルート・スポット読み込みボタンとラジオボタンの横並び配置 -->
+            <div class="load-file-container">
+                <!-- 統合されたルート・スポット読み込みボタン -->
+                <button id="loadRouteSpotBtn" title="選択した種類のファイルを読み込む" class="leaflet-bar leaflet-control" style="width: 60px;">読み込み</button>
+                
+                <!-- ルート・スポット種類選択ラジオボタン -->
+                <div class="radio-group">
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="routeSpotType" value="route" checked>
+                            ルート
+                        </label>
+                        <div class="count-display">
+                            <input type="text" id="routeCount" readonly value="0" class="count-field">
+                            <span class="unit-label">本</span>
+                        </div>
+                    </div>
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="routeSpotType" value="spot">
+                            スポット
+                        </label>
+                        <div class="count-display">
+                            <input type="text" id="spotCount" readonly value="0" class="count-field">
+                            <span class="unit-label">個</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ルート・スポットファイル入力 -->
             <input type="file" id="routeSpotJsonInput" accept=".json" style="display: none;">
-            <button id="loadRouteSpotJsonBtn" title="ルート・スポット座標情報のJSONファイルを読み込む" class="leaflet-bar leaflet-control">ルート・スポット(座標)の読み込み(JSON)</button>
             
             <!-- 座標をGPSに変換して出力(GeoJSON) -->
             <button id="exportGeoJsonBtn" title="画像座標をGPS座標に変換してGeoJSON形式で出力" class="leaflet-bar leaflet-control">座標をGPSに変換して出力(GeoJSON)</button>
