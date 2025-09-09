@@ -176,8 +176,8 @@ html, body, #map {
 /* ファイル種類選択ラジオボタン */
 .radio-group {
     display: flex;
-    flex-direction: row;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     padding: 6px;
     background: rgba(255, 255, 255, 0.9);
     border-radius: var(--border-radius-small);
