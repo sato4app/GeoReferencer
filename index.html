@@ -47,18 +47,28 @@
                 
                 <!-- ファイル種類選択ラジオボタン -->
                 <div class="radio-group">
-                    <label>
-                        <input type="radio" name="fileType" value="gpsGeoJson" checked>
-                        ポイントGPS
-                    </label>
-                    <label>
-                        <input type="radio" name="fileType" value="image">
-                        PNG画像
-                    </label>
-                    <label>
-                        <input type="radio" name="fileType" value="pointCoord">
-                        ポイント座標
-                    </label>
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="fileType" value="gpsGeoJson" checked>
+                            ポイントGPS
+                        </label>
+                        <input type="text" id="gpsPointCount" readonly value="0" class="count-field">
+                        <span class="unit-label">個</span>
+                    </div>
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="fileType" value="image">
+                            PNG画像
+                        </label>
+                    </div>
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="fileType" value="pointCoord">
+                            ポイント座標
+                        </label>
+                        <input type="text" id="pointCoordCount" readonly value="0" class="count-field">
+                        <span class="unit-label">個</span>
+                    </div>
                 </div>
             </div>
             

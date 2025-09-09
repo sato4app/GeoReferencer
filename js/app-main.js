@@ -169,6 +169,9 @@ class GeoReferencerApp {
                     this.gpsData.displayPointsOnMap(this.mapCore.map);
                 }
                 
+                // GPS ポイント数を更新
+                this.updateGpsPointCount();
+                
                 this.logger.info('GPS GeoJSONファイル読み込み完了');
             }
             
@@ -214,6 +217,9 @@ class GeoReferencerApp {
             if (this.imageOverlay && data) {
                 await this.displayImageCoordinates(data, 'points');
             }
+            
+            // ポイント座標数を更新
+            this.updatePointCoordCount();
             
             this.logger.info('ポイント(座標)JSON読み込み完了', data);
             
@@ -1211,6 +1217,39 @@ class GeoReferencerApp {
             
         } catch (error) {
             this.logger.error('GeoJSONダウンロードエラー', error);
+        }
+    }
+
+    updateGpsPointCount() {
+        try {
+            const gpsPointCountField = document.getElementById('gpsPointCount');
+            if (gpsPointCountField && this.gpsData) {
+                const points = this.gpsData.getPoints();
+                const count = points ? points.length : 0;
+                gpsPointCountField.value = count;
+                this.logger.debug(`GPS ポイント数更新: ${count}個`);
+            }
+        } catch (error) {
+            this.logger.error('GPS ポイント数更新エラー', error);
+        }
+    }
+
+    updatePointCoordCount() {
+        try {
+            const pointCoordCountField = document.getElementById('pointCoordCount');
+            if (pointCoordCountField && this.pointJsonData) {
+                let count = 0;
+                
+                // ポイントJSONデータから配列を抽出
+                const pointJsonArray = Array.isArray(this.pointJsonData) ? this.pointJsonData : 
+                    (this.pointJsonData.points ? this.pointJsonData.points : [this.pointJsonData]);
+                
+                count = pointJsonArray.length;
+                pointCoordCountField.value = count;
+                this.logger.debug(`ポイント座標数更新: ${count}個`);
+            }
+        } catch (error) {
+            this.logger.error('ポイント座標数更新エラー', error);
         }
     }
 }
