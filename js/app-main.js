@@ -5,6 +5,7 @@ import { GPSData } from './gps-data.js';
 import { CONFIG, EVENTS, DEFAULTS } from './constants.js';
 import { Logger } from './logger.js';
 import { errorHandler } from './error-handler.js';
+import { FileHandler } from './file-handler.js';
 
 class GeoReferencerApp {
     constructor() {
@@ -14,6 +15,7 @@ class GeoReferencerApp {
         this.gpsData = null;
         this.pointJsonData = null; // ポイントJSONデータを保存
         this.currentTransformation = null; // 現在の変換パラメータを保存
+        this.fileHandler = new FileHandler(); // Excel読み込み用
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -71,7 +73,7 @@ class GeoReferencerApp {
         try {
             // 統合された読み込みボタン
             const loadFileBtn = document.getElementById('loadFileBtn');
-            const gpsGeoJsonInput = document.getElementById('gpsGeoJsonInput');
+            const gpsExcelInput = document.getElementById('gpsExcelInput');
             const imageInput = document.getElementById('imageInput');
             const pointCoordJsonInput = document.getElementById('pointCoordJsonInput');
             
@@ -82,7 +84,7 @@ class GeoReferencerApp {
                     
                     switch (selectedFileType) {
                         case 'gpsGeoJson':
-                            if (gpsGeoJsonInput) gpsGeoJsonInput.click();
+                            if (gpsExcelInput) gpsExcelInput.click();
                             break;
                         case 'image':
                             if (imageInput) imageInput.click();
@@ -97,9 +99,9 @@ class GeoReferencerApp {
             }
 
             // ファイル入力の変更イベント
-            if (gpsGeoJsonInput) {
-                gpsGeoJsonInput.addEventListener('change', (event) => {
-                    this.handleGpsGeoJsonLoad(event);
+            if (gpsExcelInput) {
+                gpsExcelInput.addEventListener('change', (event) => {
+                    this.handleGpsExcelLoad(event);
                 });
             }
             
@@ -154,15 +156,26 @@ class GeoReferencerApp {
         }
     }
 
-    async handleGpsGeoJsonLoad(event) {
+    async handleGpsExcelLoad(event) {
         try {
             const file = event.target.files[0];
             if (!file) return;
 
-            this.logger.info('GPS GeoJSONファイル読み込み開始', file.name);
+            this.logger.info('GPS Excelファイル読み込み開始', file.name);
             
+            // ExcelファイルをFileHandlerで読み込み
+            const rawData = await this.fileHandler.loadExcelFile(file);
+            
+            // Excel データを検証・変換
+            const validatedData = this.validateAndConvertExcelData(rawData);
+            
+            if (validatedData.length === 0) {
+                throw new Error('有効なGPSポイントデータが見つかりませんでした。');
+            }
+            
+            // GPSDataに変換されたデータを設定
             if (this.gpsData) {
-                await this.gpsData.loadGeoJsonFile(file);
+                this.gpsData.setPointsFromExcelData(validatedData);
                 
                 // 地図上にGPSポイントを表示
                 if (this.mapCore && this.mapCore.map) {
@@ -172,12 +185,12 @@ class GeoReferencerApp {
                 // GPS ポイント数を更新
                 this.updateGpsPointCount();
                 
-                this.logger.info('GPS GeoJSONファイル読み込み完了');
+                this.logger.info(`GPS Excelファイル読み込み完了: ${validatedData.length}ポイント`);
             }
             
         } catch (error) {
-            this.logger.error('GPS GeoJSON読み込みエラー', error);
-            errorHandler.handle(error, 'GPS GeoJSONファイルの読み込みに失敗しました。', 'GPS GeoJSON読み込み');
+            this.logger.error('GPS Excel読み込みエラー', error);
+            errorHandler.handle(error, error.message, 'GPS Excel読み込み');
         }
     }
 
@@ -1250,6 +1263,108 @@ class GeoReferencerApp {
             }
         } catch (error) {
             this.logger.error('ポイント座標数更新エラー', error);
+        }
+    }
+
+    validateAndConvertExcelData(rawData) {
+        try {
+            if (!rawData || rawData.length === 0) {
+                throw new Error('Excelファイルが空です。');
+            }
+
+            // 列名定義
+            const requiredColumns = ['ポイントID', '名称', '緯度', '経度'];
+            const optionalColumns = ['標高', '備考'];
+            const allColumns = [...requiredColumns, ...optionalColumns];
+
+            // ヘッダー行を取得
+            const headerRow = rawData[0];
+            if (!headerRow || headerRow.length === 0) {
+                throw new Error('ヘッダー行が見つかりません。');
+            }
+
+            // 列名の完全一致確認
+            const columnIndexMap = {};
+            for (const column of allColumns) {
+                const index = headerRow.indexOf(column);
+                if (index !== -1) {
+                    columnIndexMap[column] = index;
+                } else if (requiredColumns.includes(column)) {
+                    throw new Error(`必須列「${column}」が見つかりません。`);
+                }
+            }
+
+            this.logger.info('Excel列マッピング', columnIndexMap);
+
+            // データ行を処理
+            const validatedData = [];
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row || row.length === 0) continue;
+
+                // 必須項目の存在確認
+                const pointData = {};
+                let isValidRow = true;
+
+                for (const column of requiredColumns) {
+                    const value = row[columnIndexMap[column]];
+                    if (value === undefined || value === null || value === '') {
+                        this.logger.warn(`行${i + 1}: 必須項目「${column}」が空です`);
+                        isValidRow = false;
+                        break;
+                    }
+                    pointData[column] = value;
+                }
+
+                if (!isValidRow) continue;
+
+                // 任意項目の処理
+                for (const column of optionalColumns) {
+                    if (columnIndexMap[column] !== undefined) {
+                        const value = row[columnIndexMap[column]];
+                        if (value !== undefined && value !== null && value !== '') {
+                            pointData[column] = value;
+                        }
+                    }
+                }
+
+                // 緯度経度の数値変換と検証
+                try {
+                    const lat = parseFloat(pointData['緯度']);
+                    const lng = parseFloat(pointData['経度']);
+                    
+                    if (isNaN(lat) || isNaN(lng)) {
+                        this.logger.warn(`行${i + 1}: 緯度・経度が数値ではありません`);
+                        continue;
+                    }
+
+                    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                        this.logger.warn(`行${i + 1}: 緯度・経度の範囲が不正です`);
+                        continue;
+                    }
+
+                    // GPSDataで使用する形式に変換
+                    validatedData.push({
+                        pointId: pointData['ポイントID'],
+                        name: pointData['名称'],
+                        lat: lat,
+                        lng: lng,
+                        elevation: pointData['標高'] || null,
+                        description: pointData['備考'] || null
+                    });
+
+                } catch (error) {
+                    this.logger.warn(`行${i + 1}: データ変換エラー`, error);
+                    continue;
+                }
+            }
+
+            this.logger.info(`Excel検証完了: ${validatedData.length}/${rawData.length - 1}行が有効`);
+            return validatedData;
+
+        } catch (error) {
+            this.logger.error('Excel データ検証エラー', error);
+            throw error;
         }
     }
 }

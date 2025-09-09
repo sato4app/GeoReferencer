@@ -186,6 +186,17 @@ export class GPSData {
         return this.gpsPoints;
     }
 
+    // Excelデータから変換されたポイントデータを設定
+    setPointsFromExcelData(validatedData) {
+        try {
+            this.gpsPoints = validatedData;
+            this.logger.info('Excel GPSポイント設定完了', validatedData.length + 'ポイント');
+        } catch (error) {
+            this.logger.error('Excel GPSポイント設定エラー', error);
+            throw error;
+        }
+    }
+
     // 特定のポイントを取得
     getPointById(pointId) {
         return this.gpsPoints.find(point => point.pointId === pointId);

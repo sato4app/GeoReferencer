@@ -25,6 +25,9 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
 
+    <!-- SheetJS (XLSX) ライブラリ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <!-- アプリケーション固有のスタイルシート -->
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -75,7 +78,7 @@
             </div>
             
             <!-- 統合されたファイル入力 -->
-            <input type="file" id="gpsGeoJsonInput" accept=".geojson,.json" style="display: none;">
+            <input type="file" id="gpsExcelInput" accept=".xlsx" style="display: none;">
             <input type="file" id="imageInput" accept="image/png" style="display: none;">
             <input type="file" id="pointCoordJsonInput" accept=".json" style="display: none;">
             
