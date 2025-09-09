@@ -267,10 +267,12 @@ html, body, #map {
     line-height: 1.4;
 }
 
-/* 読み込みボタンの幅を60pxに固定 */
+/* 読み込みボタンの幅を84pxに固定 */
 #loadFileBtn,
 #loadRouteSpotBtn {
-    width: 60px !important;
+    width: 84px !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
 }
 
 /* ポイント数表示コンテナ */
