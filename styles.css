@@ -219,15 +219,14 @@ html, body, #map {
 
 /* 個数表示用テキストフィールド */
 .count-field {
-    width: 30px;
-    height: 18px;
+    width: 40px;
     padding: 2px 4px;
-    font-size: 11px;
-    text-align: right;
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-small);
-    background-color: var(--color-light);
-    color: var(--color-dark);
+    font-size: 12px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background-color: #f9f9f9;
+    color: #333;
     box-sizing: border-box;
 }
 
