@@ -242,6 +242,7 @@ html, body, #map {
     font-size: 11px;
     color: var(--color-dark);
     font-weight: var(--font-weight-normal);
+    margin-right: 20px;
 }
 
 /* エディターパネル */
