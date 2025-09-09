@@ -213,6 +213,7 @@ html, body, #map {
 .radio-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 6px;
 }
 
@@ -228,6 +229,13 @@ html, body, #map {
     background-color: var(--color-light);
     color: var(--color-dark);
     box-sizing: border-box;
+}
+
+/* 個数表示コンテナ */
+.count-display {
+    display: flex;
+    align-items: center;
+    gap: 2px;
 }
 
 /* 単位ラベル */
