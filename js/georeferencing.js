@@ -803,19 +803,26 @@ export class Georeferencing {
 
             for (const markerInfo of georefMarkers) {
                 const marker = markerInfo.marker;
+                const data = markerInfo.data;  // dataから直接取得
                 
-                const pointInfo = this.getPointInfoFromMarker(marker);
-                if (!pointInfo) continue;
+                if (!data || data.imageX === undefined || data.imageY === undefined) {
+                    this.logger.warn('マーカーの画像座標データが不足しています', data);
+                    continue;
+                }
 
                 const transformedGpsCoords = this.transformImageCoordsToGps(
-                    pointInfo.imageX, 
-                    pointInfo.imageY, 
+                    data.imageX, 
+                    data.imageY, 
                     this.currentTransformation
                 );
 
                 if (transformedGpsCoords) {
                     marker.setLatLng(transformedGpsCoords);
-                    const updatedPopupContent = this.createUpdatedPopupContent(pointInfo, transformedGpsCoords);
+                    const updatedPopupContent = this.createUpdatedPopupContent({
+                        imageX: data.imageX,
+                        imageY: data.imageY,
+                        name: data.name || data.id
+                    }, transformedGpsCoords);
                     marker.bindPopup(updatedPopupContent);
                 }
             }
@@ -845,19 +852,26 @@ export class Georeferencing {
 
             for (const markerInfo of georefMarkers) {
                 const marker = markerInfo.marker;
+                const data = markerInfo.data;  // dataから直接取得
                 
-                const pointInfo = this.getPointInfoFromMarker(marker);
-                if (!pointInfo) continue;
+                if (!data || data.imageX === undefined || data.imageY === undefined) {
+                    this.logger.warn('マーカーの画像座標データが不足しています', data);
+                    continue;
+                }
 
                 const transformedGpsCoords = this.transformImageCoordsToGps(
-                    pointInfo.imageX, 
-                    pointInfo.imageY, 
+                    data.imageX, 
+                    data.imageY, 
                     this.currentTransformation
                 );
 
                 if (transformedGpsCoords) {
                     marker.setLatLng(transformedGpsCoords);
-                    const updatedPopupContent = this.createUpdatedPopupContent(pointInfo, transformedGpsCoords);
+                    const updatedPopupContent = this.createUpdatedPopupContent({
+                        imageX: data.imageX,
+                        imageY: data.imageY,
+                        name: data.name || data.id
+                    }, transformedGpsCoords);
                     marker.bindPopup(updatedPopupContent);
                 }
             }
@@ -1017,31 +1031,35 @@ export class Georeferencing {
 
             georefMarkers.forEach((markerInfo, index) => {
                 const marker = markerInfo.marker;
+                const data = markerInfo.data;  // ポップアップではなくmarkerInfo.dataから直接取得
                 
-                const pointInfo = this.getPointInfoFromMarker(marker);
-                if (!pointInfo) {
-                    this.logger.warn(`マーカー${index}: ポイント情報を取得できません`);
+                if (!data || data.imageX === undefined || data.imageY === undefined) {
+                    this.logger.warn(`マーカー${index}: 画像座標データが見つかりません`, data);
                     return;
                 }
 
-                this.logger.debug(`マーカー${index}: 画像座標(${pointInfo.imageX}, ${pointInfo.imageY})`);
+                this.logger.debug(`マーカー${index}: 画像座標(${data.imageX}, ${data.imageY}) - ${data.name || data.id}`);
 
                 // 現在の変換を使って新しい座標を計算
                 const transformedGpsCoords = this.transformImageCoordsToGps(
-                    pointInfo.imageX, 
-                    pointInfo.imageY, 
+                    data.imageX, 
+                    data.imageY, 
                     this.currentTransformation
                 );
 
                 if (transformedGpsCoords) {
                     const oldPos = marker.getLatLng();
-                    this.logger.info(`マーカー${index}: ${pointInfo.name} 位置更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${transformedGpsCoords[0].toFixed(6)}, ${transformedGpsCoords[1].toFixed(6)}]`);
+                    this.logger.info(`マーカー${index}: ${data.name || data.id} 位置更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${transformedGpsCoords[0].toFixed(6)}, ${transformedGpsCoords[1].toFixed(6)}]`);
                     
                     // マーカーの位置を更新
                     marker.setLatLng(transformedGpsCoords);
                     
-                    // ポップアップ内容も更新
-                    const updatedPopupContent = this.createUpdatedPopupContent(pointInfo, transformedGpsCoords);
+                    // ポップアップ内容も更新（元の画像座標を保持）
+                    const updatedPopupContent = this.createUpdatedPopupContent({
+                        imageX: data.imageX,
+                        imageY: data.imageY,
+                        name: data.name || data.id
+                    }, transformedGpsCoords);
                     marker.bindPopup(updatedPopupContent);
                 } else {
                     this.logger.warn(`マーカー${index}: 座標変換に失敗`);
