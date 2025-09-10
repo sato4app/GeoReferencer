@@ -17,6 +17,9 @@ export const CONFIG = {
     // Excel読み込み制限
     MAX_EXCEL_ROWS: 501, // ヘッダー行含む最大読み込み行数
     
+    // アフィン変換設定
+    AFFINE_TRANSFORMATION_MODE: 'auto', // 'simple', 'precise', 'auto'
+    
     // UI設定
     MESSAGE_BOX_Z_INDEX: 10000,
     OVERLAY_CONTROLS_Z_INDEX: 1000,

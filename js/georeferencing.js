@@ -1,5 +1,6 @@
 // ジオリファレンシング（画像重ね合わせ）機能を管理するモジュール
 import { Logger, errorHandler } from './utils.js';
+import { CONFIG } from './constants.js';
 
 export class Georeferencing {
     constructor(mapCore, imageOverlay, gpsData) {
@@ -164,11 +165,46 @@ export class Georeferencing {
                 return null;
             }
 
-            if (controlPoints.length === 2) {
-                return this.calculateSimpleTransformation(controlPoints);
+            // 選択された変換方式を取得
+            const selectedMode = document.querySelector('input[name="transformationMode"]:checked')?.value || 'auto';
+            
+            let transformationMode;
+            if (selectedMode === 'auto') {
+                // 自動選択：2ポイントなら簡易版、3ポイント以上なら精密版
+                transformationMode = controlPoints.length === 2 ? 'simple' : 'precise';
+            } else {
+                transformationMode = selectedMode;
             }
 
-            return this.calculateFullAffineTransformation(controlPoints);
+            this.logger.info(`変換方式: ${transformationMode} (選択: ${selectedMode}, ポイント数: ${controlPoints.length})`);
+
+            // 処理時間測定開始
+            const startTime = performance.now();
+            
+            let result;
+            if (transformationMode === 'simple' || controlPoints.length === 2) {
+                result = this.calculateSimpleTransformation(controlPoints);
+                result.method = 'simple';
+            } else {
+                result = this.calculatePreciseAffineTransformation(controlPoints);
+                result.method = 'precise';
+            }
+
+            // 処理時間測定終了
+            const endTime = performance.now();
+            const processingTime = endTime - startTime;
+
+            if (result) {
+                result.processingTime = processingTime;
+                result.controlPointsCount = controlPoints.length;
+                
+                this.logger.info(`変換計算完了: ${result.method}版, 処理時間: ${processingTime.toFixed(2)}ms`);
+                
+                // 結果をUIに表示
+                this.displayTransformationResult(result);
+            }
+
+            return result;
 
         } catch (error) {
             this.logger.error('アフィン変換計算エラー', error);
@@ -240,13 +276,231 @@ export class Georeferencing {
         }
     }
 
-    calculateFullAffineTransformation(controlPoints) {
+    calculatePreciseAffineTransformation(controlPoints) {
         try {
-            this.logger.info('フルアフィン変換を簡易版で実行');
-            return this.calculateSimpleTransformation(controlPoints.slice(0, 2));
+            this.logger.info(`精密アフィン変換開始: ${controlPoints.length}ポイント使用`);
+            
+            if (controlPoints.length < 3) {
+                this.logger.warn('精密アフィン変換には最低3つのポイントが必要です。簡易版にフォールバック');
+                return this.calculateSimpleTransformation(controlPoints);
+            }
+
+            // 最適化: 最大6ポイントまで使用（計算精度とパフォーマンスのバランス）
+            const usePoints = controlPoints.slice(0, Math.min(6, controlPoints.length));
+            
+            // 最小二乗法によるアフィン変換パラメータ計算
+            const transformation = this.calculateLeastSquaresTransformation(usePoints);
+            
+            if (!transformation) {
+                this.logger.warn('精密変換計算に失敗。簡易版にフォールバック');
+                return this.calculateSimpleTransformation(controlPoints.slice(0, 2));
+            }
+
+            // 変換精度を計算
+            const accuracy = this.calculateTransformationAccuracy(usePoints, transformation);
+            
+            const result = {
+                type: 'precise',
+                transformation: transformation,
+                accuracy: accuracy,
+                controlPoints: usePoints,
+                usedPoints: usePoints.length
+            };
+
+            this.logger.info(`精密アフィン変換完了: 精度=${accuracy.meanError.toFixed(4)}m, 最大誤差=${accuracy.maxError.toFixed(4)}m`);
+            
+            return result;
+            
         } catch (error) {
-            this.logger.error('フルアフィン変換計算エラー', error);
+            this.logger.error('精密アフィン変換計算エラー', error);
+            // エラー時は簡易版にフォールバック
+            return this.calculateSimpleTransformation(controlPoints.slice(0, 2));
+        }
+    }
+
+    calculateLeastSquaresTransformation(controlPoints) {
+        try {
+            const n = controlPoints.length;
+            
+            // 連立方程式の係数行列を構築
+            // アフィン変換: X = a*x + b*y + c, Y = d*x + e*y + f
+            const A = new Array(2 * n).fill(0).map(() => new Array(6).fill(0));
+            const B = new Array(2 * n).fill(0);
+
+            for (let i = 0; i < n; i++) {
+                const imageX = controlPoints[i].pointJson.imageX;
+                const imageY = controlPoints[i].pointJson.imageY;
+                const gpsX = this.lonToWebMercatorX(controlPoints[i].gpsPoint.lng);
+                const gpsY = this.latToWebMercatorY(controlPoints[i].gpsPoint.lat);
+
+                // X座標の方程式
+                A[i * 2][0] = imageX;     // a
+                A[i * 2][1] = imageY;     // b  
+                A[i * 2][2] = 1;          // c
+                A[i * 2][3] = 0;
+                A[i * 2][4] = 0;
+                A[i * 2][5] = 0;
+                B[i * 2] = gpsX;
+
+                // Y座標の方程式
+                A[i * 2 + 1][0] = 0;
+                A[i * 2 + 1][1] = 0;
+                A[i * 2 + 1][2] = 0;
+                A[i * 2 + 1][3] = imageX;  // d
+                A[i * 2 + 1][4] = imageY;  // e
+                A[i * 2 + 1][5] = 1;       // f
+                B[i * 2 + 1] = gpsY;
+            }
+
+            // 正規方程式 (A^T * A) * x = A^T * B を解く
+            const AtA = this.matrixMultiply(this.matrixTranspose(A), A);
+            const AtB = this.matrixVectorMultiply(this.matrixTranspose(A), B);
+            
+            // ガウス・ジョーダン法で連立方程式を解く
+            const params = this.gaussJordan(AtA, AtB);
+            
+            if (!params) {
+                return null;
+            }
+
+            return {
+                a: params[0], b: params[1], c: params[2],
+                d: params[3], e: params[4], f: params[5]
+            };
+
+        } catch (error) {
+            this.logger.error('最小二乗変換計算エラー', error);
             return null;
+        }
+    }
+
+    // Web Mercator投影のヘルパー関数
+    lonToWebMercatorX(lon) {
+        return lon * 20037508.34 / 180;
+    }
+
+    latToWebMercatorY(lat) {
+        const y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+        return y * 20037508.34 / 180;
+    }
+
+    webMercatorXToLon(x) {
+        return x * 180 / 20037508.34;
+    }
+
+    webMercatorYToLat(y) {
+        const lat = y * 180 / 20037508.34;
+        return 180 / Math.PI * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
+    }
+
+    // 行列演算のヘルパー関数
+    matrixTranspose(matrix) {
+        return matrix[0].map((_, colIndex) => matrix.map(row => row[colIndex]));
+    }
+
+    matrixMultiply(a, b) {
+        const result = new Array(a.length).fill(0).map(() => new Array(b[0].length).fill(0));
+        for (let i = 0; i < a.length; i++) {
+            for (let j = 0; j < b[0].length; j++) {
+                for (let k = 0; k < b.length; k++) {
+                    result[i][j] += a[i][k] * b[k][j];
+                }
+            }
+        }
+        return result;
+    }
+
+    matrixVectorMultiply(matrix, vector) {
+        return matrix.map(row => row.reduce((sum, val, i) => sum + val * vector[i], 0));
+    }
+
+    gaussJordan(A, B) {
+        try {
+            const n = A.length;
+            const augmented = A.map((row, i) => [...row, B[i]]);
+
+            // 前進消去
+            for (let i = 0; i < n; i++) {
+                // ピボット選択
+                let maxRow = i;
+                for (let k = i + 1; k < n; k++) {
+                    if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
+                        maxRow = k;
+                    }
+                }
+                [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
+
+                // 対角要素が0の場合は特異行列
+                if (Math.abs(augmented[i][i]) < 1e-10) {
+                    this.logger.warn('特異行列のため解けません');
+                    return null;
+                }
+
+                // 正規化
+                const pivot = augmented[i][i];
+                for (let j = i; j <= n; j++) {
+                    augmented[i][j] /= pivot;
+                }
+
+                // 消去
+                for (let k = 0; k < n; k++) {
+                    if (k !== i) {
+                        const factor = augmented[k][i];
+                        for (let j = i; j <= n; j++) {
+                            augmented[k][j] -= factor * augmented[i][j];
+                        }
+                    }
+                }
+            }
+
+            // 解を取り出す
+            return augmented.map(row => row[n]);
+
+        } catch (error) {
+            this.logger.error('ガウス・ジョーダン法エラー', error);
+            return null;
+        }
+    }
+
+    calculateTransformationAccuracy(controlPoints, transformation) {
+        try {
+            const errors = [];
+            
+            for (const point of controlPoints) {
+                const imageX = point.pointJson.imageX;
+                const imageY = point.pointJson.imageY;
+                
+                // 変換後座標を計算
+                const transformedX = transformation.a * imageX + transformation.b * imageY + transformation.c;
+                const transformedY = transformation.d * imageX + transformation.e * imageY + transformation.f;
+                
+                // 実際のGPS座標（Web Mercator）
+                const actualX = this.lonToWebMercatorX(point.gpsPoint.lng);
+                const actualY = this.latToWebMercatorY(point.gpsPoint.lat);
+                
+                // 誤差計算（メートル単位）
+                const errorDistance = Math.sqrt(
+                    Math.pow(transformedX - actualX, 2) + 
+                    Math.pow(transformedY - actualY, 2)
+                );
+                
+                errors.push(errorDistance);
+            }
+            
+            const meanError = errors.reduce((sum, err) => sum + err, 0) / errors.length;
+            const maxError = Math.max(...errors);
+            const minError = Math.min(...errors);
+            
+            return {
+                meanError,
+                maxError,
+                minError,
+                errors
+            };
+            
+        } catch (error) {
+            this.logger.error('精度計算エラー', error);
+            return { meanError: 0, maxError: 0, minError: 0, errors: [] };
         }
     }
 
@@ -254,12 +508,130 @@ export class Georeferencing {
         try {
             if (transformation.type === 'simple') {
                 await this.applySimpleTransformation(transformation);
+            } else if (transformation.type === 'precise') {
+                await this.applyPreciseTransformation(transformation);
             }
 
             this.logger.info('画像変換適用完了');
 
         } catch (error) {
             this.logger.error('画像変換適用エラー', error);
+        }
+    }
+
+    async applyPreciseTransformation(transformation) {
+        try {
+            this.currentTransformation = transformation;
+
+            // 精密変換では画像の中心位置を最適化された位置に設定
+            // とりあえず最初のコントロールポイントから画像中心を逆算
+            const firstPoint = transformation.controlPoints[0];
+            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
+            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+            
+            // 画像中心の座標を計算
+            const imageCenterX = imageWidth / 2;
+            const imageCenterY = imageHeight / 2;
+            
+            // アフィン変換で画像中心をGPS座標に変換
+            const centerWebMercatorX = transformation.transformation.a * imageCenterX + 
+                                      transformation.transformation.b * imageCenterY + 
+                                      transformation.transformation.c;
+            const centerWebMercatorY = transformation.transformation.d * imageCenterX + 
+                                      transformation.transformation.e * imageCenterY + 
+                                      transformation.transformation.f;
+            
+            const centerLat = this.webMercatorYToLat(centerWebMercatorY);
+            const centerLng = this.webMercatorXToLon(centerWebMercatorX);
+
+            this.logger.info('精密変換適用', {
+                centerGps: [centerLat, centerLng],
+                accuracy: transformation.accuracy
+            });
+
+            this.imageOverlay.setCenterPosition([centerLat, centerLng]);
+            
+            // スケールは簡易版の計算方法を流用
+            const scale = this.calculateScaleFromTransformation(transformation);
+            this.imageOverlay.setCurrentScale(scale);
+            this.imageOverlay.updateImageDisplay();
+            
+            await this.updatePointJsonMarkersAfterTransformation();
+
+        } catch (error) {
+            this.logger.error('精密変換適用エラー', error);
+            throw error;
+        }
+    }
+
+    calculateScaleFromTransformation(transformation) {
+        try {
+            // アフィン変換行列からスケール因子を抽出
+            const a = transformation.transformation.a;
+            const b = transformation.transformation.b;
+            const d = transformation.transformation.d;
+            const e = transformation.transformation.e;
+            
+            // X方向とY方向のスケールを計算
+            const scaleX = Math.sqrt(a * a + d * d);
+            const scaleY = Math.sqrt(b * b + e * e);
+            
+            // 平均スケールを使用
+            const averageScale = (scaleX + scaleY) / 2;
+            
+            // Web Mercatorからピクセルスケールに変換
+            const centerPos = this.mapCore.getMap().getCenter();
+            const metersPerPixel = 156543.03392 * Math.cos(centerPos.lat * Math.PI / 180) / Math.pow(2, this.mapCore.getMap().getZoom());
+            
+            const pixelScale = averageScale / metersPerPixel;
+            
+            return pixelScale;
+            
+        } catch (error) {
+            this.logger.error('スケール計算エラー', error);
+            return this.imageOverlay.getDefaultScale();
+        }
+    }
+
+    displayTransformationResult(result) {
+        try {
+            const transformationResultField = document.getElementById('transformationResultField');
+            if (!transformationResultField) return;
+
+            let resultText = `変換方式: ${result.method === 'simple' ? '簡易版' : '精密版'}\n`;
+            resultText += `処理時間: ${result.processingTime.toFixed(2)}ms\n`;
+            resultText += `使用ポイント数: ${result.controlPointsCount}個\n\n`;
+
+            if (result.method === 'simple') {
+                resultText += `簡易版 - 2点間距離ベース変換\n`;
+                if (result.controlPoints && result.controlPoints.length >= 2) {
+                    const point1 = result.controlPoints[0];
+                    const point2 = result.controlPoints[1];
+                    resultText += `基準点1: ${point1.pointJsonId}\n`;
+                    resultText += `基準点2: ${point2.pointJsonId}\n`;
+                }
+                resultText += `スケール: ${result.scale ? result.scale.toFixed(6) : 'N/A'}`;
+            } else {
+                resultText += `精密版 - 最小二乗法アフィン変換\n`;
+                if (result.accuracy) {
+                    resultText += `平均誤差: ${result.accuracy.meanError.toFixed(2)}m\n`;
+                    resultText += `最大誤差: ${result.accuracy.maxError.toFixed(2)}m\n`;
+                    resultText += `最小誤差: ${result.accuracy.minError.toFixed(2)}m\n`;
+                }
+                if (result.transformation) {
+                    resultText += `変換係数:\n`;
+                    resultText += `a=${result.transformation.a.toFixed(6)}\n`;
+                    resultText += `b=${result.transformation.b.toFixed(6)}\n`;
+                    resultText += `d=${result.transformation.d.toFixed(6)}\n`;
+                    resultText += `e=${result.transformation.e.toFixed(6)}`;
+                }
+            }
+
+            transformationResultField.value = resultText;
+            this.logger.debug('変換結果表示完了');
+            
+        } catch (error) {
+            this.logger.error('変換結果表示エラー', error);
         }
     }
 

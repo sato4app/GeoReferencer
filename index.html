@@ -82,6 +82,31 @@
             <input type="file" id="imageInput" accept="image/png" style="display: none;">
             <input type="file" id="pointCoordJsonInput" accept=".json" style="display: none;">
             
+            <!-- アフィン変換方式選択 -->
+            <div class="transformation-mode-container">
+                <label for="transformationMode">変換方式</label>
+                <div class="radio-group">
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="transformationMode" value="simple">
+                            簡易版
+                        </label>
+                    </div>
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="transformationMode" value="precise">
+                            精密版
+                        </label>
+                    </div>
+                    <div class="radio-item">
+                        <label>
+                            <input type="radio" name="transformationMode" value="auto" checked>
+                            自動選択
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
             <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
             <button id="matchPointsBtn" title="ポイントのマッチングと画像の重ね合わせを実行" class="leaflet-bar leaflet-control">画像の重ね合わせ（ジオリファレンス）</button>
             
@@ -96,6 +121,12 @@
             <div class="point-count-container unmatched-points">
                 <label for="unmatchedPointsField">不一致ポイント</label>
                 <textarea id="unmatchedPointsField" readonly placeholder="マッチングしなかったポイント" style="width: 100%; font-size: 12px;"></textarea>
+            </div>
+            
+            <!-- 変換結果表示フィールド -->
+            <div class="transformation-result-container">
+                <label for="transformationResultField">変換結果</label>
+                <textarea id="transformationResultField" readonly placeholder="変換方式、所要時間、精度情報が表示されます" style="width: 100%; height: 80px; font-size: 11px;"></textarea>
             </div>
             
             <!-- ルート・スポット読み込みボタンとラジオボタンの横並び配置 -->
