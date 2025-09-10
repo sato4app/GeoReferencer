@@ -1501,34 +1501,40 @@ class GeoReferencerApp {
     // ルートのデバッグ情報をコンソール出力
     outputRouteDebugInfo(route, originalData) {
         try {
-            console.log(`\n=== ルート情報: ${route.fileName} ===`);
-            console.log(`ルートID: ${route.routeId}`);
-            console.log(`ルート名: ${route.name || originalData.name || 'なし'}`);
-            
             // ポイント数を計算
-            let totalPoints = 0;
-            let startPoint = null;
-            let endPoint = null;
+            let startPointId = null;
+            let endPointId = null;
             let intermediatePoints = 0;
             
             if (originalData.points && Array.isArray(originalData.points)) {
-                totalPoints = originalData.points.length;
-                startPoint = totalPoints > 0 ? originalData.points[0] : null;
-                endPoint = totalPoints > 0 ? originalData.points[totalPoints - 1] : null;
-                intermediatePoints = Math.max(0, totalPoints - 2);
+                const totalPoints = originalData.points.length;
+                if (totalPoints > 0) {
+                    const startPoint = originalData.points[0];
+                    const endPoint = originalData.points[totalPoints - 1];
+                    
+                    // 開始ポイントのID名を取得
+                    startPointId = startPoint.id || startPoint.name || startPoint.pointId || 'なし';
+                    
+                    // 終了ポイントのID名を取得
+                    endPointId = endPoint.id || endPoint.name || endPoint.pointId || 'なし';
+                    
+                    // 中間点数を計算
+                    intermediatePoints = Math.max(0, totalPoints - 2);
+                }
             } else if (originalData.coordinates && Array.isArray(originalData.coordinates)) {
-                totalPoints = originalData.coordinates.length;
+                const totalPoints = originalData.coordinates.length;
                 intermediatePoints = Math.max(0, totalPoints - 2);
+                startPointId = '座標のみ';
+                endPointId = '座標のみ';
             } else if (originalData.geometry && originalData.geometry.coordinates) {
-                totalPoints = originalData.geometry.coordinates.length;
+                const totalPoints = originalData.geometry.coordinates.length;
                 intermediatePoints = Math.max(0, totalPoints - 2);
+                startPointId = 'GeoJSON';
+                endPointId = 'GeoJSON';
             }
             
-            console.log(`開始ポイント: ${startPoint ? '有り' : '無し'}`);
-            console.log(`終了ポイント: ${endPoint ? '有り' : '無し'}`);
-            console.log(`中間ポイント数: ${intermediatePoints}`);
-            console.log(`総ポイント数: ${totalPoints}`);
-            console.log(`=== ルート情報終了 ===\n`);
+            // 1行でシンプルに出力
+            console.log(`ルート: 開始[${startPointId}] 終了[${endPointId}] 中間点${intermediatePoints}個`);
             
         } catch (error) {
             console.error('ルートデバッグ情報出力エラー:', error);
