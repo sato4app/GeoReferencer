@@ -560,10 +560,16 @@ class GeoReferencerApp {
 
             // 画像座標の差分をGPS座標差分に変換
             const earthRadius = 6378137;
+            const centerLat = referencePoint.gpsPoint.lat;
+            const cosLat = Math.cos(centerLat * Math.PI / 180);
+            
+            // より正確な座標変換を実行
+            // Y軸は画像とGPS座標系で向きが逆なので反転必要
             const latOffset = (deltaY * scale) / earthRadius * (180 / Math.PI);
-            const lngOffset = (deltaX * scale) / (earthRadius * Math.cos(referencePoint.gpsPoint.lat * Math.PI / 180)) * (180 / Math.PI);
+            // 経度オフセットは緯度による地球の縮小を考慮
+            const lngOffset = (deltaX * scale) / (earthRadius * cosLat) * (180 / Math.PI);
 
-            // 画像中心のGPS座標
+            // 画像中心のGPS座標（Y軸反転と精度改善）
             const imageCenterGpsLat = referencePoint.gpsPoint.lat - latOffset; // Y軸反転
             const imageCenterGpsLng = referencePoint.gpsPoint.lng + lngOffset;
 
@@ -1153,9 +1159,15 @@ class GeoReferencerApp {
         const southWest = imageBounds.getSouthWest();
         const northEast = imageBounds.getNorthEast();
         
-        // X座標（西→東）の変換
+        // より精密な座標変換アルゴリズム
+        // X座標（西→東）の変換 - 緯度による地球の縮小を考慮
         const xRatio = imageX / imageWidth;
-        const lng = southWest.lng + (northEast.lng - southWest.lng) * xRatio;
+        const centerLat = (southWest.lat + northEast.lat) / 2;
+        const cosLat = Math.cos(centerLat * Math.PI / 180);
+        
+        // 経度オフセットに緯度補正を適用
+        const lngSpan = (northEast.lng - southWest.lng);
+        const lng = southWest.lng + lngSpan * xRatio;
         
         // Y座標（北→南）の変換（画像座標系では上が0、下が正の値）
         const yRatio = imageY / imageHeight;

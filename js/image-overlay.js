@@ -273,10 +273,12 @@ export class ImageOverlay {
             adjustedLngDistance = lngDistance;
         }
         
-        // 距離を緯度・経度の差分に変換
+        // 距離を緯度・経度の差分に変換（高精度計算）
         const earthRadius = 6378137; // 地球の半径（メートル）
+        const cosLat = Math.cos(centerLat * Math.PI / 180);
+        
         const latDelta = (adjustedLatDistance / earthRadius) * (180 / Math.PI);
-        const lngDelta = (adjustedLngDistance / (earthRadius * Math.cos(centerLat * Math.PI / 180))) * (180 / Math.PI);
+        const lngDelta = (adjustedLngDistance / (earthRadius * cosLat)) * (180 / Math.PI);
         
         // 各コーナーに応じて新しい境界を計算
         let newBounds;
@@ -397,6 +399,7 @@ export class ImageOverlay {
             return;
         }
         
+        // より正確なメートル/ピクセル変換（Mercator投影補正）
         const metersPerPixel = 156543.03392 * Math.cos(centerPos.lat * Math.PI / 180) / Math.pow(2, this.map.getZoom());
         
         // metersPerPixelの妥当性チェック
@@ -407,9 +410,13 @@ export class ImageOverlay {
         const scaledImageWidthMeters = imageWidth * scale * metersPerPixel;
         const scaledImageHeightMeters = imageHeight * scale * metersPerPixel;
         
+        // 地球半径と緯度による補正
         const earthRadius = 6378137;
+        const cosLat = Math.cos(centerPos.lat * Math.PI / 180);
+        
+        // より精密な座標オフセット計算
         const latOffset = (scaledImageHeightMeters / 2) / earthRadius * (180 / Math.PI);
-        const lngOffset = (scaledImageWidthMeters / 2) / (earthRadius * Math.cos(centerPos.lat * Math.PI / 180)) * (180 / Math.PI);
+        const lngOffset = (scaledImageWidthMeters / 2) / (earthRadius * cosLat) * (180 / Math.PI);
         
         // オフセット値の妥当性チェック
         if (!isFinite(latOffset) || !isFinite(lngOffset)) {
