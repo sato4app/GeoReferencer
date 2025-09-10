@@ -11,6 +11,7 @@ export class Georeferencing {
         this.pointJsonData = null;
         this.currentTransformation = null;
         this.imageCoordinateMarkers = [];
+        this.imageUpdateCallbackRegistered = false;
     }
 
     async executeGeoreferencing() {
@@ -93,10 +94,17 @@ export class Georeferencing {
                 await this.centerImageOnSinglePoint(matchResult.matchedPairs[0]);
             }
 
-            this.imageOverlay.addImageUpdateCallback(() => {
-                this.logger.debug('画像位置更新通知受信');
-                this.syncPointPositions();
-            });
+            // 画像更新時のコールバックを登録（重複登録を防ぐ）
+            if (!this.imageUpdateCallbackRegistered) {
+                this.imageOverlay.addImageUpdateCallback(() => {
+                    this.logger.info('★★★ 画像位置更新通知受信 - syncPointPositions実行 ★★★');
+                    this.syncPointPositions();
+                });
+                this.imageUpdateCallbackRegistered = true;
+                this.logger.info('画像更新コールバック登録完了');
+            } else {
+                this.logger.info('画像更新コールバックは既に登録済み');
+            }
 
             return {
                 matchedCount: matchResult.matchedPairs.length,
@@ -771,6 +779,9 @@ export class Georeferencing {
 
             this.logger.info('ポイントJSONマーカー位置更新完了');
             
+            // 追加: 確実にポイント位置同期を実行
+            this.syncPointPositions();
+            
         } catch (error) {
             this.logger.error('ポイントJSONマーカー位置更新エラー', error);
         }
@@ -810,6 +821,9 @@ export class Georeferencing {
 
             this.logger.info('ポイントJSONマーカー中心移動更新完了');
             
+            // 追加: 確実にポイント位置同期を実行
+            this.syncPointPositions();
+            
         } catch (error) {
             this.logger.error('ポイントJSONマーカー中心移動更新エラー', error);
         }
@@ -818,22 +832,36 @@ export class Georeferencing {
     getPointInfoFromMarker(marker) {
         try {
             const popup = marker.getPopup();
-            if (!popup) return null;
+            if (!popup) {
+                this.logger.warn('マーカーにポップアップがありません');
+                return null;
+            }
 
             const content = popup.getContent();
-            if (!content) return null;
+            if (!content) {
+                this.logger.warn('ポップアップにコンテンツがありません');
+                return null;
+            }
+
+            this.logger.debug('ポップアップ内容:', content);
 
             const imageXMatch = content.match(/画像座標: \((\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\)/);
-            if (!imageXMatch) return null;
+            if (!imageXMatch) {
+                this.logger.warn('画像座標の正規表現マッチに失敗:', content);
+                return null;
+            }
 
             const nameMatch = content.match(/<strong>([^<]+)<\/strong>/);
             const name = nameMatch ? nameMatch[1] : 'Unknown';
 
-            return {
+            const result = {
                 imageX: parseFloat(imageXMatch[1]),
                 imageY: parseFloat(imageXMatch[2]),
                 name: name
             };
+
+            this.logger.debug('抽出されたポイント情報:', result);
+            return result;
             
         } catch (error) {
             this.logger.error('マーカー情報抽出エラー', error);
@@ -843,6 +871,8 @@ export class Georeferencing {
 
     transformImageCoordsToGps(imageX, imageY, transformation) {
         try {
+            this.logger.debug(`座標変換開始: 画像座標(${imageX}, ${imageY}), 変換方式: ${transformation.type}`);
+            
             if (transformation.type === 'simple') {
                 const deltaImageX = imageX - transformation.centerImageX;
                 const deltaImageY = imageY - transformation.centerImageY;
@@ -854,6 +884,7 @@ export class Georeferencing {
                 const newLat = transformation.centerGpsLat - latOffset;
                 const newLng = transformation.centerGpsLng + lngOffset;
 
+                this.logger.debug(`簡易版変換結果: GPS(${newLat.toFixed(6)}, ${newLng.toFixed(6)})`);
                 return [newLat, newLng];
                 
             } else if (transformation.type === 'center_only') {
@@ -874,6 +905,21 @@ export class Georeferencing {
                 const newLat = transformation.targetPointGpsLat - latOffset;
                 const newLng = transformation.targetPointGpsLng + lngOffset;
 
+                this.logger.debug(`中心のみ変換結果: GPS(${newLat.toFixed(6)}, ${newLng.toFixed(6)})`);
+                return [newLat, newLng];
+            } else if (transformation.type === 'precise') {
+                // 精密版: アフィン変換を使用
+                const trans = transformation.transformation;
+                
+                // アフィン変換でWeb Mercator座標に変換
+                const webMercatorX = trans.a * imageX + trans.b * imageY + trans.c;
+                const webMercatorY = trans.d * imageX + trans.e * imageY + trans.f;
+                
+                // Web MercatorからGPS座標に変換
+                const newLat = this.webMercatorYToLat(webMercatorY);
+                const newLng = this.webMercatorXToLon(webMercatorX);
+                
+                this.logger.debug(`精密版変換結果: GPS(${newLat.toFixed(6)}, ${newLng.toFixed(6)})`);
                 return [newLat, newLng];
             }
 
@@ -906,15 +952,58 @@ export class Georeferencing {
 
     syncPointPositions() {
         try {
+            this.logger.info('=== ポイント位置同期処理開始 ===');
+            
+            if (!this.currentTransformation) {
+                this.logger.warn('変換パラメータがないため同期をスキップ');
+                return;
+            }
+
+            this.logger.info('現在の変換情報:', {
+                type: this.currentTransformation.type,
+                totalMarkers: this.imageCoordinateMarkers.length
+            });
+
             const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
                 markerInfo.type === 'georeference-point'
             );
 
-            georefMarkers.forEach(markerInfo => {
-                // マーカーの座標を再計算して更新（必要に応じて実装）
+            this.logger.info(`フィルタ後のマーカー: ${georefMarkers.length}個`);
+
+            georefMarkers.forEach((markerInfo, index) => {
+                const marker = markerInfo.marker;
+                
+                const pointInfo = this.getPointInfoFromMarker(marker);
+                if (!pointInfo) {
+                    this.logger.warn(`マーカー${index}: ポイント情報を取得できません`);
+                    return;
+                }
+
+                this.logger.debug(`マーカー${index}: 画像座標(${pointInfo.imageX}, ${pointInfo.imageY})`);
+
+                // 現在の変換を使って新しい座標を計算
+                const transformedGpsCoords = this.transformImageCoordsToGps(
+                    pointInfo.imageX, 
+                    pointInfo.imageY, 
+                    this.currentTransformation
+                );
+
+                if (transformedGpsCoords) {
+                    const oldPos = marker.getLatLng();
+                    this.logger.info(`マーカー${index}: ${pointInfo.name} 位置更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${transformedGpsCoords[0].toFixed(6)}, ${transformedGpsCoords[1].toFixed(6)}]`);
+                    
+                    // マーカーの位置を更新
+                    marker.setLatLng(transformedGpsCoords);
+                    
+                    // ポップアップ内容も更新
+                    const updatedPopupContent = this.createUpdatedPopupContent(pointInfo, transformedGpsCoords);
+                    marker.bindPopup(updatedPopupContent);
+                } else {
+                    this.logger.warn(`マーカー${index}: 座標変換に失敗`);
+                }
             });
             
-            this.logger.debug('ポイント位置同期完了');
+            this.logger.info(`=== ポイント位置同期完了: ${georefMarkers.length}個更新 ===`);
             
         } catch (error) {
             this.logger.error('ポイント位置同期エラー', error);

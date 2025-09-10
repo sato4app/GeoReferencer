@@ -238,7 +238,17 @@ class GeoReferencerApp {
             
             // imageX, imageYを持つポイントを画像上に表示
             if (this.imageOverlay && data) {
+                // 既存のマーカーをクリア
+                this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                
                 this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'points', this.imageCoordinateMarkers);
+                
+                // GeoreferencingクラスにもmarkerInfoを渡す
+                this.imageCoordinateMarkers.forEach(markerInfo => {
+                    this.georeferencing.addImageCoordinateMarker(markerInfo);
+                });
+                
+                this.logger.info(`ポイントマーカー登録完了: ${this.imageCoordinateMarkers.length}個`);
             }
             
             // ポイント座標数を更新
