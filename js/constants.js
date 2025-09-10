@@ -14,6 +14,9 @@ export const CONFIG = {
     ACCEPTED_EXCEL_EXTENSIONS: ['.xlsx'],
     ACCEPTED_JSON_EXTENSIONS: ['.json'],
     
+    // Excel読み込み制限
+    MAX_EXCEL_ROWS: 501, // ヘッダー行含む最大読み込み行数
+    
     // UI設定
     MESSAGE_BOX_Z_INDEX: 10000,
     OVERLAY_CONTROLS_Z_INDEX: 1000,

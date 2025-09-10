@@ -1,5 +1,6 @@
 // GPS データ処理機能を管理するモジュール - GeoJSON対応版とExcelファイル読み込み機能を統合
 import { Logger, errorHandler } from './utils.js';
+import { CONFIG } from './constants.js';
 
 export class GPSData {
     constructor() {
@@ -279,6 +280,21 @@ export class GPSData {
                     
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // 読み込み行数を制限
+                    const range = worksheet['!ref'];
+                    if (range) {
+                        const decoded = XLSX.utils.decode_range(range);
+                        const originalRows = decoded.e.r + 1; // 1ベースの行数
+                        
+                        // データ行数を制限（設定値から1を引いて0ベースインデックスに調整）
+                        const maxRows = CONFIG.MAX_EXCEL_ROWS - 1;
+                        if (decoded.e.r > maxRows) {
+                            decoded.e.r = maxRows;
+                            worksheet['!ref'] = XLSX.utils.encode_range(decoded);
+                            this.logger.info(`Excel読み込み行数制限: ${originalRows}行 → ${CONFIG.MAX_EXCEL_ROWS}行に制限`);
+                        }
+                    }
                     
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                     

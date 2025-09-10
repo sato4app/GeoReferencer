@@ -151,7 +151,6 @@ export class UIHandlers {
                 for (const column of requiredColumns) {
                     const value = row[columnIndexMap[column]];
                     if (value === undefined || value === null || value === '') {
-                        this.logger.warn(`行${i + 1}: 必須項目「${column}」が空です`);
                         isValidRow = false;
                         break;
                     }
