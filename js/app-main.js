@@ -18,6 +18,8 @@ class GeoReferencerApp {
         this.fileHandler = new FileHandler(); // Excel読み込み用
         this.routeData = []; // ルートデータを配列で保存
         this.spotData = []; // スポットデータを配列で保存
+        this.routeMarkers = []; // 地図上のルートマーカー
+        this.spotMarkers = []; // 地図上のスポットマーカー
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -294,9 +296,9 @@ class GeoReferencerApp {
                 this.spotData = this.mergeAndDeduplicate(this.spotData, newData, 'spot');
             }
             
-            // imageX, imageYを持つルート・スポットを画像上に表示
-            if (this.imageOverlay && newData.length > 0) {
-                await this.displayImageCoordinates(newData, 'routes-spots');
+            // GPS座標を持つルート・スポットを地図上に表示
+            if (this.mapCore && this.mapCore.map && newData.length > 0) {
+                await this.displayRouteSpotOnMap(newData, selectedRouteSpotType);
             }
             
             // ルート・スポット数を更新
@@ -1269,6 +1271,79 @@ class GeoReferencerApp {
         }
     }
 
+    // ルート・スポットを地図上に表示
+    async displayRouteSpotOnMap(data, type) {
+        try {
+            if (!this.mapCore || !this.mapCore.map) {
+                throw new Error('地図が初期化されていません。');
+            }
+
+            this.logger.info(`${type}データの地図表示開始`, data.length + '項目');
+
+            data.forEach((item, index) => {
+                if (type === 'route' && item.points && Array.isArray(item.points)) {
+                    // ルートの場合：線として描画
+                    const latLngs = item.points
+                        .filter(point => point.lat && point.lng)
+                        .map(point => [point.lat, point.lng]);
+                    
+                    if (latLngs.length > 1) {
+                        const polyline = L.polyline(latLngs, {
+                            color: '#ff6600',
+                            weight: 3,
+                            opacity: 0.8
+                        }).addTo(this.mapCore.map);
+                        
+                        // ルート情報をポップアップで表示
+                        const routeInfo = `
+                            <div>
+                                <strong>ルート: ${item.name || item.routeId}</strong><br>
+                                ファイル: ${item.fileName}<br>
+                                ポイント数: ${item.points.length}
+                            </div>
+                        `;
+                        polyline.bindPopup(routeInfo);
+                        
+                        // ルートマーカーを保存
+                        if (!this.routeMarkers) this.routeMarkers = [];
+                        this.routeMarkers.push(polyline);
+                    }
+                } else if (type === 'spot' && item.coordinates) {
+                    // スポットの場合：マーカーとして表示
+                    const latLng = [item.coordinates.lat, item.coordinates.lng];
+                    
+                    const marker = L.circleMarker(latLng, {
+                        radius: 8,
+                        color: '#0066ff',
+                        fillColor: '#0066ff',
+                        fillOpacity: 0.8,
+                        weight: 2
+                    }).addTo(this.mapCore.map);
+                    
+                    // スポット情報をポップアップで表示
+                    const spotInfo = `
+                        <div>
+                            <strong>スポット: ${item.name || item.spotId}</strong><br>
+                            ファイル: ${item.fileName}<br>
+                            座標: (${item.coordinates.lat.toFixed(6)}, ${item.coordinates.lng.toFixed(6)})
+                        </div>
+                    `;
+                    marker.bindPopup(spotInfo);
+                    
+                    // スポットマーカーを保存
+                    if (!this.spotMarkers) this.spotMarkers = [];
+                    this.spotMarkers.push(marker);
+                }
+            });
+
+            this.logger.info(`${type}データの地図表示完了`, data.length + '項目表示');
+            
+        } catch (error) {
+            this.logger.error('ルート・スポット地図表示エラー', error);
+            throw error;
+        }
+    }
+
     downloadGeoJson(geoJson) {
         try {
             const dataStr = JSON.stringify(geoJson, null, 2);
@@ -1323,44 +1398,21 @@ class GeoReferencerApp {
     }
 
     // ルートデータを処理してプロパティ別に分類
+    // 仕様：JSONファイル1つで1本のルート
     processRouteData(data, fileName) {
         const routes = [];
         
         try {
-            if (Array.isArray(data)) {
-                // 配列の場合、各要素をルートとして扱う
-                data.forEach((item, index) => {
-                    routes.push({
-                        ...item,
-                        fileName: fileName,
-                        routeId: item.id || `${fileName}_route_${index}`,
-                        startPoint: this.extractStartPoint(item),
-                        endPoint: this.extractEndPoint(item)
-                    });
-                });
-            } else if (data && typeof data === 'object') {
-                // オブジェクトの場合
-                if (data.routes && Array.isArray(data.routes)) {
-                    data.routes.forEach((route, index) => {
-                        routes.push({
-                            ...route,
-                            fileName: fileName,
-                            routeId: route.id || `${fileName}_route_${index}`,
-                            startPoint: this.extractStartPoint(route),
-                            endPoint: this.extractEndPoint(route)
-                        });
-                    });
-                } else {
-                    // 単一ルートオブジェクト
-                    routes.push({
-                        ...data,
-                        fileName: fileName,
-                        routeId: data.id || `${fileName}_route_0`,
-                        startPoint: this.extractStartPoint(data),
-                        endPoint: this.extractEndPoint(data)
-                    });
-                }
-            }
+            // 仕様に基づき、1つのJSONファイル = 1本のルートとして扱う
+            const route = {
+                ...data,
+                fileName: fileName,
+                routeId: data.id || fileName.replace('.json', ''),
+                startPoint: this.extractStartPoint(data),
+                endPoint: this.extractEndPoint(data)
+            };
+            routes.push(route);
+            
         } catch (error) {
             this.logger.error(`ルートデータ処理エラー: ${fileName}`, error);
         }
@@ -1369,6 +1421,7 @@ class GeoReferencerApp {
     }
 
     // スポットデータを処理
+    // 仕様：JSONファイル1つで複数のスポットを含む場合がある
     processSpotData(data, fileName) {
         const spots = [];
         
@@ -1379,19 +1432,31 @@ class GeoReferencerApp {
                     spots.push({
                         ...item,
                         fileName: fileName,
-                        spotId: item.id || `${fileName}_spot_${index}`,
+                        spotId: item.id || item.name || `${fileName}_spot_${index}`,
                         coordinates: this.extractCoordinates(item)
                     });
                 });
             } else if (data && typeof data === 'object') {
                 // オブジェクトの場合
                 if (data.spots && Array.isArray(data.spots)) {
+                    // spotsプロパティに配列がある場合
                     data.spots.forEach((spot, index) => {
                         spots.push({
                             ...spot,
                             fileName: fileName,
-                            spotId: spot.id || `${fileName}_spot_${index}`,
+                            spotId: spot.id || spot.name || `${fileName}_spot_${index}`,
                             coordinates: this.extractCoordinates(spot)
+                        });
+                    });
+                } else if (data.features && Array.isArray(data.features)) {
+                    // GeoJSON形式の場合
+                    data.features.forEach((feature, index) => {
+                        const coords = feature.geometry && feature.geometry.coordinates;
+                        spots.push({
+                            ...feature.properties,
+                            fileName: fileName,
+                            spotId: feature.properties?.id || feature.properties?.name || `${fileName}_spot_${index}`,
+                            coordinates: coords ? { lat: coords[1], lng: coords[0] } : this.extractCoordinates(feature.properties)
                         });
                     });
                 } else {
@@ -1399,7 +1464,7 @@ class GeoReferencerApp {
                     spots.push({
                         ...data,
                         fileName: fileName,
-                        spotId: data.id || `${fileName}_spot_0`,
+                        spotId: data.id || data.name || `${fileName}_spot_0`,
                         coordinates: this.extractCoordinates(data)
                     });
                 }
