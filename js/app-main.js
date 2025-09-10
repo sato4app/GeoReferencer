@@ -20,6 +20,7 @@ class GeoReferencerApp {
         this.spotData = []; // スポットデータを配列で保存
         this.routeMarkers = []; // 地図上のルートマーカー
         this.spotMarkers = []; // 地図上のスポットマーカー
+        this.imageCoordinateMarkers = []; // 画像座標マーカー（ジオリファレンス用）
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -770,11 +771,16 @@ class GeoReferencerApp {
                 return;
             }
 
-            this.logger.info('ポイントJSONマーカー位置更新開始', this.imageCoordinateMarkers.length + '個');
+            // ジオリファレンス専用のマーカーのみを更新
+            const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
+                markerInfo.type === 'georeference-point'
+            );
+
+            this.logger.info('ポイントJSONマーカー位置更新開始', georefMarkers.length + '個');
 
             // 既存マーカーの更新
-            for (let i = 0; i < this.imageCoordinateMarkers.length; i++) {
-                const marker = this.imageCoordinateMarkers[i];
+            for (const markerInfo of georefMarkers) {
+                const marker = markerInfo.marker;
                 
                 // マーカーからポイント情報を取得
                 const pointInfo = this.getPointInfoFromMarker(marker);
@@ -891,11 +897,16 @@ class GeoReferencerApp {
                 return;
             }
 
-            this.logger.info('ポイントJSONマーカー中心移動更新開始', this.imageCoordinateMarkers.length + '個');
+            // ジオリファレンス専用のマーカーのみを更新
+            const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
+                markerInfo.type === 'georeference-point'
+            );
+
+            this.logger.info('ポイントJSONマーカー中心移動更新開始', georefMarkers.length + '個');
 
             // 既存マーカーの更新（中心移動版）
-            for (let i = 0; i < this.imageCoordinateMarkers.length; i++) {
-                const marker = this.imageCoordinateMarkers[i];
+            for (const markerInfo of georefMarkers) {
+                const marker = markerInfo.marker;
                 
                 // マーカーからポイント情報を取得
                 const pointInfo = this.getPointInfoFromMarker(marker);
@@ -946,13 +957,15 @@ class GeoReferencerApp {
 
     syncPointPositions() {
         try {
-            // 画像座標を持つポイントマーカーの位置を更新
-            if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
-                this.imageCoordinateMarkers.forEach(marker => {
-                    // マーカーの座標を再計算して更新（必要に応じて実装）
-                    // 現在は既存の位置を保持
-                });
-            }
+            // ジオリファレンス専用のマーカーの位置を更新
+            const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
+                markerInfo.type === 'georeference-point'
+            );
+
+            georefMarkers.forEach(markerInfo => {
+                // マーカーの座標を再計算して更新（必要に応じて実装）
+                // 現在は既存の位置を保持
+            });
             
             this.logger.debug('ポイント位置同期完了');
             
@@ -1027,8 +1040,8 @@ class GeoReferencerApp {
                 throw new Error('地図または画像オーバーレイが初期化されていません。');
             }
 
-            // 既存の座標マーカーを削除
-            this.clearImageCoordinateMarkers();
+            // 既存の座標マーカーを削除（ただし、ジオリファレンス済みのポイントマーカーは保持）
+            // this.clearImageCoordinateMarkers(); // コメントアウトして保持
 
             // データから座標を抽出して表示
             const coordinates = this.extractImageCoordinates(data);
@@ -1057,11 +1070,17 @@ class GeoReferencerApp {
                     `;
                     marker.bindPopup(popupContent);
                     
-                    // マーカーを保存（後で削除できるように）
+                    // マーカーを保存（タイプ情報と共に）
                     if (!this.imageCoordinateMarkers) {
                         this.imageCoordinateMarkers = [];
                     }
-                    this.imageCoordinateMarkers.push(marker);
+                    
+                    // ジオリファレンス専用のマーカーとして保存
+                    this.imageCoordinateMarkers.push({
+                        marker: marker,
+                        type: 'georeference-point',
+                        data: coord
+                    });
                 }
             });
 
@@ -1198,15 +1217,31 @@ class GeoReferencerApp {
         return [lat, lng];
     }
 
-    clearImageCoordinateMarkers() {
+    clearImageCoordinateMarkers(markerType = 'all') {
         if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
-            this.imageCoordinateMarkers.forEach(marker => {
+            // マーカータイプに応じて削除
+            const markersToRemove = this.imageCoordinateMarkers.filter(markerInfo => {
+                if (markerType === 'all') return true;
+                return markerInfo.type === markerType;
+            });
+
+            markersToRemove.forEach(markerInfo => {
                 if (this.mapCore && this.mapCore.map) {
-                    this.mapCore.map.removeLayer(marker);
+                    this.mapCore.map.removeLayer(markerInfo.marker);
                 }
             });
-            this.imageCoordinateMarkers = [];
+
+            // 残すマーカーのみ配列に残す
+            this.imageCoordinateMarkers = this.imageCoordinateMarkers.filter(markerInfo => {
+                if (markerType === 'all') return false;
+                return markerInfo.type !== markerType;
+            });
         }
+    }
+
+    // 特定のマーカーを保護しながらクリア
+    clearNonGeoreferenceMarkers() {
+        this.clearImageCoordinateMarkers('route-spot-display');
     }
 
     // マーカーの種類を判定
@@ -1279,13 +1314,31 @@ class GeoReferencerApp {
             }
 
             this.logger.info(`${type}データの地図表示開始`, data.length + '項目');
+            this.logger.debug(`データ詳細:`, data);
+
+            let displayCount = 0;
 
             data.forEach((item, index) => {
-                if (type === 'route' && item.points && Array.isArray(item.points)) {
+                this.logger.debug(`処理中: ${type}[${index}]`, item);
+
+                if (type === 'route') {
                     // ルートの場合：線として描画
-                    const latLngs = item.points
-                        .filter(point => point.lat && point.lng)
-                        .map(point => [point.lat, point.lng]);
+                    let latLngs = [];
+                    
+                    // 複数の形式に対応
+                    if (item.points && Array.isArray(item.points)) {
+                        latLngs = item.points
+                            .filter(point => point.lat && point.lng)
+                            .map(point => [point.lat, point.lng]);
+                    } else if (item.coordinates && Array.isArray(item.coordinates)) {
+                        // coordinates形式の場合
+                        latLngs = item.coordinates.map(coord => [coord[1], coord[0]]); // GeoJSON形式: [lng, lat] → [lat, lng]
+                    } else if (item.geometry && item.geometry.coordinates) {
+                        // GeoJSON LineString形式
+                        latLngs = item.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                    }
+                    
+                    this.logger.debug(`ルート座標数: ${latLngs.length}`, latLngs);
                     
                     if (latLngs.length > 1) {
                         const polyline = L.polyline(latLngs, {
@@ -1299,7 +1352,7 @@ class GeoReferencerApp {
                             <div>
                                 <strong>ルート: ${item.name || item.routeId}</strong><br>
                                 ファイル: ${item.fileName}<br>
-                                ポイント数: ${item.points.length}
+                                ポイント数: ${latLngs.length}
                             </div>
                         `;
                         polyline.bindPopup(routeInfo);
@@ -1307,36 +1360,57 @@ class GeoReferencerApp {
                         // ルートマーカーを保存
                         if (!this.routeMarkers) this.routeMarkers = [];
                         this.routeMarkers.push(polyline);
+                        displayCount++;
                     }
-                } else if (type === 'spot' && item.coordinates) {
+                } else if (type === 'spot') {
                     // スポットの場合：マーカーとして表示
-                    const latLng = [item.coordinates.lat, item.coordinates.lng];
+                    let latLng = null;
                     
-                    const marker = L.circleMarker(latLng, {
-                        radius: 8,
-                        color: '#0066ff',
-                        fillColor: '#0066ff',
-                        fillOpacity: 0.8,
-                        weight: 2
-                    }).addTo(this.mapCore.map);
+                    // 複数の形式に対応
+                    if (item.coordinates && typeof item.coordinates === 'object') {
+                        if (item.coordinates.lat && item.coordinates.lng) {
+                            latLng = [item.coordinates.lat, item.coordinates.lng];
+                        } else if (Array.isArray(item.coordinates)) {
+                            latLng = [item.coordinates[1], item.coordinates[0]]; // GeoJSON形式
+                        }
+                    } else if (item.lat && item.lng) {
+                        latLng = [item.lat, item.lng];
+                    } else if (item.geometry && item.geometry.coordinates) {
+                        // GeoJSON Point形式
+                        const coords = item.geometry.coordinates;
+                        latLng = [coords[1], coords[0]];
+                    }
                     
-                    // スポット情報をポップアップで表示
-                    const spotInfo = `
-                        <div>
-                            <strong>スポット: ${item.name || item.spotId}</strong><br>
-                            ファイル: ${item.fileName}<br>
-                            座標: (${item.coordinates.lat.toFixed(6)}, ${item.coordinates.lng.toFixed(6)})
-                        </div>
-                    `;
-                    marker.bindPopup(spotInfo);
+                    this.logger.debug(`スポット座標:`, latLng);
                     
-                    // スポットマーカーを保存
-                    if (!this.spotMarkers) this.spotMarkers = [];
-                    this.spotMarkers.push(marker);
+                    if (latLng && latLng[0] && latLng[1]) {
+                        const marker = L.circleMarker(latLng, {
+                            radius: 8,
+                            color: '#0066ff',
+                            fillColor: '#0066ff',
+                            fillOpacity: 0.8,
+                            weight: 2
+                        }).addTo(this.mapCore.map);
+                        
+                        // スポット情報をポップアップで表示
+                        const spotInfo = `
+                            <div>
+                                <strong>スポット: ${item.name || item.spotId}</strong><br>
+                                ファイル: ${item.fileName}<br>
+                                座標: (${latLng[0].toFixed(6)}, ${latLng[1].toFixed(6)})
+                            </div>
+                        `;
+                        marker.bindPopup(spotInfo);
+                        
+                        // スポットマーカーを保存
+                        if (!this.spotMarkers) this.spotMarkers = [];
+                        this.spotMarkers.push(marker);
+                        displayCount++;
+                    }
                 }
             });
 
-            this.logger.info(`${type}データの地図表示完了`, data.length + '項目表示');
+            this.logger.info(`${type}データの地図表示完了: ${displayCount}/${data.length}項目表示`);
             
         } catch (error) {
             this.logger.error('ルート・スポット地図表示エラー', error);
@@ -1504,10 +1578,19 @@ class GeoReferencerApp {
 
     // スポットの座標を抽出
     extractCoordinates(spot) {
-        return {
-            lat: spot.lat || spot.latitude,
-            lng: spot.lng || spot.longitude
-        };
+        if (spot.lat && spot.lng) {
+            return { lat: spot.lat, lng: spot.lng };
+        } else if (spot.latitude && spot.longitude) {
+            return { lat: spot.latitude, lng: spot.longitude };
+        } else if (spot.coordinates && Array.isArray(spot.coordinates)) {
+            // GeoJSON形式 [lng, lat]
+            return { lat: spot.coordinates[1], lng: spot.coordinates[0] };
+        } else if (spot.geometry && spot.geometry.coordinates) {
+            // GeoJSON Point形式
+            const coords = spot.geometry.coordinates;
+            return { lat: coords[1], lng: coords[0] };
+        }
+        return null;
     }
 
     // 重複除外とマージ
