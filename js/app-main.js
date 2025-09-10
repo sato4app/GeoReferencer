@@ -1328,15 +1328,24 @@ class GeoReferencerApp {
                     
                     // 複数の形式に対応
                     if (item.points && Array.isArray(item.points)) {
-                        points = item.points.filter(point => point.lat && point.lng);
-                        latLngs = points.map(point => [point.lat, point.lng]);
+                        // 座標キーを lat/latitude, lng/longitude の双方に対応
+                        points = item.points
+                            .map(point => ({
+                                lat: (point.lat !== undefined ? point.lat : point.latitude),
+                                lng: (point.lng !== undefined ? point.lng : point.longitude),
+                                name: point.name || point.id || point.pointId,
+                                type: point.type
+                            }))
+                            .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+                        latLngs = points.map(p => [p.lat, p.lng]);
                     } else if (item.coordinates && Array.isArray(item.coordinates)) {
                         // coordinates形式の場合
                         latLngs = item.coordinates.map(coord => [coord[1], coord[0]]); // GeoJSON形式: [lng, lat] → [lat, lng]
                         points = item.coordinates.map((coord, idx) => ({
                             lat: coord[1], 
                             lng: coord[0], 
-                            name: `Point-${idx + 1}`
+                            name: `Point-${idx + 1}`,
+                            type: 'waypoint'
                         }));
                     } else if (item.geometry && item.geometry.coordinates) {
                         // GeoJSON LineString形式
@@ -1344,7 +1353,8 @@ class GeoReferencerApp {
                         points = item.geometry.coordinates.map((coord, idx) => ({
                             lat: coord[1], 
                             lng: coord[0], 
-                            name: `Point-${idx + 1}`
+                            name: `Point-${idx + 1}`,
+                            type: 'waypoint'
                         }));
                     }
                     
@@ -1356,7 +1366,7 @@ class GeoReferencerApp {
                             color: '#ff6600',
                             weight: 3,
                             opacity: 0.8
-                        }).addTo(this.mapCore.map);
+                        }, { pane: 'routeLines' }).addTo(this.mapCore.map);
                         
                         // ルート情報をポップアップで表示
                         const routeInfo = `
@@ -1370,29 +1380,51 @@ class GeoReferencerApp {
                         
                         // 2. 各ポイントをマーカーとして表示
                         points.forEach((point, pointIndex) => {
-                            let markerColor = '#ff6600'; // デフォルトは中間点色
-                            let markerType = '中間点';
-                            
+                            // 種別とスタイルの決定
+                            let uiType = 'waypoint';
+                            let label = '中間点';
                             if (pointIndex === 0) {
-                                markerColor = '#00cc00'; // 開始点は緑色
-                                markerType = '開始点';
+                                uiType = 'route-start';
+                                label = '開始点';
                             } else if (pointIndex === points.length - 1) {
-                                markerColor = '#cc0000'; // 終了点は赤色
-                                markerType = '終了点';
+                                uiType = 'route-end';
+                                label = '終了点';
                             }
-                            
-                            const marker = L.circleMarker([point.lat, point.lng], {
-                                radius: 6,
-                                color: markerColor,
-                                fillColor: markerColor,
-                                fillOpacity: 0.8,
-                                weight: 2
-                            }).addTo(this.mapCore.map);
+
+                            let marker;
+                            if (uiType === 'waypoint' || point.type === 'waypoint') {
+                                // 菱形の中間点（専用ペイン）
+                                const diamondIcon = L.divIcon({
+                                    className: 'diamond-marker',
+                                    html: '<div style="width: 8px; height: 8px; background-color: #ffa500; transform: rotate(45deg);"></div>',
+                                    iconSize: [8, 8],
+                                    iconAnchor: [4, 4]
+                                });
+                                marker = L.marker([point.lat, point.lng], { icon: diamondIcon, pane: 'wayPointMarkers' }).addTo(this.mapCore.map);
+                            } else if (uiType === 'route-start') {
+                                marker = L.circleMarker([point.lat, point.lng], {
+                                    radius: 7,
+                                    color: '#00cc00',
+                                    fillColor: '#00cc00',
+                                    fillOpacity: 0.9,
+                                    weight: 2,
+                                    pane: 'pointJsonMarkers'
+                                }).addTo(this.mapCore.map);
+                            } else if (uiType === 'route-end') {
+                                marker = L.circleMarker([point.lat, point.lng], {
+                                    radius: 7,
+                                    color: '#cc0000',
+                                    fillColor: '#cc0000',
+                                    fillOpacity: 0.9,
+                                    weight: 2,
+                                    pane: 'pointJsonMarkers'
+                                }).addTo(this.mapCore.map);
+                            }
                             
                             // ポイント情報をポップアップで表示
                             const pointInfo = `
                                 <div>
-                                    <strong>${markerType}: ${point.name || point.id || pointIndex + 1}</strong><br>
+                                    <strong>${label}: ${point.name || point.id || pointIndex + 1}</strong><br>
                                     ルート: ${item.name || item.routeId}<br>
                                     座標: (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})
                                 </div>
