@@ -1322,25 +1322,36 @@ class GeoReferencerApp {
                 this.logger.debug(`処理中: ${type}[${index}]`, item);
 
                 if (type === 'route') {
-                    // ルートの場合：線として描画
+                    // ルートの場合：線として描画 + 各ポイントをマーカーとして表示
                     let latLngs = [];
+                    let points = [];
                     
                     // 複数の形式に対応
                     if (item.points && Array.isArray(item.points)) {
-                        latLngs = item.points
-                            .filter(point => point.lat && point.lng)
-                            .map(point => [point.lat, point.lng]);
+                        points = item.points.filter(point => point.lat && point.lng);
+                        latLngs = points.map(point => [point.lat, point.lng]);
                     } else if (item.coordinates && Array.isArray(item.coordinates)) {
                         // coordinates形式の場合
                         latLngs = item.coordinates.map(coord => [coord[1], coord[0]]); // GeoJSON形式: [lng, lat] → [lat, lng]
+                        points = item.coordinates.map((coord, idx) => ({
+                            lat: coord[1], 
+                            lng: coord[0], 
+                            name: `Point-${idx + 1}`
+                        }));
                     } else if (item.geometry && item.geometry.coordinates) {
                         // GeoJSON LineString形式
                         latLngs = item.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                        points = item.geometry.coordinates.map((coord, idx) => ({
+                            lat: coord[1], 
+                            lng: coord[0], 
+                            name: `Point-${idx + 1}`
+                        }));
                     }
                     
                     this.logger.debug(`ルート座標数: ${latLngs.length}`, latLngs);
                     
                     if (latLngs.length > 1) {
+                        // 1. ルートを線として描画
                         const polyline = L.polyline(latLngs, {
                             color: '#ff6600',
                             weight: 3,
@@ -1357,7 +1368,43 @@ class GeoReferencerApp {
                         `;
                         polyline.bindPopup(routeInfo);
                         
-                        // ルートマーカーを保存
+                        // 2. 各ポイントをマーカーとして表示
+                        points.forEach((point, pointIndex) => {
+                            let markerColor = '#ff6600'; // デフォルトは中間点色
+                            let markerType = '中間点';
+                            
+                            if (pointIndex === 0) {
+                                markerColor = '#00cc00'; // 開始点は緑色
+                                markerType = '開始点';
+                            } else if (pointIndex === points.length - 1) {
+                                markerColor = '#cc0000'; // 終了点は赤色
+                                markerType = '終了点';
+                            }
+                            
+                            const marker = L.circleMarker([point.lat, point.lng], {
+                                radius: 6,
+                                color: markerColor,
+                                fillColor: markerColor,
+                                fillOpacity: 0.8,
+                                weight: 2
+                            }).addTo(this.mapCore.map);
+                            
+                            // ポイント情報をポップアップで表示
+                            const pointInfo = `
+                                <div>
+                                    <strong>${markerType}: ${point.name || point.id || pointIndex + 1}</strong><br>
+                                    ルート: ${item.name || item.routeId}<br>
+                                    座標: (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})
+                                </div>
+                            `;
+                            marker.bindPopup(pointInfo);
+                            
+                            // ルートマーカーに追加
+                            if (!this.routeMarkers) this.routeMarkers = [];
+                            this.routeMarkers.push(marker);
+                        });
+                        
+                        // ルートライン自体もマーカーリストに保存
                         if (!this.routeMarkers) this.routeMarkers = [];
                         this.routeMarkers.push(polyline);
                         displayCount++;
@@ -1506,7 +1553,12 @@ class GeoReferencerApp {
             let endPointId = null;
             let intermediatePoints = 0;
             
-            if (originalData.points && Array.isArray(originalData.points)) {
+            // routeInfo形式を最優先で確認
+            if (originalData.routeInfo && (originalData.routeInfo.startPoint || originalData.routeInfo.endPoint)) {
+                startPointId = originalData.routeInfo.startPoint || 'なし';
+                endPointId = originalData.routeInfo.endPoint || 'なし';
+                intermediatePoints = originalData.routeInfo.waypointCount || 0;
+            } else if (originalData.points && Array.isArray(originalData.points)) {
                 const totalPoints = originalData.points.length;
                 if (totalPoints > 0) {
                     const startPoint = originalData.points[0];
@@ -1626,6 +1678,16 @@ class GeoReferencerApp {
 
     // ルートの開始ポイントを抽出
     extractStartPoint(route) {
+        // 0. routeInfo形式（最優先）
+        if (route.routeInfo && route.routeInfo.startPoint) {
+            return {
+                lat: null, // 座標は別途points配列等から取得される
+                lng: null,
+                name: route.routeInfo.startPoint,
+                id: route.routeInfo.startPoint
+            };
+        }
+        
         // 1. points配列形式
         if (route.points && Array.isArray(route.points) && route.points.length > 0) {
             const firstPoint = route.points[0];
@@ -1668,6 +1730,16 @@ class GeoReferencerApp {
 
     // ルートの終了ポイントを抽出
     extractEndPoint(route) {
+        // 0. routeInfo形式（最優先）
+        if (route.routeInfo && route.routeInfo.endPoint) {
+            return {
+                lat: null, // 座標は別途points配列等から取得される
+                lng: null,
+                name: route.routeInfo.endPoint,
+                id: route.routeInfo.endPoint
+            };
+        }
+        
         // 1. points配列形式
         if (route.points && Array.isArray(route.points) && route.points.length > 0) {
             const lastPoint = route.points[route.points.length - 1];
