@@ -66,6 +66,9 @@ class GeoReferencerApp {
             this.coordinateDisplay = new CoordinateDisplay(this.mapCore, this.imageOverlay);
             this.uiHandlers = new UIHandlers();
 
+            // CoordinateDisplayインスタンスをGeoreferencingに注入
+            this.georeferencing.setCoordinateDisplay(this.coordinateDisplay);
+
             this.logger.debug('全モジュール初期化完了');
             
         } catch (error) {

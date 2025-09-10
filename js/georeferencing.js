@@ -955,7 +955,9 @@ export class Georeferencing {
             this.logger.info('=== ポイント位置同期処理開始 ===');
             
             if (!this.currentTransformation) {
-                this.logger.warn('変換パラメータがないため同期をスキップ');
+                this.logger.info('変換パラメータがないため、画像境界ベースの位置更新を実行');
+                // ジオリファレンス変換が適用されていない場合は、画像境界ベースで更新
+                this.syncPointPositionsBasedOnImageBounds();
                 return;
             }
 
@@ -1008,6 +1010,51 @@ export class Georeferencing {
         } catch (error) {
             this.logger.error('ポイント位置同期エラー', error);
         }
+    }
+
+    // 画像境界ベースの位置同期（ジオリファレンス未適用時）
+    syncPointPositionsBasedOnImageBounds() {
+        try {
+            this.logger.info('=== 画像境界ベース位置同期処理開始 ===');
+
+            const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
+                markerInfo.type === 'georeference-point'
+            );
+
+            this.logger.info(`対象マーカー: ${georefMarkers.length}個`);
+
+            georefMarkers.forEach((markerInfo, index) => {
+                const marker = markerInfo.marker;
+                const data = markerInfo.data;
+
+                if (data && data.imageX !== undefined && data.imageY !== undefined) {
+                    // CoordinateDisplayクラスの変換メソッドを使用
+                    const coordinateDisplay = this.getCoordinateDisplay();
+                    if (coordinateDisplay) {
+                        const newLatLng = coordinateDisplay.convertImageToLatLng(data.imageX, data.imageY);
+                        const oldPos = marker.getLatLng();
+                        
+                        this.logger.info(`マーカー${index}: 画像境界ベース更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)}]`);
+                        
+                        marker.setLatLng(newLatLng);
+                    }
+                }
+            });
+
+            this.logger.info(`=== 画像境界ベース位置同期完了: ${georefMarkers.length}個更新 ===`);
+
+        } catch (error) {
+            this.logger.error('画像境界ベース位置同期エラー', error);
+        }
+    }
+
+    // CoordinateDisplayインスタンスを取得（app-main.jsから注入）
+    setCoordinateDisplay(coordinateDisplay) {
+        this.coordinateDisplay = coordinateDisplay;
+    }
+
+    getCoordinateDisplay() {
+        return this.coordinateDisplay;
     }
 
     setPointJsonData(data) {

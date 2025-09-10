@@ -246,4 +246,39 @@ export class CoordinateDisplay {
         }
         return [];
     }
+
+    // 画像境界の変更に応じてマーカー位置を更新
+    updateMarkersForImageBounds(imageCoordinateMarkers) {
+        try {
+            if (!imageCoordinateMarkers || imageCoordinateMarkers.length === 0) {
+                return;
+            }
+
+            const georefMarkers = imageCoordinateMarkers.filter(markerInfo => 
+                markerInfo.type === 'georeference-point'
+            );
+
+            this.logger.info(`画像境界変更に応じたマーカー位置更新開始: ${georefMarkers.length}個`);
+
+            georefMarkers.forEach((markerInfo, index) => {
+                const marker = markerInfo.marker;
+                const data = markerInfo.data;
+
+                if (data && data.imageX !== undefined && data.imageY !== undefined) {
+                    // 現在の画像境界に基づいて位置を再計算
+                    const newLatLng = this.convertImageToLatLng(data.imageX, data.imageY);
+                    const oldPos = marker.getLatLng();
+                    
+                    this.logger.debug(`マーカー${index}: 画像境界更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)}]`);
+                    
+                    marker.setLatLng(newLatLng);
+                }
+            });
+
+            this.logger.info(`画像境界変更に応じたマーカー位置更新完了: ${georefMarkers.length}個`);
+
+        } catch (error) {
+            this.logger.error('画像境界変更対応エラー', error);
+        }
+    }
 }
