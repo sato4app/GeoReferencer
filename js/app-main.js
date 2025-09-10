@@ -1626,27 +1626,85 @@ class GeoReferencerApp {
 
     // ルートの開始ポイントを抽出
     extractStartPoint(route) {
+        // 1. points配列形式
         if (route.points && Array.isArray(route.points) && route.points.length > 0) {
             const firstPoint = route.points[0];
             return {
                 lat: firstPoint.lat || firstPoint.latitude,
                 lng: firstPoint.lng || firstPoint.longitude,
-                name: firstPoint.name || 'Start'
+                name: firstPoint.name || firstPoint.id || firstPoint.pointId || 'Start',
+                id: firstPoint.id || firstPoint.name || firstPoint.pointId || null
             };
         }
+        
+        // 2. coordinates配列形式 [lat, lng]
+        if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
+            const firstCoord = route.coordinates[0];
+            if (Array.isArray(firstCoord) && firstCoord.length >= 2) {
+                return {
+                    lat: firstCoord[0],
+                    lng: firstCoord[1],
+                    name: 'Start',
+                    id: '座標のみ'
+                };
+            }
+        }
+        
+        // 3. GeoJSON geometry形式
+        if (route.geometry && route.geometry.coordinates && Array.isArray(route.geometry.coordinates) && route.geometry.coordinates.length > 0) {
+            const firstCoord = route.geometry.coordinates[0];
+            if (Array.isArray(firstCoord) && firstCoord.length >= 2) {
+                return {
+                    lat: firstCoord[1], // GeoJSON形式は[lng, lat]
+                    lng: firstCoord[0],
+                    name: 'Start',
+                    id: 'GeoJSON'
+                };
+            }
+        }
+        
         return null;
     }
 
     // ルートの終了ポイントを抽出
     extractEndPoint(route) {
+        // 1. points配列形式
         if (route.points && Array.isArray(route.points) && route.points.length > 0) {
             const lastPoint = route.points[route.points.length - 1];
             return {
                 lat: lastPoint.lat || lastPoint.latitude,
                 lng: lastPoint.lng || lastPoint.longitude,
-                name: lastPoint.name || 'End'
+                name: lastPoint.name || lastPoint.id || lastPoint.pointId || 'End',
+                id: lastPoint.id || lastPoint.name || lastPoint.pointId || null
             };
         }
+        
+        // 2. coordinates配列形式 [lat, lng]
+        if (route.coordinates && Array.isArray(route.coordinates) && route.coordinates.length > 0) {
+            const lastCoord = route.coordinates[route.coordinates.length - 1];
+            if (Array.isArray(lastCoord) && lastCoord.length >= 2) {
+                return {
+                    lat: lastCoord[0],
+                    lng: lastCoord[1],
+                    name: 'End',
+                    id: '座標のみ'
+                };
+            }
+        }
+        
+        // 3. GeoJSON geometry形式
+        if (route.geometry && route.geometry.coordinates && Array.isArray(route.geometry.coordinates) && route.geometry.coordinates.length > 0) {
+            const lastCoord = route.geometry.coordinates[route.geometry.coordinates.length - 1];
+            if (Array.isArray(lastCoord) && lastCoord.length >= 2) {
+                return {
+                    lat: lastCoord[1], // GeoJSON形式は[lng, lat]
+                    lng: lastCoord[0],
+                    name: 'End',
+                    id: 'GeoJSON'
+                };
+            }
+        }
+        
         return null;
     }
 
