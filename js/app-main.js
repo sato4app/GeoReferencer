@@ -1485,6 +1485,10 @@ class GeoReferencerApp {
                 startPoint: this.extractStartPoint(data),
                 endPoint: this.extractEndPoint(data)
             };
+            
+            // ルート情報をコンソール出力
+            this.outputRouteDebugInfo(route, data);
+            
             routes.push(route);
             
         } catch (error) {
@@ -1494,55 +1498,119 @@ class GeoReferencerApp {
         return routes;
     }
 
+    // ルートのデバッグ情報をコンソール出力
+    outputRouteDebugInfo(route, originalData) {
+        try {
+            console.log(`\n=== ルート情報: ${route.fileName} ===`);
+            console.log(`ルートID: ${route.routeId}`);
+            console.log(`ルート名: ${route.name || originalData.name || 'なし'}`);
+            
+            // ポイント数を計算
+            let totalPoints = 0;
+            let startPoint = null;
+            let endPoint = null;
+            let intermediatePoints = 0;
+            
+            if (originalData.points && Array.isArray(originalData.points)) {
+                totalPoints = originalData.points.length;
+                startPoint = totalPoints > 0 ? originalData.points[0] : null;
+                endPoint = totalPoints > 0 ? originalData.points[totalPoints - 1] : null;
+                intermediatePoints = Math.max(0, totalPoints - 2);
+            } else if (originalData.coordinates && Array.isArray(originalData.coordinates)) {
+                totalPoints = originalData.coordinates.length;
+                intermediatePoints = Math.max(0, totalPoints - 2);
+            } else if (originalData.geometry && originalData.geometry.coordinates) {
+                totalPoints = originalData.geometry.coordinates.length;
+                intermediatePoints = Math.max(0, totalPoints - 2);
+            }
+            
+            console.log(`開始ポイント: ${startPoint ? '有り' : '無し'}`);
+            console.log(`終了ポイント: ${endPoint ? '有り' : '無し'}`);
+            console.log(`中間ポイント数: ${intermediatePoints}`);
+            console.log(`総ポイント数: ${totalPoints}`);
+            console.log(`=== ルート情報終了 ===\n`);
+            
+        } catch (error) {
+            console.error('ルートデバッグ情報出力エラー:', error);
+        }
+    }
+
     // スポットデータを処理
     // 仕様：JSONファイル1つで複数のスポットを含む場合がある
     processSpotData(data, fileName) {
         const spots = [];
         
         try {
+            // スポット情報をコンソール出力開始
+            console.log(`\n=== スポット情報: ${fileName} ===`);
+            
             if (Array.isArray(data)) {
                 // 配列の場合、各要素をスポットとして扱う
                 data.forEach((item, index) => {
-                    spots.push({
+                    const spot = {
                         ...item,
                         fileName: fileName,
                         spotId: item.id || item.name || `${fileName}_spot_${index}`,
                         coordinates: this.extractCoordinates(item)
-                    });
+                    };
+                    
+                    // スポット名をコンソール出力
+                    console.log(`スポット${index + 1}: ${item.name || item.id || 'なし'}`);
+                    
+                    spots.push(spot);
                 });
             } else if (data && typeof data === 'object') {
                 // オブジェクトの場合
                 if (data.spots && Array.isArray(data.spots)) {
                     // spotsプロパティに配列がある場合
-                    data.spots.forEach((spot, index) => {
-                        spots.push({
-                            ...spot,
+                    data.spots.forEach((spotItem, index) => {
+                        const spot = {
+                            ...spotItem,
                             fileName: fileName,
-                            spotId: spot.id || spot.name || `${fileName}_spot_${index}`,
-                            coordinates: this.extractCoordinates(spot)
-                        });
+                            spotId: spotItem.id || spotItem.name || `${fileName}_spot_${index}`,
+                            coordinates: this.extractCoordinates(spotItem)
+                        };
+                        
+                        // スポット名をコンソール出力
+                        console.log(`スポット${index + 1}: ${spotItem.name || spotItem.id || 'なし'}`);
+                        
+                        spots.push(spot);
                     });
                 } else if (data.features && Array.isArray(data.features)) {
                     // GeoJSON形式の場合
                     data.features.forEach((feature, index) => {
                         const coords = feature.geometry && feature.geometry.coordinates;
-                        spots.push({
+                        const spot = {
                             ...feature.properties,
                             fileName: fileName,
                             spotId: feature.properties?.id || feature.properties?.name || `${fileName}_spot_${index}`,
                             coordinates: coords ? { lat: coords[1], lng: coords[0] } : this.extractCoordinates(feature.properties)
-                        });
+                        };
+                        
+                        // スポット名をコンソール出力
+                        console.log(`スポット${index + 1}: ${feature.properties?.name || feature.properties?.id || 'なし'}`);
+                        
+                        spots.push(spot);
                     });
                 } else {
                     // 単一スポットオブジェクト
-                    spots.push({
+                    const spot = {
                         ...data,
                         fileName: fileName,
                         spotId: data.id || data.name || `${fileName}_spot_0`,
                         coordinates: this.extractCoordinates(data)
-                    });
+                    };
+                    
+                    // スポット名をコンソール出力
+                    console.log(`スポット1: ${data.name || data.id || 'なし'}`);
+                    
+                    spots.push(spot);
                 }
             }
+            
+            console.log(`総スポット数: ${spots.length}`);
+            console.log(`=== スポット情報終了 ===\n`);
+            
         } catch (error) {
             this.logger.error(`スポットデータ処理エラー: ${fileName}`, error);
         }
