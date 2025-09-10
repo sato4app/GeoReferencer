@@ -531,15 +531,18 @@ export class Georeferencing {
         try {
             this.currentTransformation = transformation;
 
-            // 精密変換では画像の中心位置を最適化された位置に設定
-            // とりあえず最初のコントロールポイントから画像中心を逆算
-            const firstPoint = transformation.controlPoints[0];
+            this.logger.info('=== 精密変換適用開始 ===');
+            
             const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
             const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+            
+            this.logger.info(`画像サイズ: ${imageWidth} x ${imageHeight}`);
             
             // 画像中心の座標を計算
             const imageCenterX = imageWidth / 2;
             const imageCenterY = imageHeight / 2;
+            
+            this.logger.info(`画像中心座標: (${imageCenterX}, ${imageCenterY})`);
             
             // アフィン変換で画像中心をGPS座標に変換
             const centerWebMercatorX = transformation.transformation.a * imageCenterX + 
@@ -549,22 +552,27 @@ export class Georeferencing {
                                       transformation.transformation.e * imageCenterY + 
                                       transformation.transformation.f;
             
+            this.logger.info(`画像中心のWeb Mercator座標: (${centerWebMercatorX}, ${centerWebMercatorY})`);
+            
             const centerLat = this.webMercatorYToLat(centerWebMercatorY);
             const centerLng = this.webMercatorXToLon(centerWebMercatorX);
 
-            this.logger.info('精密変換適用', {
-                centerGps: [centerLat, centerLng],
-                accuracy: transformation.accuracy
-            });
+            this.logger.info(`画像中心のGPS座標: [${centerLat}, ${centerLng}]`);
+            this.logger.info(`精度情報:`, transformation.accuracy);
 
+            // 中心位置を設定
             this.imageOverlay.setCenterPosition([centerLat, centerLng]);
             
-            // スケールは簡易版の計算方法を流用
+            // スケール計算（制御点ベース）
             const scale = this.calculateScaleFromTransformation(transformation);
+            this.logger.info(`適用スケール: ${scale}`);
+            
             this.imageOverlay.setCurrentScale(scale);
             this.imageOverlay.updateImageDisplay();
             
             await this.updatePointJsonMarkersAfterTransformation();
+
+            this.logger.info('=== 精密変換適用完了 ===');
 
         } catch (error) {
             this.logger.error('精密変換適用エラー', error);
@@ -574,26 +582,61 @@ export class Georeferencing {
 
     calculateScaleFromTransformation(transformation) {
         try {
-            // アフィン変換行列からスケール因子を抽出
-            const a = transformation.transformation.a;
-            const b = transformation.transformation.b;
-            const d = transformation.transformation.d;
-            const e = transformation.transformation.e;
+            this.logger.info('=== 精密版スケール計算開始（修正版） ===');
             
-            // X方向とY方向のスケールを計算
-            const scaleX = Math.sqrt(a * a + d * d);
-            const scaleY = Math.sqrt(b * b + e * e);
-            
-            // 平均スケールを使用
-            const averageScale = (scaleX + scaleY) / 2;
-            
-            // Web Mercatorからピクセルスケールに変換
-            const centerPos = this.mapCore.getMap().getCenter();
-            const metersPerPixel = 156543.03392 * Math.cos(centerPos.lat * Math.PI / 180) / Math.pow(2, this.mapCore.getMap().getZoom());
-            
-            const pixelScale = averageScale / metersPerPixel;
-            
-            return pixelScale;
+            const controlPoints = transformation.controlPoints;
+            if (controlPoints && controlPoints.length >= 2) {
+                // 制御点ベースのスケール計算（簡易版と完全に同じ方法）
+                const point1 = controlPoints[0];
+                const point2 = controlPoints[1];
+                
+                // 画像上の距離（ピクセル）
+                const imageDistanceX = point2.pointJson.imageX - point1.pointJson.imageX;
+                const imageDistanceY = point2.pointJson.imageY - point1.pointJson.imageY;
+                const imageDistance = Math.sqrt(imageDistanceX * imageDistanceX + imageDistanceY * imageDistanceY);
+                
+                // GPS上の実距離（メートル）
+                const gpsDistance = this.mapCore.getMap().distance(
+                    [point1.gpsPoint.lat, point1.gpsPoint.lng],
+                    [point2.gpsPoint.lat, point2.gpsPoint.lng]
+                );
+                
+                if (imageDistance === 0 || gpsDistance === 0) {
+                    this.logger.warn('距離が0のため、デフォルトスケールを使用');
+                    return this.imageOverlay.getDefaultScale();
+                }
+                
+                // 実測スケール（メートル/ピクセル）
+                const realWorldScale = gpsDistance / imageDistance;
+                
+                this.logger.info(`制御点ベース計算:`);
+                this.logger.info(`  画像距離: ${imageDistance.toFixed(2)}ピクセル`);
+                this.logger.info(`  GPS距離: ${gpsDistance.toFixed(2)}メートル`);
+                this.logger.info(`  実測スケール: ${realWorldScale.toFixed(6)} m/pixel`);
+                
+                // 現在のズームレベルでの地図解像度
+                const centerPos = this.mapCore.getMap().getCenter();
+                const currentZoom = this.mapCore.getMap().getZoom();
+                const metersPerPixelAtCenter = 156543.03392 * Math.cos(centerPos.lat * Math.PI / 180) / Math.pow(2, currentZoom);
+                
+                this.logger.info(`地図解像度: ${metersPerPixelAtCenter.toFixed(6)} m/pixel (ズーム${currentZoom})`);
+                
+                // 簡易版と完全に同じ計算：ピクセルスケールファクタ
+                const pixelScaleFactor = realWorldScale / metersPerPixelAtCenter;
+                
+                this.logger.info(`ピクセルスケールファクタ: ${pixelScaleFactor.toFixed(6)}`);
+                this.logger.info(`デフォルトスケール: ${this.imageOverlay.getDefaultScale()}`);
+                this.logger.info(`相対拡大率: ${(pixelScaleFactor / this.imageOverlay.getDefaultScale()).toFixed(2)}倍`);
+                
+                this.logger.info('=== 精密版スケール計算終了（制御点ベース） ===');
+                return pixelScaleFactor;
+                
+            } else {
+                // 制御点が不足している場合はデフォルトスケールを使用
+                this.logger.warn('制御点が不足しているため、デフォルトスケールを使用');
+                this.logger.info('=== 精密版スケール計算終了（デフォルト） ===');
+                return this.imageOverlay.getDefaultScale();
+            }
             
         } catch (error) {
             this.logger.error('スケール計算エラー', error);
