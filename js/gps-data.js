@@ -1,6 +1,5 @@
-// GPS データ処理機能を管理するモジュール - GeoJSON対応版
-import { Logger } from './logger.js';
-import { errorHandler } from './error-handler.js';
+// GPS データ処理機能を管理するモジュール - GeoJSON対応版とExcelファイル読み込み機能を統合
+import { Logger, errorHandler } from './utils.js';
 
 export class GPSData {
     constructor() {
@@ -259,5 +258,43 @@ export class GPSData {
     // ポイント数取得
     getPointCount() {
         return this.gpsPoints.length;
+    }
+
+    // ===============================================
+    // Excelファイル読み込み機能（file-handler.jsから統合）
+    // ===============================================
+    
+    async loadExcelFile(file) {
+        if (!this.isExcelFile(file)) {
+            throw new Error('Excelファイル(.xlsx)を選択してください');
+        }
+        
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    resolve(jsonData);
+                } catch (error) {
+                    reject(new Error('Excelファイルの読み込みに失敗しました: ' + error.message));
+                }
+            };
+            
+            reader.onerror = () => reject(new Error('ファイル読み込みエラー'));
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    isExcelFile(file) {
+        return file.name.toLowerCase().endsWith('.xlsx') && 
+               file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
 }
