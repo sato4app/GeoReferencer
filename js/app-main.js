@@ -16,8 +16,8 @@ class GeoReferencerApp {
         this.pointJsonData = null; // ポイントJSONデータを保存
         this.currentTransformation = null; // 現在の変換パラメータを保存
         this.fileHandler = new FileHandler(); // Excel読み込み用
-        this.routeData = null; // ルートデータを保存
-        this.spotData = null; // スポットデータを保存
+        this.routeData = []; // ルートデータを配列で保存
+        this.spotData = []; // スポットデータを配列で保存
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -255,34 +255,54 @@ class GeoReferencerApp {
 
     async handleRouteSpotJsonLoad(event) {
         try {
-            const file = event.target.files[0];
-            if (!file) return;
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
 
-            this.logger.info('ルート・スポット(座標)JSONファイル読み込み開始', file.name);
-            
-            // JSONファイルを読み込んでルートやスポット座標情報を処理
-            const text = await file.text();
-            const data = JSON.parse(text);
+            this.logger.info(`ルート・スポット(座標)JSONファイル読み込み開始: ${files.length}ファイル`);
             
             // 選択されているラジオボタンの値を取得
             const selectedRouteSpotType = document.querySelector('input[name="routeSpotType"]:checked')?.value;
             
-            // データを保存（ルート・スポット別に）
+            const newData = [];
+            
+            // 複数ファイルを順次処理
+            for (const file of files) {
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    
+                    // ファイルごとに処理
+                    if (selectedRouteSpotType === 'route') {
+                        const processedRoutes = this.processRouteData(data, file.name);
+                        newData.push(...processedRoutes);
+                    } else if (selectedRouteSpotType === 'spot') {
+                        const processedSpots = this.processSpotData(data, file.name);
+                        newData.push(...processedSpots);
+                    }
+                    
+                    this.logger.info(`ファイル読み込み完了: ${file.name}`);
+                } catch (fileError) {
+                    this.logger.error(`ファイル読み込みエラー: ${file.name}`, fileError);
+                    // エラーがあっても他のファイルは処理を続ける
+                }
+            }
+            
+            // データを追加または更新（既存データを保持し、重複を除外）
             if (selectedRouteSpotType === 'route') {
-                this.routeData = data;
+                this.routeData = this.mergeAndDeduplicate(this.routeData, newData, 'route');
             } else if (selectedRouteSpotType === 'spot') {
-                this.spotData = data;
+                this.spotData = this.mergeAndDeduplicate(this.spotData, newData, 'spot');
             }
             
             // imageX, imageYを持つルート・スポットを画像上に表示
-            if (this.imageOverlay && data) {
-                await this.displayImageCoordinates(data, 'routes-spots');
+            if (this.imageOverlay && newData.length > 0) {
+                await this.displayImageCoordinates(newData, 'routes-spots');
             }
             
             // ルート・スポット数を更新
             this.updateRouteSpotCount();
             
-            this.logger.info('ルート・スポット(座標)JSON読み込み完了', data);
+            this.logger.info(`ルート・スポット(座標)JSON読み込み完了: 合計${newData.length}項目追加`);
             
         } catch (error) {
             this.logger.error('ルート・スポット(座標)JSON読み込みエラー', error);
@@ -1302,35 +1322,211 @@ class GeoReferencerApp {
         }
     }
 
+    // ルートデータを処理してプロパティ別に分類
+    processRouteData(data, fileName) {
+        const routes = [];
+        
+        try {
+            if (Array.isArray(data)) {
+                // 配列の場合、各要素をルートとして扱う
+                data.forEach((item, index) => {
+                    routes.push({
+                        ...item,
+                        fileName: fileName,
+                        routeId: item.id || `${fileName}_route_${index}`,
+                        startPoint: this.extractStartPoint(item),
+                        endPoint: this.extractEndPoint(item)
+                    });
+                });
+            } else if (data && typeof data === 'object') {
+                // オブジェクトの場合
+                if (data.routes && Array.isArray(data.routes)) {
+                    data.routes.forEach((route, index) => {
+                        routes.push({
+                            ...route,
+                            fileName: fileName,
+                            routeId: route.id || `${fileName}_route_${index}`,
+                            startPoint: this.extractStartPoint(route),
+                            endPoint: this.extractEndPoint(route)
+                        });
+                    });
+                } else {
+                    // 単一ルートオブジェクト
+                    routes.push({
+                        ...data,
+                        fileName: fileName,
+                        routeId: data.id || `${fileName}_route_0`,
+                        startPoint: this.extractStartPoint(data),
+                        endPoint: this.extractEndPoint(data)
+                    });
+                }
+            }
+        } catch (error) {
+            this.logger.error(`ルートデータ処理エラー: ${fileName}`, error);
+        }
+        
+        return routes;
+    }
+
+    // スポットデータを処理
+    processSpotData(data, fileName) {
+        const spots = [];
+        
+        try {
+            if (Array.isArray(data)) {
+                // 配列の場合、各要素をスポットとして扱う
+                data.forEach((item, index) => {
+                    spots.push({
+                        ...item,
+                        fileName: fileName,
+                        spotId: item.id || `${fileName}_spot_${index}`,
+                        coordinates: this.extractCoordinates(item)
+                    });
+                });
+            } else if (data && typeof data === 'object') {
+                // オブジェクトの場合
+                if (data.spots && Array.isArray(data.spots)) {
+                    data.spots.forEach((spot, index) => {
+                        spots.push({
+                            ...spot,
+                            fileName: fileName,
+                            spotId: spot.id || `${fileName}_spot_${index}`,
+                            coordinates: this.extractCoordinates(spot)
+                        });
+                    });
+                } else {
+                    // 単一スポットオブジェクト
+                    spots.push({
+                        ...data,
+                        fileName: fileName,
+                        spotId: data.id || `${fileName}_spot_0`,
+                        coordinates: this.extractCoordinates(data)
+                    });
+                }
+            }
+        } catch (error) {
+            this.logger.error(`スポットデータ処理エラー: ${fileName}`, error);
+        }
+        
+        return spots;
+    }
+
+    // ルートの開始ポイントを抽出
+    extractStartPoint(route) {
+        if (route.points && Array.isArray(route.points) && route.points.length > 0) {
+            const firstPoint = route.points[0];
+            return {
+                lat: firstPoint.lat || firstPoint.latitude,
+                lng: firstPoint.lng || firstPoint.longitude,
+                name: firstPoint.name || 'Start'
+            };
+        }
+        return null;
+    }
+
+    // ルートの終了ポイントを抽出
+    extractEndPoint(route) {
+        if (route.points && Array.isArray(route.points) && route.points.length > 0) {
+            const lastPoint = route.points[route.points.length - 1];
+            return {
+                lat: lastPoint.lat || lastPoint.latitude,
+                lng: lastPoint.lng || lastPoint.longitude,
+                name: lastPoint.name || 'End'
+            };
+        }
+        return null;
+    }
+
+    // スポットの座標を抽出
+    extractCoordinates(spot) {
+        return {
+            lat: spot.lat || spot.latitude,
+            lng: spot.lng || spot.longitude
+        };
+    }
+
+    // 重複除外とマージ
+    mergeAndDeduplicate(existingData, newData, type) {
+        const merged = [...existingData];
+        
+        newData.forEach(newItem => {
+            let isDuplicate = false;
+            
+            if (type === 'route') {
+                // ルートの重複チェック（開始・終了ポイントが同じ）
+                isDuplicate = merged.some(existing => 
+                    this.isSameRoute(existing, newItem)
+                );
+            } else if (type === 'spot') {
+                // スポットの重複チェック（座標が同じ）
+                isDuplicate = merged.some(existing => 
+                    this.isSameSpot(existing, newItem)
+                );
+            }
+            
+            if (!isDuplicate) {
+                merged.push(newItem);
+            } else {
+                this.logger.debug(`重複データを除外: ${type} - ${newItem.fileName}`);
+            }
+        });
+        
+        return merged;
+    }
+
+    // 同じルートかどうか判定（開始・終了ポイントが同じ）
+    isSameRoute(route1, route2) {
+        const start1 = route1.startPoint;
+        const end1 = route1.endPoint;
+        const start2 = route2.startPoint;
+        const end2 = route2.endPoint;
+        
+        if (!start1 || !end1 || !start2 || !end2) {
+            return false;
+        }
+        
+        const tolerance = 0.0001; // 座標の許容誤差
+        
+        return (
+            Math.abs(start1.lat - start2.lat) < tolerance &&
+            Math.abs(start1.lng - start2.lng) < tolerance &&
+            Math.abs(end1.lat - end2.lat) < tolerance &&
+            Math.abs(end1.lng - end2.lng) < tolerance
+        );
+    }
+
+    // 同じスポットかどうか判定（座標が同じ）
+    isSameSpot(spot1, spot2) {
+        const coord1 = spot1.coordinates;
+        const coord2 = spot2.coordinates;
+        
+        if (!coord1 || !coord2) {
+            return false;
+        }
+        
+        const tolerance = 0.0001; // 座標の許容誤差
+        
+        return (
+            Math.abs(coord1.lat - coord2.lat) < tolerance &&
+            Math.abs(coord1.lng - coord2.lng) < tolerance
+        );
+    }
+
     updateRouteSpotCount() {
         try {
             const routeCountField = document.getElementById('routeCount');
             const spotCountField = document.getElementById('spotCount');
             
             // ルート数を更新
-            if (routeCountField && this.routeData) {
-                let routeCount = 0;
-                if (Array.isArray(this.routeData)) {
-                    routeCount = this.routeData.length;
-                } else if (this.routeData.routes && Array.isArray(this.routeData.routes)) {
-                    routeCount = this.routeData.routes.length;
-                } else if (this.routeData.route) {
-                    routeCount = 1;
-                }
+            if (routeCountField) {
+                const routeCount = Array.isArray(this.routeData) ? this.routeData.length : 0;
                 routeCountField.value = routeCount;
                 this.logger.debug(`ルート数更新: ${routeCount}本`);
             }
             
             // スポット数を更新
-            if (spotCountField && this.spotData) {
-                let spotCount = 0;
-                if (Array.isArray(this.spotData)) {
-                    spotCount = this.spotData.length;
-                } else if (this.spotData.spots && Array.isArray(this.spotData.spots)) {
-                    spotCount = this.spotData.spots.length;
-                } else if (this.spotData.spot) {
-                    spotCount = 1;
-                }
+            if (spotCountField) {
+                const spotCount = Array.isArray(this.spotData) ? this.spotData.length : 0;
                 spotCountField.value = spotCount;
                 this.logger.debug(`スポット数更新: ${spotCount}個`);
             }
