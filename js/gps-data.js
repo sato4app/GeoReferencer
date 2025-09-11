@@ -262,6 +262,98 @@ export class GPSData {
     }
 
     // ===============================================
+    // ルート・スポット読み込み機能（JSONファイル）
+    // ===============================================
+
+    // JSONファイル読み込み処理（ルート・スポット用）
+    async loadRouteSpotJsonFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const jsonData = JSON.parse(e.target.result);
+                    const processedData = this.processRouteSpotJsonData(jsonData);
+                    
+                    this.logger.info('ルート・スポットJSON読み込み完了', Object.keys(processedData).length + '項目');
+                    resolve(processedData);
+                } catch (error) {
+                    this.logger.error('ルート・スポットJSON処理エラー', error);
+                    reject(new Error('ルート・スポットJSONデータの処理に失敗しました: ' + error.message));
+                }
+            };
+            
+            reader.onerror = () => {
+                const error = new Error('ファイルの読み込みに失敗しました');
+                this.logger.error('ファイル読み込みエラー', error);
+                reject(error);
+            };
+            
+            reader.readAsText(file);
+        });
+    }
+
+    // ルート・スポットJSONデータ処理（ポイント座標除外）
+    processRouteSpotJsonData(jsonData) {
+        try {
+            const filteredData = {};
+            
+            // JSONデータの各プロパティを処理
+            for (const [key, value] of Object.entries(jsonData)) {
+                if (this.isPointCoordinate(value)) {
+                    // ポイント座標は除外
+                    this.logger.debug(`ポイント座標として除外: ${key}`, value);
+                    continue;
+                }
+                
+                // ルート・スポットデータとして追加
+                filteredData[key] = value;
+            }
+            
+            this.logger.info('ルート・スポットデータフィルタリング完了', 
+                `元データ: ${Object.keys(jsonData).length}項目, 処理後: ${Object.keys(filteredData).length}項目`);
+            
+            return filteredData;
+            
+        } catch (error) {
+            this.logger.error('ルート・スポットJSONデータ処理エラー', error);
+            throw new Error('ルート・スポットJSONデータの形式が正しくありません');
+        }
+    }
+
+    // ポイント座標かどうかを判定
+    isPointCoordinate(data) {
+        // データがオブジェクトでない場合はポイント座標ではない
+        if (!data || typeof data !== 'object') {
+            return false;
+        }
+        
+        // pointsオブジェクトを持ち、imageX, imageYで構成する座標がある
+        if (data.points && typeof data.points === 'object') {
+            // pointsの中身をチェック
+            for (const point of Object.values(data.points)) {
+                if (point && typeof point === 'object' && 
+                    'imageX' in point && 'imageY' in point) {
+                    // type属性がなく（またはwaypointではない）、id属性がある
+                    if ((!point.type || point.type !== 'waypoint') && point.id) {
+                        return true; // ポイント座標と判定
+                    }
+                }
+            }
+        }
+        
+        // 直接的にimageX, imageYを持つ場合もチェック
+        if ('imageX' in data && 'imageY' in data) {
+            // type属性がなく（またはwaypointではない）、id属性がある
+            if ((!data.type || data.type !== 'waypoint') && data.id) {
+                return true; // ポイント座標と判定
+            }
+        }
+        
+        return false; // ポイント座標ではない
+    }
+
+    // ===============================================
     // Excelファイル読み込み機能（file-handler.jsから統合）
     // ===============================================
     
