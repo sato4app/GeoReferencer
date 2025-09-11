@@ -88,10 +88,11 @@ export class Georeferencing {
             const gpsPoints = this.gpsData.getPoints();
             const matchResult = this.matchPointJsonWithGPS(gpsPoints);
 
-            if (matchResult.matchedPairs.length >= 2) {
+            if (matchResult.matchedPairs.length >= 3) {
                 await this.performAutomaticGeoreferencing(matchResult.matchedPairs);
-            } else if (matchResult.matchedPairs.length === 1) {
-                await this.centerImageOnSinglePoint(matchResult.matchedPairs[0]);
+            } else {
+                this.logger.error(`精密版ジオリファレンシングには最低3つのポイントが必要です。現在: ${matchResult.matchedPairs.length}ポイント`);
+                throw new Error(`精密版ジオリファレンシングには最低3つのポイントが必要です。現在: ${matchResult.matchedPairs.length}ポイント`);
             }
 
             // 画像更新時のコールバックを登録（重複登録を防ぐ）
@@ -123,17 +124,13 @@ export class Georeferencing {
 
     async performAutomaticGeoreferencing(matchedPairs) {
         try {
-            this.logger.info('自動ジオリファレンシング開始', matchedPairs.length + 'ペア');
+            this.logger.info('精密版ジオリファレンシング開始', matchedPairs.length + 'ペア');
 
-            // UIで指定されたポイント数を取得（デフォルト10、最大20）
-            const maxPointsInput = document.getElementById('maxPointsField');
-            const maxPoints = maxPointsInput ? parseInt(maxPointsInput.value) || 10 : 10;
-            const limitedMaxPoints = Math.min(Math.max(maxPoints, 2), 20); // 2-20の範囲で制限
+            // 一致するポイント数をすべて使用（精密版のみ）
+            const controlPoints = matchedPairs;
+            this.logger.info(`使用ポイント数: ${controlPoints.length}個（全一致ポイント）`);
             
-            const controlPoints = matchedPairs.slice(0, Math.min(limitedMaxPoints, matchedPairs.length));
-            this.logger.info(`使用ポイント数: ${controlPoints.length}個 (指定値: ${maxPoints})`);
-            
-            const transformation = this.calculateAffineTransformation(controlPoints);
+            const transformation = this.calculatePreciseAffineTransformation(controlPoints);
             
             if (transformation) {
                 await this.applyTransformationToImage(transformation, controlPoints);
@@ -148,172 +145,27 @@ export class Georeferencing {
         }
     }
 
-    async centerImageOnSinglePoint(matchedPair) {
-        try {
-            this.logger.info('単一ポイント中心合わせ開始', matchedPair.pointJsonId);
 
-            const gpsLat = matchedPair.gpsPoint.lat;
-            const gpsLng = matchedPair.gpsPoint.lng;
 
-            this.currentTransformation = {
-                type: 'center_only',
-                targetPointImageX: matchedPair.pointJson.imageX,
-                targetPointImageY: matchedPair.pointJson.imageY,
-                targetPointGpsLat: gpsLat,
-                targetPointGpsLng: gpsLng
-            };
-
-            this.imageOverlay.setCenterPosition([gpsLat, gpsLng]);
-            await this.updatePointJsonMarkersAfterCentering();
-
-            this.logger.info('単一ポイント中心合わせ完了');
-
-        } catch (error) {
-            this.logger.error('単一ポイント中心合わせエラー', error);
-        }
-    }
-
-    calculateAffineTransformation(controlPoints) {
-        try {
-            if (controlPoints.length < 2) {
-                this.logger.warn('アフィン変換には最低2つのコントロールポイントが必要です');
-                return null;
-            }
-
-            // 選択された変換方式を取得
-            const selectedMode = document.querySelector('input[name="transformationMode"]:checked')?.value || 'auto';
-            
-            let transformationMode;
-            if (selectedMode === 'auto') {
-                // 自動選択：2ポイントなら簡易版、3ポイント以上なら精密版
-                transformationMode = controlPoints.length === 2 ? 'simple' : 'precise';
-            } else {
-                transformationMode = selectedMode;
-            }
-
-            this.logger.info(`変換方式: ${transformationMode} (選択: ${selectedMode}, ポイント数: ${controlPoints.length})`);
-
-            // 処理時間測定開始
-            const startTime = performance.now();
-            
-            let result;
-            if (transformationMode === 'simple' || controlPoints.length === 2) {
-                result = this.calculateSimpleTransformation(controlPoints);
-                result.method = 'simple';
-            } else {
-                result = this.calculatePreciseAffineTransformation(controlPoints);
-                result.method = 'precise';
-            }
-
-            // 処理時間測定終了
-            const endTime = performance.now();
-            const processingTime = endTime - startTime;
-
-            if (result) {
-                result.processingTime = processingTime;
-                result.controlPointsCount = controlPoints.length;
-                
-                this.logger.info(`変換計算完了: ${result.method}版, 処理時間: ${processingTime.toFixed(2)}ms`);
-                
-                // 結果をUIに表示
-                this.displayTransformationResult(result);
-            }
-
-            return result;
-
-        } catch (error) {
-            this.logger.error('アフィン変換計算エラー', error);
-            return null;
-        }
-    }
-
-    calculateSimpleTransformation(controlPoints) {
-        try {
-            const point1 = controlPoints[0];
-            const point2 = controlPoints[1];
-
-            const imageDistanceX = point2.pointJson.imageX - point1.pointJson.imageX;
-            const imageDistanceY = point2.pointJson.imageY - point1.pointJson.imageY;
-            const imageDistance = Math.sqrt(imageDistanceX * imageDistanceX + imageDistanceY * imageDistanceY);
-
-            const gpsDistance = this.mapCore.getMap().distance(
-                [point1.gpsPoint.lat, point1.gpsPoint.lng],
-                [point2.gpsPoint.lat, point2.gpsPoint.lng]
-            );
-
-            if (imageDistance === 0 || gpsDistance === 0) {
-                this.logger.warn('距離が0のため変換計算できません');
-                return null;
-            }
-
-            const scale = gpsDistance / imageDistance;
-            
-            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
-            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
-            const actualImageCenterX = imageWidth / 2;
-            const actualImageCenterY = imageHeight / 2;
-
-            const referencePoint = point1;
-            const deltaX = actualImageCenterX - referencePoint.pointJson.imageX;
-            const deltaY = actualImageCenterY - referencePoint.pointJson.imageY;
-
-            const earthRadius = 6378137;
-            const centerLat = referencePoint.gpsPoint.lat;
-            const cosLat = Math.cos(centerLat * Math.PI / 180);
-            
-            const latOffset = (deltaY * scale) / earthRadius * (180 / Math.PI);
-            const lngOffset = (deltaX * scale) / (earthRadius * cosLat) * (180 / Math.PI);
-
-            const imageCenterGpsLat = referencePoint.gpsPoint.lat - latOffset;
-            const imageCenterGpsLng = referencePoint.gpsPoint.lng + lngOffset;
-
-            this.logger.info('変換パラメータ詳細', {
-                referencePoint: `${referencePoint.pointJsonId} - Image:(${referencePoint.pointJson.imageX}, ${referencePoint.pointJson.imageY}) GPS:(${referencePoint.gpsPoint.lat}, ${referencePoint.gpsPoint.lng})`,
-                imageSize: `${imageWidth}x${imageHeight}`,
-                actualImageCenter: `(${actualImageCenterX}, ${actualImageCenterY})`,
-                scale: scale,
-                calculatedCenter: `GPS:(${imageCenterGpsLat}, ${imageCenterGpsLng})`
-            });
-
-            return {
-                type: 'simple',
-                scale: scale,
-                centerImageX: actualImageCenterX,
-                centerImageY: actualImageCenterY,
-                centerGpsLat: imageCenterGpsLat,
-                centerGpsLng: imageCenterGpsLng,
-                controlPoints: controlPoints
-            };
-
-        } catch (error) {
-            this.logger.error('簡易変換計算エラー', error);
-            return null;
-        }
-    }
 
     calculatePreciseAffineTransformation(controlPoints) {
         try {
             this.logger.info(`精密アフィン変換開始: ${controlPoints.length}ポイント使用`);
             
             if (controlPoints.length < 3) {
-                this.logger.warn('精密アフィン変換には最低3つのポイントが必要です。簡易版にフォールバック');
-                return this.calculateSimpleTransformation(controlPoints);
+                this.logger.error('精密アフィン変換には最低3つのポイントが必要です');
+                return null;
             }
 
-            // UIで指定されたポイント数を取得（デフォルト10、最大20）
-            const maxPointsInput = document.getElementById('maxPointsField');
-            const maxPoints = maxPointsInput ? parseInt(maxPointsInput.value) || 10 : 10;
-            const limitedMaxPoints = Math.min(Math.max(maxPoints, 2), 20); // 2-20の範囲で制限
-            
-            // 指定されたポイント数まで使用
-            const usePoints = controlPoints.slice(0, Math.min(limitedMaxPoints, controlPoints.length));
+            // 一致するポイント数をすべて使用
+            const usePoints = controlPoints;
             
             // 最小二乗法によるアフィン変換パラメータ計算
             const transformation = this.calculateLeastSquaresTransformation(usePoints);
             
             if (!transformation) {
-                this.logger.warn('精密変換計算に失敗。簡易版にフォールバック');
-                return this.calculateSimpleTransformation(controlPoints.slice(0, 2));
+                this.logger.error('精密変換計算に失敗');
+                return null;
             }
 
             // 変換精度を計算
@@ -333,8 +185,7 @@ export class Georeferencing {
             
         } catch (error) {
             this.logger.error('精密アフィン変換計算エラー', error);
-            // エラー時は簡易版にフォールバック
-            return this.calculateSimpleTransformation(controlPoints.slice(0, 2));
+            return null;
         }
     }
 
@@ -526,13 +377,14 @@ export class Georeferencing {
 
     async applyTransformationToImage(transformation, controlPoints) {
         try {
-            if (transformation.type === 'simple') {
-                await this.applySimpleTransformation(transformation);
-            } else if (transformation.type === 'precise') {
+            if (transformation.type === 'precise') {
                 await this.applyPreciseTransformation(transformation);
+            } else {
+                this.logger.error('精密版以外の変換はサポートされていません');
+                return;
             }
 
-            this.logger.info('画像変換適用完了');
+            this.logger.info('精密版画像変換適用完了');
 
         } catch (error) {
             this.logger.error('画像変換適用エラー', error);
@@ -656,85 +508,7 @@ export class Georeferencing {
         }
     }
 
-    displayTransformationResult(result) {
-        try {
-            const transformationResultField = document.getElementById('transformationResultField');
-            if (!transformationResultField) return;
 
-            let resultText = `変換方式: ${result.method === 'simple' ? '簡易版' : '精密版'}\n`;
-            resultText += `処理時間: ${result.processingTime.toFixed(2)}ms\n`;
-            resultText += `使用ポイント数: ${result.controlPointsCount}個\n\n`;
-
-            if (result.method === 'simple') {
-                resultText += `簡易版 - 2点間距離ベース変換\n`;
-                if (result.controlPoints && result.controlPoints.length >= 2) {
-                    const point1 = result.controlPoints[0];
-                    const point2 = result.controlPoints[1];
-                    resultText += `基準点1: ${point1.pointJsonId}\n`;
-                    resultText += `基準点2: ${point2.pointJsonId}\n`;
-                }
-                resultText += `スケール: ${result.scale ? result.scale.toFixed(6) : 'N/A'}`;
-            } else {
-                resultText += `精密版 - 最小二乗法アフィン変換\n`;
-                if (result.accuracy) {
-                    resultText += `平均誤差: ${result.accuracy.meanError.toFixed(2)}m\n`;
-                    resultText += `最大誤差: ${result.accuracy.maxError.toFixed(2)}m\n`;
-                    resultText += `最小誤差: ${result.accuracy.minError.toFixed(2)}m\n`;
-                }
-                if (result.transformation) {
-                    resultText += `変換係数:\n`;
-                    resultText += `a=${result.transformation.a.toFixed(6)}\n`;
-                    resultText += `b=${result.transformation.b.toFixed(6)}\n`;
-                    resultText += `d=${result.transformation.d.toFixed(6)}\n`;
-                    resultText += `e=${result.transformation.e.toFixed(6)}`;
-                }
-            }
-
-            transformationResultField.value = resultText;
-            this.logger.debug('変換結果表示完了');
-            
-        } catch (error) {
-            this.logger.error('変換結果表示エラー', error);
-        }
-    }
-
-    async applySimpleTransformation(transformation) {
-        try {
-            this.currentTransformation = transformation;
-
-            this.imageOverlay.setCenterPosition([
-                transformation.centerGpsLat, 
-                transformation.centerGpsLng
-            ]);
-
-            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
-            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
-
-            if (!imageWidth || !imageHeight) {
-                throw new Error('画像サイズの取得に失敗しました');
-            }
-
-            const centerPos = [transformation.centerGpsLat, transformation.centerGpsLng];
-            const metersPerPixel = 156543.03392 * Math.cos(centerPos[0] * Math.PI / 180) / Math.pow(2, this.mapCore.getMap().getZoom());
-
-            const newScale = transformation.scale / metersPerPixel;
-
-            this.logger.info('変換パラメータ', {
-                centerGps: centerPos,
-                scale: transformation.scale,
-                metersPerPixel: metersPerPixel,
-                newScale: newScale
-            });
-
-            this.imageOverlay.setCurrentScale(newScale);
-            this.imageOverlay.updateImageDisplay();
-            await this.updatePointJsonMarkersAfterTransformation();
-
-        } catch (error) {
-            this.logger.error('簡易変換適用エラー', error);
-            throw error;
-        }
-    }
 
     matchPointJsonWithGPS(gpsPoints) {
         try {
@@ -849,54 +623,6 @@ export class Georeferencing {
         }
     }
 
-    async updatePointJsonMarkersAfterCentering() {
-        try {
-            if (!this.currentTransformation || !this.imageCoordinateMarkers || this.imageCoordinateMarkers.length === 0) {
-                this.logger.debug('変換パラメータまたはポイントJSONマーカーが存在しません');
-                return;
-            }
-
-            const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
-                markerInfo.type === 'georeference-point'
-            );
-
-            this.logger.info('ポイントJSONマーカー中心移動更新開始', georefMarkers.length + '個');
-
-            for (const markerInfo of georefMarkers) {
-                const marker = markerInfo.marker;
-                const data = markerInfo.data;  // dataから直接取得
-                
-                if (!data || data.imageX === undefined || data.imageY === undefined) {
-                    this.logger.warn('マーカーの画像座標データが不足しています', data);
-                    continue;
-                }
-
-                const transformedGpsCoords = this.transformImageCoordsToGps(
-                    data.imageX, 
-                    data.imageY, 
-                    this.currentTransformation
-                );
-
-                if (transformedGpsCoords) {
-                    marker.setLatLng(transformedGpsCoords);
-                    const updatedPopupContent = this.createUpdatedPopupContent({
-                        imageX: data.imageX,
-                        imageY: data.imageY,
-                        name: data.name || data.id
-                    }, transformedGpsCoords);
-                    marker.bindPopup(updatedPopupContent);
-                }
-            }
-
-            this.logger.info('ポイントJSONマーカー中心移動更新完了');
-            
-            // 追加: 確実にポイント位置同期を実行
-            this.syncPointPositions();
-            
-        } catch (error) {
-            this.logger.error('ポイントJSONマーカー中心移動更新エラー', error);
-        }
-    }
 
     getPointInfoFromMarker(marker) {
         try {
@@ -942,41 +668,7 @@ export class Georeferencing {
         try {
             this.logger.debug(`座標変換開始: 画像座標(${imageX}, ${imageY}), 変換方式: ${transformation.type}`);
             
-            if (transformation.type === 'simple') {
-                const deltaImageX = imageX - transformation.centerImageX;
-                const deltaImageY = imageY - transformation.centerImageY;
-
-                const earthRadius = 6378137;
-                const latOffset = (deltaImageY * transformation.scale) / earthRadius * (180 / Math.PI);
-                const lngOffset = (deltaImageX * transformation.scale) / (earthRadius * Math.cos(transformation.centerGpsLat * Math.PI / 180)) * (180 / Math.PI);
-
-                const newLat = transformation.centerGpsLat - latOffset;
-                const newLng = transformation.centerGpsLng + lngOffset;
-
-                this.logger.debug(`簡易版変換結果: GPS(${newLat.toFixed(6)}, ${newLng.toFixed(6)})`);
-                return [newLat, newLng];
-                
-            } else if (transformation.type === 'center_only') {
-                const deltaImageX = imageX - transformation.targetPointImageX;
-                const deltaImageY = imageY - transformation.targetPointImageY;
-
-                const currentZoom = this.mapCore.getMap().getZoom();
-                const metersPerPixel = 156543.03392 * Math.cos(transformation.targetPointGpsLat * Math.PI / 180) / Math.pow(2, currentZoom);
-                const defaultScale = this.imageOverlay.getDefaultScale();
-                
-                const deltaMetersX = deltaImageX * defaultScale * metersPerPixel;
-                const deltaMetersY = deltaImageY * defaultScale * metersPerPixel;
-
-                const earthRadius = 6378137;
-                const latOffset = deltaMetersY / earthRadius * (180 / Math.PI);
-                const lngOffset = deltaMetersX / (earthRadius * Math.cos(transformation.targetPointGpsLat * Math.PI / 180)) * (180 / Math.PI);
-
-                const newLat = transformation.targetPointGpsLat - latOffset;
-                const newLng = transformation.targetPointGpsLng + lngOffset;
-
-                this.logger.debug(`中心のみ変換結果: GPS(${newLat.toFixed(6)}, ${newLng.toFixed(6)})`);
-                return [newLat, newLng];
-            } else if (transformation.type === 'precise') {
+            if (transformation.type === 'precise') {
                 // 精密版: アフィン変換を使用
                 const trans = transformation.transformation;
                 
@@ -990,9 +682,10 @@ export class Georeferencing {
                 
                 this.logger.debug(`精密版変換結果: GPS(${newLat.toFixed(6)}, ${newLng.toFixed(6)})`);
                 return [newLat, newLng];
+            } else {
+                this.logger.error('精密版以外の変換はサポートされていません');
+                return null;
             }
-
-            return null;
             
         } catch (error) {
             this.logger.error('座標変換エラー', error);
@@ -1107,9 +800,20 @@ export class Georeferencing {
                         const newLatLng = coordinateDisplay.convertImageToLatLng(data.imageX, data.imageY);
                         const oldPos = marker.getLatLng();
                         
-                        this.logger.info(`マーカー${index}: 画像境界ベース更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)}]`);
+                        this.logger.info(`マーカー${index}: ${data.name || data.id} 画像境界ベース更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)}]`);
                         
                         marker.setLatLng(newLatLng);
+                        
+                        // ポップアップ内容も更新（画像座標を保持）
+                        const updatedPopupContent = `
+                            <div>
+                                <strong>${data.name || data.id}</strong><br>
+                                画像座標: (${data.imageX}, ${data.imageY})<br>
+                                現在のGPS: (${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)})<br>
+                                <small>画像境界ベース変換</small>
+                            </div>
+                        `;
+                        marker.bindPopup(updatedPopupContent);
                     }
                 }
             });
