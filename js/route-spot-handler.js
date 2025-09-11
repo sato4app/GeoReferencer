@@ -1,10 +1,12 @@
 // ルート・スポット処理機能を管理するモジュール
 import { Logger, errorHandler } from './utils.js';
+import { coordinateTransforms } from './coordinate-transforms.js';
 
 export class RouteSpotHandler {
-    constructor(mapCore) {
+    constructor(mapCore, imageOverlay = null) {
         this.logger = new Logger('RouteSpotHandler');
         this.mapCore = mapCore;
+        this.imageOverlay = imageOverlay;
         this.routeData = [];
         this.spotData = [];
         this.routeMarkers = [];
@@ -294,10 +296,44 @@ export class RouteSpotHandler {
             const coords = spot.geometry.coordinates;
             console.log('geometry.coordinates形式で座標取得:', { lat: coords[1], lng: coords[0] });
             return { lat: coords[1], lng: coords[0] };
+        } else if (spot.imageX !== undefined && spot.imageY !== undefined && this.imageOverlay) {
+            // 画像座標からGPS座標に変換
+            const convertedCoords = this.convertImageCoordsToGps(spot.imageX, spot.imageY);
+            if (convertedCoords) {
+                console.log('imageX/imageY形式で座標変換:', convertedCoords);
+                return convertedCoords;
+            }
         }
         
         console.log('座標データが見つかりません');
         return null;
+    }
+
+    convertImageCoordsToGps(imageX, imageY) {
+        try {
+            if (!this.imageOverlay || !this.imageOverlay.imageOverlay) {
+                console.log('画像オーバーレイが利用できません');
+                return null;
+            }
+
+            const imageBounds = this.imageOverlay.imageOverlay.getBounds();
+            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
+            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+
+            if (!imageBounds || !imageWidth || !imageHeight) {
+                console.log('画像境界または画像サイズが取得できません');
+                return null;
+            }
+
+            const result = coordinateTransforms.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
+            console.log(`画像座標(${imageX}, ${imageY}) → GPS座標(${result ? result[0] : 'null'}, ${result ? result[1] : 'null'})`);
+            
+            return result ? { lat: result[0], lng: result[1] } : null;
+            
+        } catch (error) {
+            console.error('画像座標変換エラー:', error);
+            return null;
+        }
     }
 
     mergeAndDeduplicate(existingData, newData, type) {

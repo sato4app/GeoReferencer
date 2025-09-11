@@ -62,7 +62,7 @@ class GeoReferencerApp {
             this.imageOverlay = new ImageOverlay(this.mapCore);
             this.gpsData = new GPSData();
             this.georeferencing = new Georeferencing(this.mapCore, this.imageOverlay, this.gpsData);
-            this.routeSpotHandler = new RouteSpotHandler(this.mapCore);
+            this.routeSpotHandler = new RouteSpotHandler(this.mapCore, this.imageOverlay);
             this.coordinateDisplay = new CoordinateDisplay(this.mapCore, this.imageOverlay);
             this.uiHandlers = new UIHandlers();
 
