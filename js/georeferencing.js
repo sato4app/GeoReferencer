@@ -125,7 +125,14 @@ export class Georeferencing {
         try {
             this.logger.info('自動ジオリファレンシング開始', matchedPairs.length + 'ペア');
 
-            const controlPoints = matchedPairs.slice(0, 4);
+            // UIで指定されたポイント数を取得（デフォルト10、最大20）
+            const maxPointsInput = document.getElementById('maxPointsField');
+            const maxPoints = maxPointsInput ? parseInt(maxPointsInput.value) || 10 : 10;
+            const limitedMaxPoints = Math.min(Math.max(maxPoints, 2), 20); // 2-20の範囲で制限
+            
+            const controlPoints = matchedPairs.slice(0, Math.min(limitedMaxPoints, matchedPairs.length));
+            this.logger.info(`使用ポイント数: ${controlPoints.length}個 (指定値: ${maxPoints})`);
+            
             const transformation = this.calculateAffineTransformation(controlPoints);
             
             if (transformation) {
@@ -293,8 +300,13 @@ export class Georeferencing {
                 return this.calculateSimpleTransformation(controlPoints);
             }
 
-            // 最適化: 最大6ポイントまで使用（計算精度とパフォーマンスのバランス）
-            const usePoints = controlPoints.slice(0, Math.min(6, controlPoints.length));
+            // UIで指定されたポイント数を取得（デフォルト10、最大20）
+            const maxPointsInput = document.getElementById('maxPointsField');
+            const maxPoints = maxPointsInput ? parseInt(maxPointsInput.value) || 10 : 10;
+            const limitedMaxPoints = Math.min(Math.max(maxPoints, 2), 20); // 2-20の範囲で制限
+            
+            // 指定されたポイント数まで使用
+            const usePoints = controlPoints.slice(0, Math.min(limitedMaxPoints, controlPoints.length));
             
             // 最小二乗法によるアフィン変換パラメータ計算
             const transformation = this.calculateLeastSquaresTransformation(usePoints);
