@@ -1,6 +1,8 @@
 // ジオリファレンシング（画像重ね合わせ）機能を管理するモジュール
 import { Logger, errorHandler } from './utils.js';
 import { CONFIG } from './constants.js';
+import { coordinateTransforms } from './coordinate-transforms.js';
+import { matrixUtils } from './matrix-utils.js';
 
 export class Georeferencing {
     constructor(mapCore, imageOverlay, gpsData) {
@@ -190,189 +192,12 @@ export class Georeferencing {
     }
 
     calculateLeastSquaresTransformation(controlPoints) {
-        try {
-            const n = controlPoints.length;
-            
-            // 連立方程式の係数行列を構築
-            // アフィン変換: X = a*x + b*y + c, Y = d*x + e*y + f
-            const A = new Array(2 * n).fill(0).map(() => new Array(6).fill(0));
-            const B = new Array(2 * n).fill(0);
-
-            for (let i = 0; i < n; i++) {
-                const imageX = controlPoints[i].pointJson.imageX;
-                const imageY = controlPoints[i].pointJson.imageY;
-                const gpsX = this.lonToWebMercatorX(controlPoints[i].gpsPoint.lng);
-                const gpsY = this.latToWebMercatorY(controlPoints[i].gpsPoint.lat);
-
-                // X座標の方程式
-                A[i * 2][0] = imageX;     // a
-                A[i * 2][1] = imageY;     // b  
-                A[i * 2][2] = 1;          // c
-                A[i * 2][3] = 0;
-                A[i * 2][4] = 0;
-                A[i * 2][5] = 0;
-                B[i * 2] = gpsX;
-
-                // Y座標の方程式
-                A[i * 2 + 1][0] = 0;
-                A[i * 2 + 1][1] = 0;
-                A[i * 2 + 1][2] = 0;
-                A[i * 2 + 1][3] = imageX;  // d
-                A[i * 2 + 1][4] = imageY;  // e
-                A[i * 2 + 1][5] = 1;       // f
-                B[i * 2 + 1] = gpsY;
-            }
-
-            // 正規方程式 (A^T * A) * x = A^T * B を解く
-            const AtA = this.matrixMultiply(this.matrixTranspose(A), A);
-            const AtB = this.matrixVectorMultiply(this.matrixTranspose(A), B);
-            
-            // ガウス・ジョーダン法で連立方程式を解く
-            const params = this.gaussJordan(AtA, AtB);
-            
-            if (!params) {
-                return null;
-            }
-
-            return {
-                a: params[0], b: params[1], c: params[2],
-                d: params[3], e: params[4], f: params[5]
-            };
-
-        } catch (error) {
-            this.logger.error('最小二乗変換計算エラー', error);
-            return null;
-        }
+        return matrixUtils.calculateAffineTransformation(controlPoints, coordinateTransforms);
     }
 
-    // Web Mercator投影のヘルパー関数
-    lonToWebMercatorX(lon) {
-        return lon * 20037508.34 / 180;
-    }
-
-    latToWebMercatorY(lat) {
-        const y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
-        return y * 20037508.34 / 180;
-    }
-
-    webMercatorXToLon(x) {
-        return x * 180 / 20037508.34;
-    }
-
-    webMercatorYToLat(y) {
-        const lat = y * 180 / 20037508.34;
-        return 180 / Math.PI * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
-    }
-
-    // 行列演算のヘルパー関数
-    matrixTranspose(matrix) {
-        return matrix[0].map((_, colIndex) => matrix.map(row => row[colIndex]));
-    }
-
-    matrixMultiply(a, b) {
-        const result = new Array(a.length).fill(0).map(() => new Array(b[0].length).fill(0));
-        for (let i = 0; i < a.length; i++) {
-            for (let j = 0; j < b[0].length; j++) {
-                for (let k = 0; k < b.length; k++) {
-                    result[i][j] += a[i][k] * b[k][j];
-                }
-            }
-        }
-        return result;
-    }
-
-    matrixVectorMultiply(matrix, vector) {
-        return matrix.map(row => row.reduce((sum, val, i) => sum + val * vector[i], 0));
-    }
-
-    gaussJordan(A, B) {
-        try {
-            const n = A.length;
-            const augmented = A.map((row, i) => [...row, B[i]]);
-
-            // 前進消去
-            for (let i = 0; i < n; i++) {
-                // ピボット選択
-                let maxRow = i;
-                for (let k = i + 1; k < n; k++) {
-                    if (Math.abs(augmented[k][i]) > Math.abs(augmented[maxRow][i])) {
-                        maxRow = k;
-                    }
-                }
-                [augmented[i], augmented[maxRow]] = [augmented[maxRow], augmented[i]];
-
-                // 対角要素が0の場合は特異行列
-                if (Math.abs(augmented[i][i]) < 1e-10) {
-                    this.logger.warn('特異行列のため解けません');
-                    return null;
-                }
-
-                // 正規化
-                const pivot = augmented[i][i];
-                for (let j = i; j <= n; j++) {
-                    augmented[i][j] /= pivot;
-                }
-
-                // 消去
-                for (let k = 0; k < n; k++) {
-                    if (k !== i) {
-                        const factor = augmented[k][i];
-                        for (let j = i; j <= n; j++) {
-                            augmented[k][j] -= factor * augmented[i][j];
-                        }
-                    }
-                }
-            }
-
-            // 解を取り出す
-            return augmented.map(row => row[n]);
-
-        } catch (error) {
-            this.logger.error('ガウス・ジョーダン法エラー', error);
-            return null;
-        }
-    }
 
     calculateTransformationAccuracy(controlPoints, transformation) {
-        try {
-            const errors = [];
-            
-            for (const point of controlPoints) {
-                const imageX = point.pointJson.imageX;
-                const imageY = point.pointJson.imageY;
-                
-                // 変換後座標を計算
-                const transformedX = transformation.a * imageX + transformation.b * imageY + transformation.c;
-                const transformedY = transformation.d * imageX + transformation.e * imageY + transformation.f;
-                
-                // 実際のGPS座標（Web Mercator）
-                const actualX = this.lonToWebMercatorX(point.gpsPoint.lng);
-                const actualY = this.latToWebMercatorY(point.gpsPoint.lat);
-                
-                // 誤差計算（メートル単位）
-                const errorDistance = Math.sqrt(
-                    Math.pow(transformedX - actualX, 2) + 
-                    Math.pow(transformedY - actualY, 2)
-                );
-                
-                errors.push(errorDistance);
-            }
-            
-            const meanError = errors.reduce((sum, err) => sum + err, 0) / errors.length;
-            const maxError = Math.max(...errors);
-            const minError = Math.min(...errors);
-            
-            return {
-                meanError,
-                maxError,
-                minError,
-                errors
-            };
-            
-        } catch (error) {
-            this.logger.error('精度計算エラー', error);
-            return { meanError: 0, maxError: 0, minError: 0, errors: [] };
-        }
+        return matrixUtils.calculateTransformationAccuracy(controlPoints, transformation, coordinateTransforms);
     }
 
     async applyTransformationToImage(transformation, controlPoints) {
@@ -446,11 +271,8 @@ export class Georeferencing {
 
     calculateScaleFromTransformation(transformation) {
         try {
-            this.logger.info('=== 精密版スケール計算開始（修正版） ===');
-            
             const controlPoints = transformation.controlPoints;
             if (controlPoints && controlPoints.length >= 2) {
-                // 制御点ベースのスケール計算（簡易版と完全に同じ方法）
                 const point1 = controlPoints[0];
                 const point2 = controlPoints[1];
                 
@@ -460,45 +282,26 @@ export class Georeferencing {
                 const imageDistance = Math.sqrt(imageDistanceX * imageDistanceX + imageDistanceY * imageDistanceY);
                 
                 // GPS上の実距離（メートル）
-                const gpsDistance = this.mapCore.getMap().distance(
-                    [point1.gpsPoint.lat, point1.gpsPoint.lng],
-                    [point2.gpsPoint.lat, point2.gpsPoint.lng]
+                const gpsDistance = coordinateTransforms.calculateGpsDistance(
+                    point1.gpsPoint.lat, point1.gpsPoint.lng,
+                    point2.gpsPoint.lat, point2.gpsPoint.lng
                 );
                 
                 if (imageDistance === 0 || gpsDistance === 0) {
-                    this.logger.warn('距離が0のため、デフォルトスケールを使用');
                     return this.imageOverlay.getDefaultScale();
                 }
                 
                 // 実測スケール（メートル/ピクセル）
                 const realWorldScale = gpsDistance / imageDistance;
                 
-                this.logger.info(`制御点ベース計算:`);
-                this.logger.info(`  画像距離: ${imageDistance.toFixed(2)}ピクセル`);
-                this.logger.info(`  GPS距離: ${gpsDistance.toFixed(2)}メートル`);
-                this.logger.info(`  実測スケール: ${realWorldScale.toFixed(6)} m/pixel`);
-                
                 // 現在のズームレベルでの地図解像度
                 const centerPos = this.mapCore.getMap().getCenter();
                 const currentZoom = this.mapCore.getMap().getZoom();
-                const metersPerPixelAtCenter = 156543.03392 * Math.cos(centerPos.lat * Math.PI / 180) / Math.pow(2, currentZoom);
+                const metersPerPixelAtCenter = coordinateTransforms.calculateMetersPerPixel(centerPos.lat, currentZoom);
                 
-                this.logger.info(`地図解像度: ${metersPerPixelAtCenter.toFixed(6)} m/pixel (ズーム${currentZoom})`);
-                
-                // 簡易版と完全に同じ計算：ピクセルスケールファクタ
-                const pixelScaleFactor = realWorldScale / metersPerPixelAtCenter;
-                
-                this.logger.info(`ピクセルスケールファクタ: ${pixelScaleFactor.toFixed(6)}`);
-                this.logger.info(`デフォルトスケール: ${this.imageOverlay.getDefaultScale()}`);
-                this.logger.info(`相対拡大率: ${(pixelScaleFactor / this.imageOverlay.getDefaultScale()).toFixed(2)}倍`);
-                
-                this.logger.info('=== 精密版スケール計算終了（制御点ベース） ===');
-                return pixelScaleFactor;
+                return realWorldScale / metersPerPixelAtCenter;
                 
             } else {
-                // 制御点が不足している場合はデフォルトスケールを使用
-                this.logger.warn('制御点が不足しているため、デフォルトスケールを使用');
-                this.logger.info('=== 精密版スケール計算終了（デフォルト） ===');
                 return this.imageOverlay.getDefaultScale();
             }
             
@@ -624,64 +427,17 @@ export class Georeferencing {
     }
 
 
-    getPointInfoFromMarker(marker) {
-        try {
-            const popup = marker.getPopup();
-            if (!popup) {
-                this.logger.warn('マーカーにポップアップがありません');
-                return null;
-            }
-
-            const content = popup.getContent();
-            if (!content) {
-                this.logger.warn('ポップアップにコンテンツがありません');
-                return null;
-            }
-
-            this.logger.debug('ポップアップ内容:', content);
-
-            const imageXMatch = content.match(/画像座標: \((\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\)/);
-            if (!imageXMatch) {
-                this.logger.warn('画像座標の正規表現マッチに失敗:', content);
-                return null;
-            }
-
-            const nameMatch = content.match(/<strong>([^<]+)<\/strong>/);
-            const name = nameMatch ? nameMatch[1] : 'Unknown';
-
-            const result = {
-                imageX: parseFloat(imageXMatch[1]),
-                imageY: parseFloat(imageXMatch[2]),
-                name: name
-            };
-
-            this.logger.debug('抽出されたポイント情報:', result);
-            return result;
-            
-        } catch (error) {
-            this.logger.error('マーカー情報抽出エラー', error);
-            return null;
-        }
-    }
 
     transformImageCoordsToGps(imageX, imageY, transformation) {
         try {
             this.logger.debug(`座標変換開始: 画像座標(${imageX}, ${imageY}), 変換方式: ${transformation.type}`);
             
             if (transformation.type === 'precise') {
-                // 精密版: アフィン変換を使用
-                const trans = transformation.transformation;
-                
-                // アフィン変換でWeb Mercator座標に変換
-                const webMercatorX = trans.a * imageX + trans.b * imageY + trans.c;
-                const webMercatorY = trans.d * imageX + trans.e * imageY + trans.f;
-                
-                // Web MercatorからGPS座標に変換
-                const newLat = this.webMercatorYToLat(webMercatorY);
-                const newLng = this.webMercatorXToLon(webMercatorX);
-                
-                this.logger.debug(`精密版変換結果: GPS(${newLat.toFixed(6)}, ${newLng.toFixed(6)})`);
-                return [newLat, newLng];
+                const result = coordinateTransforms.applyAffineTransform(imageX, imageY, transformation);
+                if (result) {
+                    this.logger.debug(`精密版変換結果: GPS(${result[0].toFixed(6)}, ${result[1].toFixed(6)})`);
+                }
+                return result;
             } else {
                 this.logger.error('精密版以外の変換はサポートされていません');
                 return null;

@@ -1,5 +1,6 @@
 // 画像座標表示・変換機能を管理するモジュール
 import { Logger, errorHandler } from './utils.js';
+import { coordinateTransforms } from './coordinate-transforms.js';
 
 export class CoordinateDisplay {
     constructor(mapCore, imageOverlay) {
@@ -151,20 +152,7 @@ export class CoordinateDisplay {
             return [lat, lng];
         }
         
-        const southWest = imageBounds.getSouthWest();
-        const northEast = imageBounds.getNorthEast();
-        
-        const xRatio = imageX / imageWidth;
-        const centerLat = (southWest.lat + northEast.lat) / 2;
-        const cosLat = Math.cos(centerLat * Math.PI / 180);
-        
-        const lngSpan = (northEast.lng - southWest.lng);
-        const lng = southWest.lng + lngSpan * xRatio;
-        
-        const yRatio = imageY / imageHeight;
-        const lat = northEast.lat - (northEast.lat - southWest.lat) * yRatio;
-        
-        return [lat, lng];
+        return coordinateTransforms.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
     }
 
     determineMarkerType(coord, type) {
