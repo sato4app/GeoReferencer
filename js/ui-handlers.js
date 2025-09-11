@@ -43,29 +43,17 @@ export class UIHandlers {
             const routeCountField = document.getElementById('routeCount');
             const spotCountField = document.getElementById('spotCount');
             
-            console.log('=== UI更新デバッグ ===');
-            console.log('routeCountField:', routeCountField);
-            console.log('spotCountField:', spotCountField);
-            
             if (routeCountField) {
                 const routeCount = routeSpotHandler.getRouteCount();
-                console.log('取得したルート数:', routeCount);
-                console.log('現在のrouteCountField.value:', routeCountField.value);
                 routeCountField.value = routeCount;
-                console.log('更新後のrouteCountField.value:', routeCountField.value);
                 this.logger.debug(`ルート数更新: ${routeCount}本`);
             }
             
             if (spotCountField) {
                 const spotCount = routeSpotHandler.getSpotCount();
-                console.log('取得したスポット数:', spotCount);
-                console.log('現在のspotCountField.value:', spotCountField.value);
                 spotCountField.value = spotCount;
-                console.log('更新後のspotCountField.value:', spotCountField.value);
                 this.logger.debug(`スポット数更新: ${spotCount}個`);
             }
-            
-            console.log('=== UI更新デバッグ終了 ===');
             
         } catch (error) {
             this.logger.error('ルート・スポット数更新エラー', error);

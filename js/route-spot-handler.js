@@ -375,29 +375,58 @@ export class RouteSpotHandler {
         const start2 = route2.startPoint;
         const end2 = route2.endPoint;
         
+        // 座標データがない場合はIDで比較
         if (!start1 || !end1 || !start2 || !end2) {
             return false;
         }
         
+        // ID比較も追加（座標だけでなくIDも考慮）
+        const start1Id = start1.id || start1.name;
+        const end1Id = end1.id || end1.name;
+        const start2Id = start2.id || start2.name;
+        const end2Id = end2.id || end2.name;
+        
+        // IDによる比較
+        if (start1Id && end1Id && start2Id && end2Id) {
+            // 正方向の比較（開始ID→終了IDが同じ）
+            const sameDirectionById = (start1Id === start2Id && end1Id === end2Id);
+            
+            // 逆方向の比較（開始ID→終了IDが逆）
+            const reverseDirectionById = (start1Id === end2Id && end1Id === start2Id);
+            
+            console.log(`ルート比較 [${start1Id}→${end1Id}] vs [${start2Id}→${end2Id}]: 同方向=${sameDirectionById}, 逆方向=${reverseDirectionById}`);
+            
+            return sameDirectionById || reverseDirectionById;
+        }
+        
+        // 座標による比較（フォールバック）
         const tolerance = 0.0001;
         
-        // 正方向の比較（開始点→終了点が同じ）
-        const sameDirection = (
-            Math.abs(start1.lat - start2.lat) < tolerance &&
-            Math.abs(start1.lng - start2.lng) < tolerance &&
-            Math.abs(end1.lat - end2.lat) < tolerance &&
-            Math.abs(end1.lng - end2.lng) < tolerance
-        );
+        if (start1.lat && start1.lng && end1.lat && end1.lng && 
+            start2.lat && start2.lng && end2.lat && end2.lng) {
+            
+            // 正方向の比較（開始点→終了点が同じ）
+            const sameDirection = (
+                Math.abs(start1.lat - start2.lat) < tolerance &&
+                Math.abs(start1.lng - start2.lng) < tolerance &&
+                Math.abs(end1.lat - end2.lat) < tolerance &&
+                Math.abs(end1.lng - end2.lng) < tolerance
+            );
+            
+            // 逆方向の比較（開始点→終了点が逆）
+            const reverseDirection = (
+                Math.abs(start1.lat - end2.lat) < tolerance &&
+                Math.abs(start1.lng - end2.lng) < tolerance &&
+                Math.abs(end1.lat - start2.lat) < tolerance &&
+                Math.abs(end1.lng - start2.lng) < tolerance
+            );
+            
+            console.log(`座標比較 [(${start1.lat},${start1.lng})→(${end1.lat},${end1.lng})] vs [(${start2.lat},${start2.lng})→(${end2.lat},${end2.lng})]: 同方向=${sameDirection}, 逆方向=${reverseDirection}`);
+            
+            return sameDirection || reverseDirection;
+        }
         
-        // 逆方向の比較（開始点→終了点が逆）
-        const reverseDirection = (
-            Math.abs(start1.lat - end2.lat) < tolerance &&
-            Math.abs(start1.lng - end2.lng) < tolerance &&
-            Math.abs(end1.lat - start2.lat) < tolerance &&
-            Math.abs(end1.lng - start2.lng) < tolerance
-        );
-        
-        return sameDirection || reverseDirection;
+        return false;
     }
 
     isSameSpot(spot1, spot2) {
