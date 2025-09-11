@@ -243,8 +243,8 @@ export class Georeferencing {
             
             this.logger.info(`画像中心のWeb Mercator座標: (${centerWebMercatorX}, ${centerWebMercatorY})`);
             
-            const centerLat = this.webMercatorYToLat(centerWebMercatorY);
-            const centerLng = this.webMercatorXToLon(centerWebMercatorX);
+            const centerLat = coordinateTransforms.webMercatorYToLat(centerWebMercatorY);
+            const centerLng = coordinateTransforms.webMercatorXToLon(centerWebMercatorX);
 
             this.logger.info(`画像中心のGPS座標: [${centerLat}, ${centerLng}]`);
             this.logger.info(`精度情報:`, transformation.accuracy);
