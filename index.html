@@ -69,23 +69,6 @@
                             <input type="radio" name="fileType" value="pointCoord">
                             画像内座標
                         </label>
-                        <div class="json-data-counts">
-                            <div class="count-item">
-                                <label>ポイント</label>
-                                <input type="text" id="pointCount" readonly value="0" class="count-field">
-                                <span class="unit-label">個</span>
-                            </div>
-                            <div class="count-item">
-                                <label>ルート</label>
-                                <input type="text" id="routeCount" readonly value="0" class="count-field">
-                                <span class="unit-label">本</span>
-                            </div>
-                            <div class="count-item">
-                                <label>スポット</label>
-                                <input type="text" id="spotCount" readonly value="0" class="count-field">
-                                <span class="unit-label">個</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -94,6 +77,25 @@
             <input type="file" id="gpsExcelInput" accept=".xlsx" style="display: none;">
             <input type="file" id="imageInput" accept="image/png" style="display: none;">
             <input type="file" id="pointCoordJsonInput" accept=".json" multiple style="display: none;">
+            
+            <!-- JSONデータ読み込み結果表示 -->
+            <div class="json-data-counts">
+                <div class="count-item">
+                    <label>ポイント</label>
+                    <input type="text" id="pointCount" readonly value="0" class="count-field">
+                    <span class="unit-label">個</span>
+                </div>
+                <div class="count-item">
+                    <label>ルート</label>
+                    <input type="text" id="routeCount" readonly value="0" class="count-field">
+                    <span class="unit-label">本</span>
+                </div>
+                <div class="count-item">
+                    <label>スポット</label>
+                    <input type="text" id="spotCount" readonly value="0" class="count-field">
+                    <span class="unit-label">個</span>
+                </div>
+            </div>
             
             
             <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
