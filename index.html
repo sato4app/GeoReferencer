@@ -67,11 +67,23 @@
                     <div class="radio-item">
                         <label>
                             <input type="radio" name="fileType" value="pointCoord">
-                            ポイント座標
+                            画像内座標
                         </label>
                         <div class="count-display">
-                            <input type="text" id="pointCoordCount" readonly value="0" class="count-field">
+                            <input type="text" id="pointCount" readonly value="0" class="count-field">
                             <span class="unit-label">個</span>
+                        </div>
+                        <div class="route-spot-counts">
+                            <div class="count-item">
+                                <label>ルート</label>
+                                <input type="text" id="imageRouteCount" readonly value="0" class="count-field">
+                                <span class="unit-label">本</span>
+                            </div>
+                            <div class="count-item">
+                                <label>スポット</label>
+                                <input type="text" id="imageSpotCount" readonly value="0" class="count-field">
+                                <span class="unit-label">個</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -80,7 +92,7 @@
             <!-- 統合されたファイル入力 -->
             <input type="file" id="gpsExcelInput" accept=".xlsx" style="display: none;">
             <input type="file" id="imageInput" accept="image/png" style="display: none;">
-            <input type="file" id="pointCoordJsonInput" accept=".json" style="display: none;">
+            <input type="file" id="pointCoordJsonInput" accept=".json" multiple style="display: none;">
             
             
             <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
@@ -101,28 +113,6 @@
             </div>
             
             
-            <!-- ルート・スポット読み込みボタンとカウント表示 -->
-            <div class="load-file-container">
-                <!-- 統合されたルート・スポット読み込みボタン -->
-                <button id="loadRouteSpotBtn" title="ルートとスポットのファイルを自動判定して読み込む" class="leaflet-bar leaflet-control;">読み込み</button>
-                
-                <!-- ルート・スポットカウント表示 -->
-                <div class="count-group">
-                    <div class="count-item">
-                        <label>・ ルート</label>
-                        <input type="text" id="routeCount" readonly value="0" class="count-field">
-                        <span class="unit-label">本</span>
-                    </div>
-                    <div class="count-item">
-                        <label>・ スポット</label>
-                        <input type="text" id="spotCount" readonly value="0" class="count-field">
-                        <span class="unit-label">個</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ルート・スポットファイル入力 -->
-            <input type="file" id="routeSpotJsonInput" accept=".json" multiple style="display: none;">
             
             <!-- 座標をGPSに変換して出力(GeoJSON) -->
             <button id="exportGeoJsonBtn" title="画像座標をGPS座標に変換してGeoJSON形式で出力" class="leaflet-bar leaflet-control">座標をGPSに変換して出力(GeoJSON)</button>
