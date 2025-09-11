@@ -114,6 +114,20 @@ export class RouteSpotHandler {
             
             console.log(`ルート: 開始[${startPointId}] 終了[${endPointId}] 中間点${intermediatePoints}個`);
             
+            // 中間点の詳細データを出力
+            if (originalData.points && Array.isArray(originalData.points)) {
+                console.log('\n=== ルートの全ポイント詳細 ===');
+                originalData.points.forEach((point, index) => {
+                    const coords = this.extractCoordinates(point);
+                    const pointType = index === 0 ? '開始点' : 
+                                    index === originalData.points.length - 1 ? '終了点' : '中間点';
+                    console.log(`${pointType}${index + 1}: ${point.name || point.id || `Point-${index + 1}`}`, 
+                               coords ? `座標: (${coords.lat}, ${coords.lng})` : '座標: なし',
+                               'データ:', point);
+                });
+                console.log('=== ルートポイント詳細終了 ===\n');
+            }
+            
         } catch (error) {
             console.error('ルートデバッグ情報出力エラー:', error);
         }
@@ -417,15 +431,28 @@ export class RouteSpotHandler {
                     let points = [];
                     
                     if (item.points && Array.isArray(item.points)) {
+                        console.log('\n=== ルート内ポイント座標変換処理 ===');
                         points = item.points
-                            .map(point => ({
-                                lat: (point.lat !== undefined ? point.lat : point.latitude),
-                                lng: (point.lng !== undefined ? point.lng : point.longitude),
-                                name: point.name || point.id || point.pointId,
-                                type: point.type
-                            }))
-                            .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+                            .map((point, index) => {
+                                console.log(`ポイント${index + 1}の座標抽出:`, point);
+                                const coords = this.extractCoordinates(point);
+                                if (coords) {
+                                    console.log(`→ 変換成功: (${coords.lat}, ${coords.lng})`);
+                                    return {
+                                        lat: coords.lat,
+                                        lng: coords.lng,
+                                        name: point.name || point.id || point.pointId || `Point-${index + 1}`,
+                                        type: point.type || 'waypoint'
+                                    };
+                                } else {
+                                    console.log(`→ 座標変換失敗`);
+                                    return null;
+                                }
+                            })
+                            .filter(p => p !== null);
                         latLngs = points.map(p => [p.lat, p.lng]);
+                        console.log(`有効なポイント数: ${points.length}/${item.points.length}`);
+                        console.log('=== ルート内ポイント座標変換終了 ===\n');
                     } else if (item.coordinates && Array.isArray(item.coordinates)) {
                         latLngs = item.coordinates.map(coord => [coord[1], coord[0]]);
                         points = item.coordinates.map((coord, idx) => ({
@@ -472,6 +499,12 @@ export class RouteSpotHandler {
                                 uiType = 'route-end';
                                 label = '終了点';
                             }
+
+                            // 中間点の座標とデータを詳細出力
+                            console.log(`${label}${pointIndex + 1}マーカー作成:`, 
+                                       `座標(${point.lat}, ${point.lng})`,
+                                       `タイプ: ${uiType}`,
+                                       'ポイントデータ:', point);
 
                             let marker;
                             if (uiType === 'waypoint' || point.type === 'waypoint') {
