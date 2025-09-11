@@ -19,42 +19,134 @@ export class RouteSpotHandler {
 
             this.logger.info(`ルート・スポット(座標)JSONファイル読み込み開始: ${files.length}ファイル`);
             
-            const newData = [];
+            const routeData = [];
+            const spotData = [];
             
             for (const file of files) {
                 try {
                     const text = await file.text();
                     const data = JSON.parse(text);
                     
-                    if (selectedRouteSpotType === 'route') {
+                    // JSONファイルの内容を自動判定
+                    const detectedType = this.detectJsonType(data);
+                    
+                    if (detectedType === 'route') {
                         const processedRoutes = this.processRouteData(data, file.name);
-                        newData.push(...processedRoutes);
-                    } else if (selectedRouteSpotType === 'spot') {
+                        routeData.push(...processedRoutes);
+                    } else if (detectedType === 'spot') {
                         const processedSpots = this.processSpotData(data, file.name);
-                        newData.push(...processedSpots);
+                        spotData.push(...processedSpots);
+                    } else {
+                        this.logger.warn(`ファイル形式を判定できませんでした: ${file.name}`);
+                        continue;
                     }
                     
-                    this.logger.info(`ファイル読み込み完了: ${file.name}`);
+                    this.logger.info(`ファイル読み込み完了: ${file.name} (${detectedType}として処理)`);
                 } catch (fileError) {
                     this.logger.error(`ファイル読み込みエラー: ${file.name}`, fileError);
                 }
             }
             
-            if (selectedRouteSpotType === 'route') {
-                this.routeData = this.mergeAndDeduplicate(this.routeData, newData, 'route');
-            } else if (selectedRouteSpotType === 'spot') {
-                this.spotData = this.mergeAndDeduplicate(this.spotData, newData, 'spot');
+            // ルートデータのマージと表示
+            if (routeData.length > 0) {
+                this.routeData = this.mergeAndDeduplicate(this.routeData, routeData, 'route');
+                if (this.mapCore && this.mapCore.getMap()) {
+                    await this.displayRouteSpotOnMap(routeData, 'route');
+                }
             }
             
-            if (this.mapCore && this.mapCore.getMap() && newData.length > 0) {
-                await this.displayRouteSpotOnMap(newData, selectedRouteSpotType);
+            // スポットデータのマージと表示
+            if (spotData.length > 0) {
+                this.spotData = this.mergeAndDeduplicate(this.spotData, spotData, 'spot');
+                if (this.mapCore && this.mapCore.getMap()) {
+                    await this.displayRouteSpotOnMap(spotData, 'spot');
+                }
             }
             
-            this.logger.info(`ルート・スポット(座標)JSON読み込み完了: 合計${newData.length}項目追加`);
+            this.logger.info(`ルート・スポット(座標)JSON読み込み完了: ルート${routeData.length}本、スポット${spotData.length}個追加`);
             
         } catch (error) {
             this.logger.error('ルート・スポット(座標)JSON読み込みエラー', error);
             errorHandler.handle(error, 'ルート・スポット(座標)JSONファイルの読み込みに失敗しました。', 'ルート・スポット(座標)JSON読み込み');
+        }
+    }
+
+    detectJsonType(data) {
+        try {
+            // ルートの判定基準
+            // - routeInfoオブジェクトがある
+            // - routeInfoは、startPoint, endPoint属性を持つ
+            // - pointsオブジェクトがある  
+            // - pointsは、type属性(値="waypoint")を持ち、imageX, imageYの座標を持つ
+            if (data.routeInfo && 
+                data.routeInfo.startPoint && 
+                data.routeInfo.endPoint && 
+                data.points && 
+                Array.isArray(data.points)) {
+                
+                // pointsの要素をチェック
+                const hasWaypoints = data.points.some(point => 
+                    point.type === 'waypoint' && 
+                    (point.imageX !== undefined && point.imageY !== undefined)
+                );
+                
+                if (hasWaypoints) {
+                    console.log(`ルートとして判定: routeInfo有り, waypointポイント有り`);
+                    return 'route';
+                }
+            }
+            
+            // スポットの判定基準
+            // - spotsオブジェクトがある
+            // - spotsは、name属性(値はブランクでない文字列)を持ち、imageX, imageYの座標を持つ
+            if (data.spots && Array.isArray(data.spots)) {
+                const hasValidSpots = data.spots.some(spot =>
+                    spot.name && 
+                    typeof spot.name === 'string' && 
+                    spot.name.trim() !== '' &&
+                    (spot.imageX !== undefined && spot.imageY !== undefined)
+                );
+                
+                if (hasValidSpots) {
+                    console.log(`スポットとして判定: spotsオブジェクト有り, name+imageX/Y座標有り`);
+                    return 'spot';
+                }
+            }
+            
+            // 単一スポットの場合（データがspotsオブジェクトで包まれていない）
+            if (data.name && 
+                typeof data.name === 'string' && 
+                data.name.trim() !== '' &&
+                (data.imageX !== undefined && data.imageY !== undefined)) {
+                console.log(`単一スポットとして判定: name+imageX/Y座標有り`);
+                return 'spot';
+            }
+            
+            // その他の従来形式のフォールバック判定
+            // ルート: 複数座標配列
+            if ((data.points && Array.isArray(data.points) && data.points.length > 1) ||
+                (data.coordinates && Array.isArray(data.coordinates) && data.coordinates.length > 1) ||
+                (data.geometry && data.geometry.coordinates && Array.isArray(data.geometry.coordinates) && data.geometry.coordinates.length > 1)) {
+                console.log(`従来形式ルートとして判定: 複数座標配列有り`);
+                return 'route';
+            }
+            
+            // スポット: 単一座標
+            if ((data.lat && data.lng) || 
+                (data.latitude && data.longitude) ||
+                (data.imageX !== undefined && data.imageY !== undefined) ||
+                (data.coordinates && Array.isArray(data.coordinates) && data.coordinates.length === 2) ||
+                (data.geometry && data.geometry.coordinates && Array.isArray(data.geometry.coordinates) && data.geometry.coordinates.length === 2)) {
+                console.log(`従来形式スポットとして判定: 単一座標有り`);
+                return 'spot';
+            }
+            
+            console.log(`判定不可: 既知の形式に該当しません`, data);
+            return null;
+            
+        } catch (error) {
+            console.error('JSON形式判定エラー:', error);
+            return null;
         }
     }
 
