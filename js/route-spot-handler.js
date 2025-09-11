@@ -132,7 +132,7 @@ export class RouteSpotHandler {
                         coordinates: this.extractCoordinates(item)
                     };
                     
-                    console.log(`スポット${index + 1}: ${item.name || item.id || 'なし'}`);
+                    console.log(`スポット${index + 1}: ${item.name || item.id || 'なし'}`, spot.coordinates ? `座標: (${spot.coordinates.lat}, ${spot.coordinates.lng})` : '座標: なし');
                     spots.push(spot);
                 });
             } else if (data && typeof data === 'object') {
@@ -145,7 +145,7 @@ export class RouteSpotHandler {
                             coordinates: this.extractCoordinates(spotItem)
                         };
                         
-                        console.log(`スポット${index + 1}: ${spotItem.name || spotItem.id || 'なし'}`);
+                        console.log(`スポット${index + 1}: ${spotItem.name || spotItem.id || 'なし'}`, spot.coordinates ? `座標: (${spot.coordinates.lat}, ${spot.coordinates.lng})` : '座標: なし');
                         spots.push(spot);
                     });
                 } else if (data.features && Array.isArray(data.features)) {
@@ -158,7 +158,7 @@ export class RouteSpotHandler {
                             coordinates: coords ? { lat: coords[1], lng: coords[0] } : this.extractCoordinates(feature.properties)
                         };
                         
-                        console.log(`スポット${index + 1}: ${feature.properties?.name || feature.properties?.id || 'なし'}`);
+                        console.log(`スポット${index + 1}: ${feature.properties?.name || feature.properties?.id || 'なし'}`, spot.coordinates ? `座標: (${spot.coordinates.lat}, ${spot.coordinates.lng})` : '座標: なし');
                         spots.push(spot);
                     });
                 } else {
@@ -169,7 +169,7 @@ export class RouteSpotHandler {
                         coordinates: this.extractCoordinates(data)
                     };
                     
-                    console.log(`スポット1: ${data.name || data.id || 'なし'}`);
+                    console.log(`スポット1: ${data.name || data.id || 'なし'}`, spot.coordinates ? `座標: (${spot.coordinates.lat}, ${spot.coordinates.lng})` : '座標: なし');
                     spots.push(spot);
                 }
             }
@@ -279,16 +279,24 @@ export class RouteSpotHandler {
     }
 
     extractCoordinates(spot) {
+        console.log('座標抽出対象データ:', spot);
+        
         if (spot.lat && spot.lng) {
+            console.log('lat/lng形式で座標取得:', { lat: spot.lat, lng: spot.lng });
             return { lat: spot.lat, lng: spot.lng };
         } else if (spot.latitude && spot.longitude) {
+            console.log('latitude/longitude形式で座標取得:', { lat: spot.latitude, lng: spot.longitude });
             return { lat: spot.latitude, lng: spot.longitude };
         } else if (spot.coordinates && Array.isArray(spot.coordinates)) {
+            console.log('coordinates配列形式で座標取得:', { lat: spot.coordinates[1], lng: spot.coordinates[0] });
             return { lat: spot.coordinates[1], lng: spot.coordinates[0] };
         } else if (spot.geometry && spot.geometry.coordinates) {
             const coords = spot.geometry.coordinates;
+            console.log('geometry.coordinates形式で座標取得:', { lat: coords[1], lng: coords[0] });
             return { lat: coords[1], lng: coords[0] };
         }
+        
+        console.log('座標データが見つかりません');
         return null;
     }
 
