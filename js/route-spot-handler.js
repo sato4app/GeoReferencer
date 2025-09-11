@@ -345,9 +345,23 @@ export class RouteSpotHandler {
                 addedCount++;
             } else {
                 // 既存ルート/スポットを新しいデータで更新
-                merged[duplicateIndex] = newItem;
+                if (type === 'spot') {
+                    // スポットの場合は名前やその他の属性を更新
+                    const existingSpot = merged[duplicateIndex];
+                    const updatedSpot = {
+                        ...existingSpot,
+                        ...newItem,
+                        // 座標情報は既存のものを保持（変更しない）
+                        coordinates: existingSpot.coordinates
+                    };
+                    merged[duplicateIndex] = updatedSpot;
+                    console.log(`スポット更新: [${existingSpot.name || existingSpot.spotId}] → [${newItem.name || newItem.spotId}] (画像座標: ${newItem.imageX || 'なし'},${newItem.imageY || 'なし'})`);
+                } else {
+                    // ルートの場合は全体を置き換え
+                    merged[duplicateIndex] = newItem;
+                }
                 updatedCount++;
-                this.logger.debug(`${type}を更新: ${newItem.fileName} (開始: ${newItem.startPoint ? `${newItem.startPoint.lat}, ${newItem.startPoint.lng}` : 'なし'} 終了: ${newItem.endPoint ? `${newItem.endPoint.lat}, ${newItem.endPoint.lng}` : 'なし'})`);
+                this.logger.debug(`${type}を更新: ${newItem.fileName}`);
             }
         });
         
@@ -430,6 +444,19 @@ export class RouteSpotHandler {
     }
 
     isSameSpot(spot1, spot2) {
+        // imageX, imageYが両方ある場合はそれで比較（優先）
+        if (spot1.imageX !== undefined && spot1.imageY !== undefined && 
+            spot2.imageX !== undefined && spot2.imageY !== undefined) {
+            
+            const imageXMatch = Math.abs(spot1.imageX - spot2.imageX) < 0.1;
+            const imageYMatch = Math.abs(spot1.imageY - spot2.imageY) < 0.1;
+            
+            console.log(`スポット画像座標比較: (${spot1.imageX},${spot1.imageY}) vs (${spot2.imageX},${spot2.imageY}): X一致=${imageXMatch}, Y一致=${imageYMatch}`);
+            
+            return imageXMatch && imageYMatch;
+        }
+        
+        // フォールバック: GPS座標で比較
         const coord1 = spot1.coordinates;
         const coord2 = spot2.coordinates;
         
@@ -438,11 +465,12 @@ export class RouteSpotHandler {
         }
         
         const tolerance = 0.0001;
+        const latMatch = Math.abs(coord1.lat - coord2.lat) < tolerance;
+        const lngMatch = Math.abs(coord1.lng - coord2.lng) < tolerance;
         
-        return (
-            Math.abs(coord1.lat - coord2.lat) < tolerance &&
-            Math.abs(coord1.lng - coord2.lng) < tolerance
-        );
+        console.log(`スポット座標比較: (${coord1.lat},${coord1.lng}) vs (${coord2.lat},${coord2.lng}): lat一致=${latMatch}, lng一致=${lngMatch}`);
+        
+        return latMatch && lngMatch;
     }
 
     async displayRouteSpotOnMap(data, type) {
