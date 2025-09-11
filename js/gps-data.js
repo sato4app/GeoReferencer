@@ -293,64 +293,140 @@ export class GPSData {
         });
     }
 
-    // ルート・スポットJSONデータ処理（ポイント座標除外）
+    // 統合JSONデータ処理（ポイント・ルート・スポット自動分類）
     processRouteSpotJsonData(jsonData) {
         try {
-            const filteredData = {};
+            const result = {
+                points: [],
+                routes: [],
+                spots: [],
+                counts: {
+                    points: 0,
+                    routes: 0,
+                    spots: 0
+                }
+            };
             
             // JSONデータの各プロパティを処理
             for (const [key, value] of Object.entries(jsonData)) {
-                if (this.isPointCoordinate(value)) {
-                    // ポイント座標は除外
-                    this.logger.debug(`ポイント座標として除外: ${key}`, value);
-                    continue;
-                }
+                const classification = this.classifyData(value);
                 
-                // ルート・スポットデータとして追加
-                filteredData[key] = value;
+                switch (classification) {
+                    case 'point':
+                        result.points.push({ key, data: value });
+                        result.counts.points++;
+                        break;
+                    case 'route':
+                        result.routes.push({ key, data: value });
+                        result.counts.routes++;
+                        break;
+                    case 'spot':
+                        result.spots.push({ key, data: value });
+                        result.counts.spots++;
+                        break;
+                    default:
+                        this.logger.debug(`分類不可データ: ${key}`, value);
+                        break;
+                }
             }
             
-            this.logger.info('ルート・スポットデータフィルタリング完了', 
-                `元データ: ${Object.keys(jsonData).length}項目, 処理後: ${Object.keys(filteredData).length}項目`);
+            this.logger.info('統合JSONデータ分類完了', 
+                `ポイント: ${result.counts.points}件, ルート: ${result.counts.routes}件, スポット: ${result.counts.spots}件`);
             
-            return filteredData;
+            return result;
             
         } catch (error) {
-            this.logger.error('ルート・スポットJSONデータ処理エラー', error);
-            throw new Error('ルート・スポットJSONデータの形式が正しくありません');
+            this.logger.error('統合JSONデータ処理エラー', error);
+            throw new Error('統合JSONデータの形式が正しくありません');
         }
     }
 
-    // ポイント座標かどうかを判定
-    isPointCoordinate(data) {
-        // データがオブジェクトでない場合はポイント座標ではない
+    // データの分類判定
+    classifyData(data) {
+        // データがオブジェクトでない場合は分類不可
         if (!data || typeof data !== 'object') {
-            return false;
+            return 'unknown';
         }
-        
+
+        // ルートの判定
+        if (this.isRouteData(data)) {
+            return 'route';
+        }
+
+        // スポットの判定
+        if (this.isSpotData(data)) {
+            return 'spot';
+        }
+
+        // ポイントの判定
+        if (this.isPointData(data)) {
+            return 'point';
+        }
+
+        return 'unknown';
+    }
+
+    // ポイントデータかどうかを判定
+    isPointData(data) {
         // pointsオブジェクトを持ち、imageX, imageYで構成する座標がある
         if (data.points && typeof data.points === 'object') {
-            // pointsの中身をチェック
             for (const point of Object.values(data.points)) {
                 if (point && typeof point === 'object' && 
-                    'imageX' in point && 'imageY' in point) {
-                    // type属性がなく（またはwaypointではない）、id属性がある
-                    if ((!point.type || point.type !== 'waypoint') && point.id) {
-                        return true; // ポイント座標と判定
-                    }
+                    'imageX' in point && 'imageY' in point &&
+                    point.id && (!point.type || point.type !== 'waypoint')) {
+                    return true;
                 }
             }
         }
-        
-        // 直接的にimageX, imageYを持つ場合もチェック
-        if ('imageX' in data && 'imageY' in data) {
-            // type属性がなく（またはwaypointではない）、id属性がある
-            if ((!data.type || data.type !== 'waypoint') && data.id) {
-                return true; // ポイント座標と判定
+        return false;
+    }
+
+    // ルートデータかどうかを判定
+    isRouteData(data) {
+        // routeInfoオブジェクトがある
+        if (!data.routeInfo || typeof data.routeInfo !== 'object') {
+            return false;
+        }
+
+        // routeInfoは、startPoint,endPoint属性を持つ
+        if (!data.routeInfo.startPoint || !data.routeInfo.endPoint) {
+            return false;
+        }
+
+        // pointsオブジェクトがある
+        if (!data.points || typeof data.points !== 'object') {
+            return false;
+        }
+
+        // pointsは、type属性(値="waypoint")を持ち、imageX, imageYの座標を持つ
+        for (const point of Object.values(data.points)) {
+            if (point && typeof point === 'object' && 
+                point.type === 'waypoint' &&
+                'imageX' in point && 'imageY' in point) {
+                return true; // waypointが1つでもあればルートと判定
             }
         }
-        
-        return false; // ポイント座標ではない
+
+        return false;
+    }
+
+    // スポットデータかどうかを判定
+    isSpotData(data) {
+        // spotsオブジェクトがある
+        if (!data.spots || typeof data.spots !== 'object') {
+            return false;
+        }
+
+        // spotsは、name属性(値はブランクでない文字列)を持ち、imageX, imageYの座標を持つ
+        for (const spot of Object.values(data.spots)) {
+            if (spot && typeof spot === 'object' && 
+                spot.name && typeof spot.name === 'string' && spot.name.trim() !== '' &&
+                'imageX' in spot && 'imageY' in spot) {
+                return true; // 条件を満たすspotが1つでもあればスポットと判定
+            }
+        }
+
+        return false;
     }
 
     // ===============================================
