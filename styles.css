@@ -237,6 +237,29 @@ html, body, #map {
     gap: 2px;
 }
 
+/* 新しいcount-group用のスタイル */
+.count-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+    margin-left: var(--spacing-large);
+    align-items: flex-start;
+}
+
+.count-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-medium);
+    font-size: var(--font-size-normal);
+}
+
+.count-item label {
+    font-weight: var(--font-weight-normal);
+    margin: 0;
+    white-space: nowrap;
+    color: var(--color-dark);
+}
+
 /* 単位ラベル */
 .unit-label {
     font-size: 11px;

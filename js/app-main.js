@@ -130,12 +130,10 @@ class GeoReferencerApp {
             
             if (loadRouteSpotBtn) {
                 loadRouteSpotBtn.addEventListener('click', () => {
-                    const selectedRouteSpotType = document.querySelector('input[name="routeSpotType"]:checked')?.value;
-                    
-                    if (selectedRouteSpotType && routeSpotJsonInput) {
+                    if (routeSpotJsonInput) {
                         routeSpotJsonInput.click();
                     } else {
-                        this.logger.warn('ルート・スポット種類が選択されていません');
+                        this.logger.warn('ファイル入力要素が見つかりません');
                     }
                 });
             }
@@ -270,10 +268,8 @@ class GeoReferencerApp {
             const files = Array.from(event.target.files);
             if (!files.length) return;
 
-            const selectedRouteSpotType = document.querySelector('input[name="routeSpotType"]:checked')?.value;
-            
-            // RouteSpotHandlerに処理を委譲
-            await this.routeSpotHandler.handleRouteSpotJsonLoad(files, selectedRouteSpotType);
+            // RouteSpotHandlerに処理を委譲（自動判定するため、selectedRouteSpotTypeは不要）
+            await this.routeSpotHandler.handleRouteSpotJsonLoad(files, null);
             
             // ルート・スポット数を更新
             this.uiHandlers.updateRouteSpotCount(this.routeSpotHandler);

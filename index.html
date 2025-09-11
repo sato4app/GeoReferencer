@@ -101,32 +101,22 @@
             </div>
             
             
-            <!-- ルート・スポット読み込みボタンとラジオボタンの横並び配置 -->
+            <!-- ルート・スポット読み込みボタンとカウント表示 -->
             <div class="load-file-container">
                 <!-- 統合されたルート・スポット読み込みボタン -->
-                <button id="loadRouteSpotBtn" title="選択した種類のファイルを読み込む" class="leaflet-bar leaflet-control;">読み込み</button>
+                <button id="loadRouteSpotBtn" title="ルートとスポットのファイルを自動判定して読み込む" class="leaflet-bar leaflet-control;">読み込み</button>
                 
-                <!-- ルート・スポット種類選択ラジオボタン -->
-                <div class="radio-group">
-                    <div class="radio-item">
-                        <label>
-                            <input type="radio" name="routeSpotType" value="route" checked>
-                            ルート
-                        </label>
-                        <div class="count-display">
-                            <input type="text" id="routeCount" readonly value="0" class="count-field">
-                            <span class="unit-label">本</span>
-                        </div>
+                <!-- ルート・スポットカウント表示 -->
+                <div class="count-group">
+                    <div class="count-item">
+                        <label>・ ルート</label>
+                        <input type="text" id="routeCount" readonly value="0" class="count-field">
+                        <span class="unit-label">本</span>
                     </div>
-                    <div class="radio-item">
-                        <label>
-                            <input type="radio" name="routeSpotType" value="spot">
-                            スポット
-                        </label>
-                        <div class="count-display">
-                            <input type="text" id="spotCount" readonly value="0" class="count-field">
-                            <span class="unit-label">個</span>
-                        </div>
+                    <div class="count-item">
+                        <label>・ スポット</label>
+                        <input type="text" id="spotCount" readonly value="0" class="count-field">
+                        <span class="unit-label">個</span>
                     </div>
                 </div>
             </div>
