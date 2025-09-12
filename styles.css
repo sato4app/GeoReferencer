@@ -234,26 +234,21 @@ html, body, #map {
 .json-load-row {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 60px;
     margin-bottom: 4px;
 }
 
-/* 読み込みJSONボタンのスタイル */
+/* 読み込みJSONボタンのスタイル - 読み込みボタンと同じスタイル */
 .load-json-button {
-    padding: 6px 8px;
-    font-size: 11px;
-    background: var(--color-success);
-    color: var(--color-white);
-    border: 1px solid var(--color-success-dark);
-    border-radius: var(--border-radius-small);
+    padding: 8px;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    font-weight: var(--font-weight-bold);
-    line-height: 1.2;
+    display: block;
     text-align: center;
-    white-space: nowrap;
-    min-width: 70px;
-    flex-shrink: 0;
+    height: 40px;
+    box-sizing: border-box;
+    line-height: 1.4;
+    width: 84px !important;
+    flex-shrink: 0 !important;
 }
 
 .load-json-button:hover {
