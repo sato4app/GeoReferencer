@@ -129,7 +129,6 @@ export class Georeferencing {
     async performAutomaticGeoreferencing(matchedPairs) {
         try {
             this.logger.info('精密版ジオリファレンシング開始', matchedPairs.length + 'ペア');
-            console.log('🚀 精密版ジオリファレンシング開始', matchedPairs.length + 'ペア');
 
             // 一致するポイント数をすべて使用（精密版のみ）
             const controlPoints = matchedPairs;
@@ -141,7 +140,6 @@ export class Georeferencing {
                 await this.applyTransformationToImage(transformation, controlPoints);
                 
                 // 変換適用後に手動でルート・スポット同期を実行
-                console.log('🎯 手動ルート・スポット同期実行開始');
                 this.syncRouteSpotPositions();
                 
                 this.logger.info('自動ジオリファレンシング完了');
@@ -597,45 +595,36 @@ export class Georeferencing {
             }
 
             this.logger.info('🎯 === ルート・スポット位置同期開始 ===');
-            console.log('🎯 === ルート・スポット位置同期開始 ===');
 
             // ルートマーカーの位置同期
             if (this.routeSpotHandler.routeMarkers && this.routeSpotHandler.routeMarkers.length > 0) {
                 this.logger.info(`📍 ルートマーカー同期開始: ${this.routeSpotHandler.routeMarkers.length}個`);
-                console.log(`📍 ルートマーカー同期開始: ${this.routeSpotHandler.routeMarkers.length}個`);
                 this.syncRouteMarkers();
             } else {
                 this.logger.info('📍 ルートマーカーは存在しません。');
-                console.log('📍 ルートマーカーは存在しません。');
             }
 
             // スポットマーカーの位置同期
             if (this.routeSpotHandler.spotMarkers && this.routeSpotHandler.spotMarkers.length > 0) {
                 this.logger.info(`🏷️ スポットマーカー同期開始: ${this.routeSpotHandler.spotMarkers.length}個`);
-                console.log(`🏷️ スポットマーカー同期開始: ${this.routeSpotHandler.spotMarkers.length}個`);
                 this.syncSpotMarkers();
             } else {
                 this.logger.info('🏷️ スポットマーカーは存在しません。');
-                console.log('🏷️ スポットマーカーは存在しません。');
             }
 
             this.logger.info('✅ === ルート・スポット位置同期完了 ===');
-            console.log('✅ === ルート・スポット位置同期完了 ===');
 
         } catch (error) {
             this.logger.error('❌ ルート・スポット位置同期エラー', error);
-            console.error('❌ ルート・スポット位置同期エラー', error);
         }
     }
 
     syncRouteMarkers() {
         try {
             if (!this.routeSpotHandler || !this.routeSpotHandler.routeMarkers) {
-                console.log('⚠️ ルートマーカー配列が存在しません');
                 return;
             }
 
-            console.log(`🚀 ルートマーカー同期処理開始: ${this.routeSpotHandler.routeMarkers.length}個のマーカーを処理`);
 
             let movedMarkers = 0;
             let skippedMarkers = 0;
@@ -650,14 +639,11 @@ export class Georeferencing {
                             const currentPos = marker.getLatLng();
                             marker.setLatLng(newPos);
                             movedMarkers++;
-                            console.log(`📍 ルートマーカー${index}: 画像座標由来を精密移動 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
                         } else {
-                            console.log(`⚠️ ルートマーカー${index}: 画像座標→GPS変換に失敗`);
                         }
                     } else {
                         // GPS由来は移動しない
                         skippedMarkers++;
-                        console.log(`⏭️ ルートマーカー${index}: GPS由来のため移動スキップ`);
                     }
                 } else if (marker.getLatLngs && typeof marker.getLatLngs === 'function') {
                     // ポリライン：各頂点のメタを使用
@@ -677,27 +663,22 @@ export class Georeferencing {
                         return [latlng.lat, latlng.lng];
                     });
                     marker.setLatLngs(newLatLngs);
-                    console.log(`🛣️ ルートライン${index}: ${newLatLngs.length}点更新（移動: ${movedMarkers}, スキップ: ${skippedMarkers}）`);
                 }
             });
 
-            console.log(`✅ ルートマーカー同期処理完了: ${this.routeSpotHandler.routeMarkers.length}個処理済み`);
             this.logger.info(`ルート同期 集計: 移動=${movedMarkers}, スキップ=${skippedMarkers}`);
 
         } catch (error) {
             this.logger.error('❌ ルートマーカー同期エラー', error);
-            console.error('❌ ルートマーカー同期エラー', error);
         }
     }
 
     syncSpotMarkers() {
         try {
             if (!this.routeSpotHandler || !this.routeSpotHandler.spotMarkers) {
-                console.log('⚠️ スポットマーカー配列が存在しません');
                 return;
             }
 
-            console.log(`🎪 スポットマーカー同期処理開始: ${this.routeSpotHandler.spotMarkers.length}個のマーカーを処理`);
 
             let moved = 0;
             let skipped = 0;
@@ -710,24 +691,19 @@ export class Georeferencing {
                         const currentPos = marker.getLatLng();
                         marker.setLatLng(newPos);
                         moved++;
-                        console.log(`🏷️ スポットマーカー${index}: 画像座標由来を精密移動 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
                     } else {
                         skipped++;
-                        console.log(`⚠️ スポットマーカー${index}: 画像座標→GPS変換に失敗`);
                     }
                 } else {
                     // GPS由来は移動しない
                     skipped++;
-                    console.log(`⏭️ スポットマーカー${index}: GPS由来のため移動スキップ`);
                 }
             });
 
-            console.log(`✅ スポットマーカー同期処理完了: ${this.routeSpotHandler.spotMarkers.length}個処理済み`);
             this.logger.info(`スポット同期 集計: 移動=${moved}, スキップ=${skipped}`);
 
         } catch (error) {
             this.logger.error('❌ スポットマーカー同期エラー', error);
-            console.error('❌ スポットマーカー同期エラー', error);
         }
     }
 
@@ -735,7 +711,6 @@ export class Georeferencing {
         try {
             // ポイントと同じcurrentTransformationを使用してGPS座標を変換
             if (!this.currentTransformation) {
-                console.log('⚠️ currentTransformationが設定されていません。変換をスキップします。');
                 return [lat, lng];
             }
 
@@ -743,7 +718,6 @@ export class Georeferencing {
             // まず、既存のGPS座標から相対的な画像座標を推定
             const imageCoords = this.estimateImageCoordsFromGps(lat, lng);
             if (!imageCoords) {
-                console.log('⚠️ GPS座標から画像座標への変換に失敗しました');
                 return [lat, lng];
             }
 
@@ -751,16 +725,13 @@ export class Georeferencing {
             const transformedGps = this.transformImageCoordsToGps(imageCoords[0], imageCoords[1], this.currentTransformation);
             
             if (transformedGps) {
-                console.log(`🔄 ポイント同様の精密変換: [${lat.toFixed(6)}, ${lng.toFixed(6)}] → [${transformedGps[0].toFixed(6)}, ${transformedGps[1].toFixed(6)}]`);
                 return transformedGps;
             } else {
-                console.log('⚠️ アフィン変換に失敗しました');
                 return [lat, lng];
             }
 
         } catch (error) {
             this.logger.error('❌ GPS座標変換エラー', error);
-            console.error('❌ GPS座標変換エラー', error);
             return [lat, lng]; // エラー時は元の座標を返す
         }
     }
@@ -785,7 +756,6 @@ export class Georeferencing {
             const imageX = relativeX * imageWidth;
             const imageY = relativeY * imageHeight;
 
-            console.log(`📍 GPS→画像座標推定: GPS(${lat.toFixed(6)}, ${lng.toFixed(6)}) → 画像(${imageX.toFixed(2)}, ${imageY.toFixed(2)})`);
 
             return [imageX, imageY];
 

@@ -375,7 +375,6 @@ class GeoReferencerApp {
                 } catch (fileError) {
                     this.logger.error(`ファイル処理エラー: ${file.name}`, fileError);
                     // 個別ファイルのエラーは警告として処理し、他のファイルの処理を続行
-                    console.warn(`ファイル ${file.name} の処理中にエラーが発生しました:`, fileError);
                 }
             }
             
@@ -460,7 +459,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.geoApp = app;
         
     } catch (error) {
-        console.error('アプリケーション起動エラー:', error);
         
         // エラーをユーザーにも表示
         document.body.innerHTML = `

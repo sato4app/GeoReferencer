@@ -169,7 +169,6 @@ export class Logger {
             
             localStorage.setItem('geoReferencer.logs', JSON.stringify(logs));
         } catch (e) {
-            console.warn('ログの保存に失敗しました:', e.message);
         }
     }
     

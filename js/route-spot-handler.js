@@ -94,7 +94,6 @@ export class RouteSpotHandler {
                 );
                 
                 if (hasWaypoints) {
-                    console.log(`ルートとして判定: routeInfo有り, waypointポイント有り`);
                     return 'route';
                 }
             }
@@ -111,7 +110,6 @@ export class RouteSpotHandler {
                 );
                 
                 if (hasValidSpots) {
-                    console.log(`スポットとして判定: spotsオブジェクト有り, name+imageX/Y座標有り`);
                     return 'spot';
                 }
             }
@@ -121,7 +119,6 @@ export class RouteSpotHandler {
                 typeof data.name === 'string' && 
                 data.name.trim() !== '' &&
                 (data.imageX !== undefined && data.imageY !== undefined)) {
-                console.log(`単一スポットとして判定: name+imageX/Y座標有り`);
                 return 'spot';
             }
             
@@ -135,17 +132,14 @@ export class RouteSpotHandler {
                 );
                 
                 if (hasNonWaypoints) {
-                    console.log(`ポイントとして判定: points配列有り, 非waypoint要素有り`);
                     return 'point';
                 }
             }
             
-            console.warn(`判定不可能なファイルをスキップ:`, data);
             this.logger.warn('判定不可能なファイルがありました。処理をスキップします。');
             return null;
             
         } catch (error) {
-            console.error('JSON形式判定エラー:', error);
             return null;
         }
     }
@@ -204,11 +198,9 @@ export class RouteSpotHandler {
                 endPointId = 'GeoJSON';
             }
             
-            console.log(`ルート: 開始[${startPointId}] 終了[${endPointId}] 中間点${intermediatePoints}個`);
             
             
         } catch (error) {
-            console.error('ルートデバッグ情報出力エラー:', error);
         }
     }
 
@@ -216,7 +208,6 @@ export class RouteSpotHandler {
         const spots = [];
         
         try {
-            console.log(`\n=== スポット情報: ${fileName} ===`);
             
             if (Array.isArray(data)) {
                 data.forEach((item, index) => {
@@ -227,7 +218,6 @@ export class RouteSpotHandler {
                         coordinates: this.extractCoordinates(item)
                     };
                     
-                    console.log(`スポット${index + 1}: ${item.name || item.id || 'なし'}`);
                     spots.push(spot);
                 });
             } else if (data && typeof data === 'object') {
@@ -240,7 +230,6 @@ export class RouteSpotHandler {
                             coordinates: this.extractCoordinates(spotItem)
                         };
                         
-                        console.log(`スポット${index + 1}: ${spotItem.name || spotItem.id || 'なし'}`);
                         spots.push(spot);
                     });
                 } else if (data.features && Array.isArray(data.features)) {
@@ -253,7 +242,6 @@ export class RouteSpotHandler {
                             coordinates: coords ? { lat: coords[1], lng: coords[0] } : this.extractCoordinates(feature.properties)
                         };
                         
-                        console.log(`スポット${index + 1}: ${feature.properties?.name || feature.properties?.id || 'なし'}`);
                         spots.push(spot);
                     });
                 } else {
@@ -264,13 +252,10 @@ export class RouteSpotHandler {
                         coordinates: this.extractCoordinates(data)
                     };
                     
-                    console.log(`スポット1: ${data.name || data.id || 'なし'}`);
                     spots.push(spot);
                 }
             }
             
-            console.log(`総スポット数: ${spots.length}`);
-            console.log(`=== スポット情報終了 ===\n`);
             
         } catch (error) {
             this.logger.error(`スポットデータ処理エラー: ${fileName}`, error);
@@ -447,7 +432,6 @@ export class RouteSpotHandler {
                         coordinates: existingSpot.coordinates
                     };
                     merged[duplicateIndex] = updatedSpot;
-                    console.log(`スポット更新: [${existingSpot.name || existingSpot.spotId}] → [${newItem.name || newItem.spotId}] (画像座標: ${newItem.imageX || 'なし'},${newItem.imageY || 'なし'})`);
                 } else {
                     // ルートの場合は全体を置き換え
                     merged[duplicateIndex] = newItem;
@@ -459,17 +443,7 @@ export class RouteSpotHandler {
         
         // 総数を出力
         if (type === 'route') {
-            console.log(`=== ルート読み込み結果 ===`);
-            console.log(`新規追加: ${addedCount}本`);
-            console.log(`更新: ${updatedCount}本`);
-            console.log(`総ルート数: ${merged.length}本`);
-            console.log(`========================`);
         } else if (type === 'spot') {
-            console.log(`=== スポット読み込み結果 ===`);
-            console.log(`新規追加: ${addedCount}個`);
-            console.log(`更新: ${updatedCount}個`);
-            console.log(`総スポット数: ${merged.length}個`);
-            console.log(`=========================`);
         }
         
         return merged;
@@ -500,7 +474,6 @@ export class RouteSpotHandler {
             // 逆方向の比較（開始ID→終了IDが逆）
             const reverseDirectionById = (start1Id === end2Id && end1Id === start2Id);
             
-            console.log(`ルート比較 [${start1Id}→${end1Id}] vs [${start2Id}→${end2Id}]: 同方向=${sameDirectionById}, 逆方向=${reverseDirectionById}`);
             
             return sameDirectionById || reverseDirectionById;
         }
@@ -527,7 +500,6 @@ export class RouteSpotHandler {
                 Math.abs(end1.lng - start2.lng) < tolerance
             );
             
-            console.log(`座標比較 [(${start1.lat},${start1.lng})→(${end1.lat},${end1.lng})] vs [(${start2.lat},${start2.lng})→(${end2.lat},${end2.lng})]: 同方向=${sameDirection}, 逆方向=${reverseDirection}`);
             
             return sameDirection || reverseDirection;
         }
@@ -543,7 +515,6 @@ export class RouteSpotHandler {
             const imageXMatch = Math.abs(spot1.imageX - spot2.imageX) < 0.1;
             const imageYMatch = Math.abs(spot1.imageY - spot2.imageY) < 0.1;
             
-            console.log(`スポット画像座標比較: (${spot1.imageX},${spot1.imageY}) vs (${spot2.imageX},${spot2.imageY}): X一致=${imageXMatch}, Y一致=${imageYMatch}`);
             
             return imageXMatch && imageYMatch;
         }
@@ -560,7 +531,6 @@ export class RouteSpotHandler {
         const latMatch = Math.abs(coord1.lat - coord2.lat) < tolerance;
         const lngMatch = Math.abs(coord1.lng - coord2.lng) < tolerance;
         
-        console.log(`スポット座標比較: (${coord1.lat},${coord1.lng}) vs (${coord2.lat},${coord2.lng}): lat一致=${latMatch}, lng一致=${lngMatch}`);
         
         return latMatch && lngMatch;
     }
