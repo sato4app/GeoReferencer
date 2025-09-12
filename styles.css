@@ -262,6 +262,7 @@ html, body, #map {
     flex-direction: column;
     gap: 4px;
     flex: 1;
+    align-items: flex-end;
 }
 
 .count-item-inline {
