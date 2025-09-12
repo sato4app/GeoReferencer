@@ -22,15 +22,17 @@ export class UIHandlers {
 
     updatePointCoordCount(pointJsonData) {
         try {
-            const pointCoordCountField = document.getElementById('pointCoordCount');
-            if (pointCoordCountField && pointJsonData) {
+            const pointCountField = document.getElementById('pointCount');
+            if (pointCountField && pointJsonData) {
                 let count = 0;
                 
-                const pointJsonArray = Array.isArray(pointJsonData) ? pointJsonData : 
-                    (pointJsonData.points ? pointJsonData.points : [pointJsonData]);
+                if (pointJsonData.points && Array.isArray(pointJsonData.points)) {
+                    count = pointJsonData.points.length;
+                } else if (Array.isArray(pointJsonData)) {
+                    count = pointJsonData.length;
+                }
                 
-                count = pointJsonArray.length;
-                pointCoordCountField.value = count;
+                pointCountField.value = count;
                 this.logger.debug(`ポイント座標数更新: ${count}個`);
             }
         } catch (error) {
