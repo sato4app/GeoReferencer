@@ -707,12 +707,15 @@ export class RouteSpotHandler {
                     this.logger.debug(`スポット座標:`, latLng);
                     
                     if (latLng && latLng[0] && latLng[1]) {
-                        const marker = L.circleMarker(latLng, {
-                            radius: 8,
-                            color: '#0066ff',
-                            fillColor: '#0066ff',
-                            fillOpacity: 0.8,
-                            weight: 2
+                        const squareIcon = L.divIcon({
+                            className: 'square-spot-marker',
+                            html: '<div style="width: 10px; height: 10px; background-color: #0066ff; border: 1px solid #004499;"></div>',
+                            iconSize: [10, 10],
+                            iconAnchor: [5, 5]
+                        });
+                        const marker = L.marker(latLng, { 
+                            icon: squareIcon, 
+                            pane: 'pointJsonMarkers' 
                         }).addTo(this.mapCore.getMap());
                         
                         const spotInfo = `

@@ -15,7 +15,7 @@ export const CONFIG = {
     ACCEPTED_JSON_EXTENSIONS: ['.json'],
     
     // Excel読み込み制限
-    MAX_EXCEL_ROWS: 501, // ヘッダー行含む最大読み込み行数
+    MAX_EXCEL_ROWS: 1000, // ヘッダー行含む最大読み込み行数
     
     // アフィン変換設定
     AFFINE_TRANSFORMATION_MODE: 'auto', // 'simple', 'precise', 'auto'
