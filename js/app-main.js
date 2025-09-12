@@ -322,8 +322,24 @@ class GeoReferencerApp {
                     
                     this.logger.info(`JSONファイル処理開始: ${file.name}`);
                     
-                    // ファイル内容を判定して適切な処理を実行
-                    if (data.points && Array.isArray(data.points)) {
+                    // RouteSpotHandlerの自動判定を使用してファイル内容を判定
+                    const detectedType = this.routeSpotHandler.detectJsonType(data);
+                    
+                    if (detectedType === 'route') {
+                        // ルートデータの場合
+                        await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
+                        routesProcessed++;
+                        
+                    } else if (detectedType === 'spot') {
+                        // スポットデータの場合
+                        await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
+                        if (data.spots && Array.isArray(data.spots)) {
+                            spotsProcessed += data.spots.length;
+                        } else {
+                            spotsProcessed++;
+                        }
+                        
+                    } else if (detectedType === 'point') {
                         // ポイントデータの場合
                         this.pointJsonData = data;
                         this.georeferencing.setPointJsonData(data);
@@ -333,6 +349,7 @@ class GeoReferencerApp {
                             // 最初のポイントファイル処理時のみマーカーをクリア
                             if (shouldClearMarkers) {
                                 this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                                this.imageCoordinateMarkers = []; // マーカー配列もクリア
                                 shouldClearMarkers = false;
                             }
                             
@@ -347,23 +364,6 @@ class GeoReferencerApp {
                         }
                         
                         pointsProcessed++;
-                        
-                    } else if (data.routes || data.spots) {
-                        // ルート・スポットデータの場合
-                        await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
-                        
-                        // 実際のルート/スポット数をカウント
-                        if (data.routes && Array.isArray(data.routes)) {
-                            routesProcessed += data.routes.length;
-                        } else if (data.routes) {
-                            routesProcessed++;
-                        }
-                        
-                        if (data.spots && Array.isArray(data.spots)) {
-                            spotsProcessed += data.spots.length;
-                        } else if (data.spots) {
-                            spotsProcessed++;
-                        }
                         
                     } else {
                         this.logger.warn(`未知のJSONファイル形式: ${file.name}`);

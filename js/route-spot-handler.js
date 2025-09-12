@@ -36,6 +36,9 @@ export class RouteSpotHandler {
                     } else if (detectedType === 'spot') {
                         const processedSpots = this.processSpotData(data, file.name);
                         spotData.push(...processedSpots);
+                    } else if (detectedType === 'point') {
+                        this.logger.warn(`ポイントデータは現在サポートされていません: ${file.name}`);
+                        continue;
                     } else {
                         this.logger.warn(`ファイル形式を判定できませんでした: ${file.name}`);
                         continue;
@@ -122,26 +125,23 @@ export class RouteSpotHandler {
                 return 'spot';
             }
             
-            // その他の従来形式のフォールバック判定
-            // ルート: 複数座標配列
-            if ((data.points && Array.isArray(data.points) && data.points.length > 1) ||
-                (data.coordinates && Array.isArray(data.coordinates) && data.coordinates.length > 1) ||
-                (data.geometry && data.geometry.coordinates && Array.isArray(data.geometry.coordinates) && data.geometry.coordinates.length > 1)) {
-                console.log(`従来形式ルートとして判定: 複数座標配列有り`);
-                return 'route';
+            // ポイントの判定基準
+            // - points配列が存在し、typeが"waypoint"でない要素がある
+            if (data.points && Array.isArray(data.points)) {
+                const hasNonWaypoints = data.points.some(point => 
+                    point.type !== 'waypoint' && 
+                    (point.id || point.name) &&
+                    (point.imageX !== undefined && point.imageY !== undefined)
+                );
+                
+                if (hasNonWaypoints) {
+                    console.log(`ポイントとして判定: points配列有り, 非waypoint要素有り`);
+                    return 'point';
+                }
             }
             
-            // スポット: 単一座標
-            if ((data.lat && data.lng) || 
-                (data.latitude && data.longitude) ||
-                (data.imageX !== undefined && data.imageY !== undefined) ||
-                (data.coordinates && Array.isArray(data.coordinates) && data.coordinates.length === 2) ||
-                (data.geometry && data.geometry.coordinates && Array.isArray(data.geometry.coordinates) && data.geometry.coordinates.length === 2)) {
-                console.log(`従来形式スポットとして判定: 単一座標有り`);
-                return 'spot';
-            }
-            
-            console.log(`判定不可: 既知の形式に該当しません`, data);
+            console.warn(`判定不可能なファイルをスキップ:`, data);
+            this.logger.warn('判定不可能なファイルがありました。処理をスキップします。');
             return null;
             
         } catch (error) {
@@ -505,7 +505,7 @@ export class RouteSpotHandler {
             return sameDirectionById || reverseDirectionById;
         }
         
-        // 座標による比較（フォールバック）
+        // 座標による比較
         const tolerance = 0.0001;
         
         if (start1.lat && start1.lng && end1.lat && end1.lng && 
@@ -548,7 +548,7 @@ export class RouteSpotHandler {
             return imageXMatch && imageYMatch;
         }
         
-        // フォールバック: GPS座標で比較
+        // GPS座標で比較
         const coord1 = spot1.coordinates;
         const coord2 = spot2.coordinates;
         

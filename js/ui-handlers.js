@@ -27,13 +27,19 @@ export class UIHandlers {
                 let count = 0;
                 
                 if (pointJsonData.points && Array.isArray(pointJsonData.points)) {
-                    count = pointJsonData.points.length;
+                    // type='waypoint'を除外してカウント（ルートの中間点を除く）
+                    count = pointJsonData.points.filter(point => 
+                        !point.type || point.type !== 'waypoint'
+                    ).length;
                 } else if (Array.isArray(pointJsonData)) {
-                    count = pointJsonData.length;
+                    // type='waypoint'を除外してカウント
+                    count = pointJsonData.filter(point => 
+                        !point.type || point.type !== 'waypoint'
+                    ).length;
                 }
                 
                 pointCountField.value = count;
-                this.logger.debug(`ポイント座標数更新: ${count}個`);
+                this.logger.debug(`ポイント座標数更新: ${count}個 (waypoint除外)`);
             }
         } catch (error) {
             this.logger.error('ポイント座標数更新エラー', error);
