@@ -311,6 +311,9 @@ class GeoReferencerApp {
             let routesProcessed = 0;
             let spotsProcessed = 0;
             
+            // 最初にポイントデータのマーカーをクリア（一度だけ）
+            let shouldClearMarkers = true;
+            
             // 各ファイルを処理
             for (const file of files) {
                 try {
@@ -327,8 +330,11 @@ class GeoReferencerApp {
                         
                         // 画像上にポイント座標を表示
                         if (this.imageOverlay && data.points) {
-                            // 既存のマーカーをクリア
-                            this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                            // 最初のポイントファイル処理時のみマーカーをクリア
+                            if (shouldClearMarkers) {
+                                this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                                shouldClearMarkers = false;
+                            }
                             
                             this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'points', this.imageCoordinateMarkers);
                             
@@ -346,8 +352,18 @@ class GeoReferencerApp {
                         // ルート・スポットデータの場合
                         await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
                         
-                        if (data.routes) routesProcessed++;
-                        if (data.spots) spotsProcessed++;
+                        // 実際のルート/スポット数をカウント
+                        if (data.routes && Array.isArray(data.routes)) {
+                            routesProcessed += data.routes.length;
+                        } else if (data.routes) {
+                            routesProcessed++;
+                        }
+                        
+                        if (data.spots && Array.isArray(data.spots)) {
+                            spotsProcessed += data.spots.length;
+                        } else if (data.spots) {
+                            spotsProcessed++;
+                        }
                         
                     } else {
                         this.logger.warn(`未知のJSONファイル形式: ${file.name}`);
