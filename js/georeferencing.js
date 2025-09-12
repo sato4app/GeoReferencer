@@ -637,32 +637,52 @@ export class Georeferencing {
 
             console.log(`🚀 ルートマーカー同期処理開始: ${this.routeSpotHandler.routeMarkers.length}個のマーカーを処理`);
 
+            let movedMarkers = 0;
+            let skippedMarkers = 0;
+
             this.routeSpotHandler.routeMarkers.forEach((marker, index) => {
+                const meta = marker.__meta;
                 if (marker.setLatLng && typeof marker.setLatLng === 'function') {
-                    // 単一のマーカーの場合
-                    const currentPos = marker.getLatLng();
-                    const newPos = this.transformGpsToCurrentPosition(currentPos.lat, currentPos.lng);
-                    if (newPos) {
-                        marker.setLatLng(newPos);
-                        console.log(`📍 ルートマーカー${index}: 位置更新 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
-                        this.logger.info(`ルートマーカー${index}: 位置更新 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
+                    // 単一のマーカー（ルートの開始/中間/終了点）
+                    if (meta && meta.origin === 'image' && meta.imageX !== undefined && meta.imageY !== undefined) {
+                        const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
+                        if (newPos) {
+                            const currentPos = marker.getLatLng();
+                            marker.setLatLng(newPos);
+                            movedMarkers++;
+                            console.log(`📍 ルートマーカー${index}: 画像座標由来を精密移動 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
+                        } else {
+                            console.log(`⚠️ ルートマーカー${index}: 画像座標→GPS変換に失敗`);
+                        }
                     } else {
-                        console.log(`⚠️ ルートマーカー${index}: 座標変換に失敗`);
+                        // GPS由来は移動しない
+                        skippedMarkers++;
+                        console.log(`⏭️ ルートマーカー${index}: GPS由来のため移動スキップ`);
                     }
                 } else if (marker.getLatLngs && typeof marker.getLatLngs === 'function') {
-                    // ポリラインの場合
+                    // ポリライン：各頂点のメタを使用
                     const currentLatLngs = marker.getLatLngs();
-                    const newLatLngs = currentLatLngs.map(latlng => {
-                        const newPos = this.transformGpsToCurrentPosition(latlng.lat, latlng.lng);
-                        return newPos ? newPos : [latlng.lat, latlng.lng];
+                    const metaPoints = (marker.__meta && Array.isArray(marker.__meta.points)) ? marker.__meta.points : [];
+                    const newLatLngs = currentLatLngs.map((latlng, i) => {
+                        const pMeta = metaPoints[i];
+                        if (pMeta && pMeta.origin === 'image' && pMeta.imageX !== undefined && pMeta.imageY !== undefined) {
+                            const newPos = this.transformImageCoordsToGps(pMeta.imageX, pMeta.imageY, this.currentTransformation);
+                            if (newPos) {
+                                movedMarkers++;
+                                return newPos;
+                            }
+                        }
+                        // GPS由来 or 失敗時は元の座標を維持
+                        skippedMarkers++;
+                        return [latlng.lat, latlng.lng];
                     });
                     marker.setLatLngs(newLatLngs);
-                    console.log(`🛣️ ルートライン${index}: ${newLatLngs.length}点更新`);
-                    this.logger.info(`ルートライン${index}: ${newLatLngs.length}点更新`);
+                    console.log(`🛣️ ルートライン${index}: ${newLatLngs.length}点更新（移動: ${movedMarkers}, スキップ: ${skippedMarkers}）`);
                 }
             });
 
             console.log(`✅ ルートマーカー同期処理完了: ${this.routeSpotHandler.routeMarkers.length}個処理済み`);
+            this.logger.info(`ルート同期 集計: 移動=${movedMarkers}, スキップ=${skippedMarkers}`);
 
         } catch (error) {
             this.logger.error('❌ ルートマーカー同期エラー', error);
@@ -679,19 +699,31 @@ export class Georeferencing {
 
             console.log(`🎪 スポットマーカー同期処理開始: ${this.routeSpotHandler.spotMarkers.length}個のマーカーを処理`);
 
+            let moved = 0;
+            let skipped = 0;
+
             this.routeSpotHandler.spotMarkers.forEach((marker, index) => {
-                const currentPos = marker.getLatLng();
-                const newPos = this.transformGpsToCurrentPosition(currentPos.lat, currentPos.lng);
-                if (newPos) {
-                    marker.setLatLng(newPos);
-                    console.log(`🏷️ スポットマーカー${index}: 位置更新 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
-                    this.logger.info(`スポットマーカー${index}: 位置更新 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
+                const meta = marker.__meta;
+                if (meta && meta.origin === 'image' && meta.imageX !== undefined && meta.imageY !== undefined) {
+                    const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
+                    if (newPos) {
+                        const currentPos = marker.getLatLng();
+                        marker.setLatLng(newPos);
+                        moved++;
+                        console.log(`🏷️ スポットマーカー${index}: 画像座標由来を精密移動 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
+                    } else {
+                        skipped++;
+                        console.log(`⚠️ スポットマーカー${index}: 画像座標→GPS変換に失敗`);
+                    }
                 } else {
-                    console.log(`⚠️ スポットマーカー${index}: 座標変換に失敗`);
+                    // GPS由来は移動しない
+                    skipped++;
+                    console.log(`⏭️ スポットマーカー${index}: GPS由来のため移動スキップ`);
                 }
             });
 
             console.log(`✅ スポットマーカー同期処理完了: ${this.routeSpotHandler.spotMarkers.length}個処理済み`);
+            this.logger.info(`スポット同期 集計: 移動=${moved}, スキップ=${skipped}`);
 
         } catch (error) {
             this.logger.error('❌ スポットマーカー同期エラー', error);

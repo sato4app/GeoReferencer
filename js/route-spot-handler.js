@@ -592,7 +592,11 @@ export class RouteSpotHandler {
                                         lat: coords.lat,
                                         lng: coords.lng,
                                         name: point.name || point.id || point.pointId || `Point-${index + 1}`,
-                                        type: point.type || 'waypoint'
+                                        type: point.type || 'waypoint',
+                                        // 元データの出自（画像座標 or GPS）を保持
+                                        __origin: (point.imageX !== undefined && point.imageY !== undefined) ? 'image' : 'gps',
+                                        __imageX: point.imageX,
+                                        __imageY: point.imageY
                                     };
                                 } else {
                                     return null;
@@ -677,6 +681,17 @@ export class RouteSpotHandler {
                                 }).addTo(this.mapCore.getMap());
                             }
                             
+                            // マーカーに元座標系メタを付与
+                            if (marker) {
+                                marker.__meta = {
+                                    origin: point.__origin || 'gps',
+                                    imageX: point.__imageX,
+                                    imageY: point.__imageY,
+                                    routeId: item.name || item.routeId,
+                                    label: label
+                                };
+                            }
+
                             const pointInfo = `
                                 <div>
                                     <strong>${label}: ${point.name || point.id || pointIndex + 1}</strong><br>
@@ -691,6 +706,15 @@ export class RouteSpotHandler {
                         });
                         
                         if (!this.routeMarkers) this.routeMarkers = [];
+                        // ポリラインにも各頂点の元座標系メタを付与
+                        polyline.__meta = {
+                            points: points.map(p => ({
+                                origin: p.__origin || 'gps',
+                                imageX: p.__imageX,
+                                imageY: p.__imageY
+                            })),
+                            routeId: item.name || item.routeId
+                        };
                         this.routeMarkers.push(polyline);
                         displayCount++;
                     }
@@ -730,6 +754,15 @@ export class RouteSpotHandler {
                         `;
                         marker.bindPopup(spotInfo);
                         
+                        // スポットにも元座標系メタを付与
+                        const origin = (item.imageX !== undefined && item.imageY !== undefined) ? 'image' : 'gps';
+                        marker.__meta = {
+                            origin: origin,
+                            imageX: item.imageX,
+                            imageY: item.imageY,
+                            spotId: item.name || item.spotId
+                        };
+
                         if (!this.spotMarkers) this.spotMarkers = [];
                         this.spotMarkers.push(marker);
                         displayCount++;
