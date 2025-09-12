@@ -247,7 +247,7 @@ html, body, #map {
     height: 40px;
     box-sizing: border-box;
     line-height: 1.4;
-    width: 84px !important;
+    width: 100px !important;
     flex-shrink: 0 !important;
 }
 
@@ -260,7 +260,7 @@ html, body, #map {
 .count-fields-inline {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
     flex: 1;
 }
 
