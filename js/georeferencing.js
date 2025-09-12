@@ -102,6 +102,7 @@ export class Georeferencing {
                 this.imageOverlay.addImageUpdateCallback(() => {
                     this.logger.info('★★★ 画像位置更新通知受信 - syncPointPositions実行 ★★★');
                     this.syncPointPositions();
+                    this.syncRouteSpotPositions();
                 });
                 this.imageUpdateCallbackRegistered = true;
                 this.logger.info('画像更新コールバック登録完了');
@@ -579,6 +580,119 @@ export class Georeferencing {
         } catch (error) {
             this.logger.error('画像境界ベース位置同期エラー', error);
         }
+    }
+
+    syncRouteSpotPositions() {
+        try {
+            if (!this.routeSpotHandler) {
+                this.logger.warn('RouteSpotHandlerが設定されていません。ルート・スポット同期をスキップします。');
+                return;
+            }
+
+            this.logger.info('=== ルート・スポット位置同期開始 ===');
+
+            // ルートマーカーの位置同期
+            if (this.routeSpotHandler.routeMarkers && this.routeSpotHandler.routeMarkers.length > 0) {
+                this.logger.info(`ルートマーカー同期開始: ${this.routeSpotHandler.routeMarkers.length}個`);
+                this.syncRouteMarkers();
+            }
+
+            // スポットマーカーの位置同期
+            if (this.routeSpotHandler.spotMarkers && this.routeSpotHandler.spotMarkers.length > 0) {
+                this.logger.info(`スポットマーカー同期開始: ${this.routeSpotHandler.spotMarkers.length}個`);
+                this.syncSpotMarkers();
+            }
+
+            this.logger.info('=== ルート・スポット位置同期完了 ===');
+
+        } catch (error) {
+            this.logger.error('ルート・スポット位置同期エラー', error);
+        }
+    }
+
+    syncRouteMarkers() {
+        try {
+            if (!this.routeSpotHandler || !this.routeSpotHandler.routeMarkers) return;
+
+            this.routeSpotHandler.routeMarkers.forEach((marker, index) => {
+                if (marker.setLatLng && typeof marker.setLatLng === 'function') {
+                    // 単一のマーカーの場合
+                    const currentPos = marker.getLatLng();
+                    const newPos = this.transformGpsToCurrentPosition(currentPos.lat, currentPos.lng);
+                    if (newPos) {
+                        marker.setLatLng(newPos);
+                        this.logger.debug(`ルートマーカー${index}: 位置更新 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
+                    }
+                } else if (marker.getLatLngs && typeof marker.getLatLngs === 'function') {
+                    // ポリラインの場合
+                    const currentLatLngs = marker.getLatLngs();
+                    const newLatLngs = currentLatLngs.map(latlng => {
+                        const newPos = this.transformGpsToCurrentPosition(latlng.lat, latlng.lng);
+                        return newPos ? newPos : [latlng.lat, latlng.lng];
+                    });
+                    marker.setLatLngs(newLatLngs);
+                    this.logger.debug(`ルートライン${index}: ${newLatLngs.length}点更新`);
+                }
+            });
+
+        } catch (error) {
+            this.logger.error('ルートマーカー同期エラー', error);
+        }
+    }
+
+    syncSpotMarkers() {
+        try {
+            if (!this.routeSpotHandler || !this.routeSpotHandler.spotMarkers) return;
+
+            this.routeSpotHandler.spotMarkers.forEach((marker, index) => {
+                const currentPos = marker.getLatLng();
+                const newPos = this.transformGpsToCurrentPosition(currentPos.lat, currentPos.lng);
+                if (newPos) {
+                    marker.setLatLng(newPos);
+                    this.logger.debug(`スポットマーカー${index}: 位置更新 [${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}] → [${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)}]`);
+                }
+            });
+
+        } catch (error) {
+            this.logger.error('スポットマーカー同期エラー', error);
+        }
+    }
+
+    transformGpsToCurrentPosition(lat, lng) {
+        try {
+            // 現在の画像境界を取得
+            const bounds = this.imageOverlay.getBounds();
+            if (!bounds) {
+                this.logger.warn('画像境界が取得できません');
+                return null;
+            }
+
+            // 元の画像境界（初期境界）を取得
+            const initialBounds = this.imageOverlay.getInitialBounds();
+            if (!initialBounds) {
+                this.logger.warn('初期画像境界が取得できません');
+                return null;
+            }
+
+            // 座標の相対位置を計算（初期境界内での位置）
+            const relativeX = (lng - initialBounds.getWest()) / (initialBounds.getEast() - initialBounds.getWest());
+            const relativeY = (lat - initialBounds.getNorth()) / (initialBounds.getSouth() - initialBounds.getNorth());
+
+            // 新しい境界での座標を計算
+            const newLng = bounds.getWest() + relativeX * (bounds.getEast() - bounds.getWest());
+            const newLat = bounds.getNorth() + relativeY * (bounds.getSouth() - bounds.getNorth());
+
+            return [newLat, newLng];
+
+        } catch (error) {
+            this.logger.error('GPS座標変換エラー', error);
+            return null;
+        }
+    }
+
+    // RouteSpotHandlerインスタンスを設定
+    setRouteSpotHandler(routeSpotHandler) {
+        this.routeSpotHandler = routeSpotHandler;
     }
 
     // CoordinateDisplayインスタンスを取得（app-main.jsから注入）

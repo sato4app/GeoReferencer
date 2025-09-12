@@ -68,6 +68,9 @@ class GeoReferencerApp {
 
             // CoordinateDisplayインスタンスをGeoreferencingに注入
             this.georeferencing.setCoordinateDisplay(this.coordinateDisplay);
+            
+            // RouteSpotHandlerインスタンスをGeoreferencingに注入
+            this.georeferencing.setRouteSpotHandler(this.routeSpotHandler);
 
             this.logger.debug('全モジュール初期化完了');
             
