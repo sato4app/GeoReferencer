@@ -702,6 +702,12 @@ export class Georeferencing {
     transformGpsToCurrentPosition(lat, lng) {
         try {
             // 現在の画像境界を取得
+            if (!this.imageOverlay || typeof this.imageOverlay.getBounds !== 'function') {
+                console.log('⚠️ imageOverlayまたはgetBoundsメソッドが利用できません');
+                this.logger.warn('imageOverlayまたはgetBoundsメソッドが利用できません');
+                return null;
+            }
+
             const bounds = this.imageOverlay.getBounds();
             if (!bounds) {
                 console.log('⚠️ 画像境界が取得できません');
@@ -710,6 +716,12 @@ export class Georeferencing {
             }
 
             // 元の画像境界（初期境界）を取得
+            if (typeof this.imageOverlay.getInitialBounds !== 'function') {
+                console.log('⚠️ getInitialBoundsメソッドが利用できません');
+                this.logger.warn('getInitialBoundsメソッドが利用できません');
+                return null;
+            }
+
             const initialBounds = this.imageOverlay.getInitialBounds();
             if (!initialBounds) {
                 console.log('⚠️ 初期画像境界が取得できません');

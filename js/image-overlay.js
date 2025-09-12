@@ -550,6 +550,16 @@ export class ImageOverlay {
         }
     }
 
+    getBounds() {
+        // Leafletのimageoverlayインスタンスから現在の境界を取得
+        if (this.imageOverlay && typeof this.imageOverlay.getBounds === 'function') {
+            return this.imageOverlay.getBounds();
+        }
+        
+        // フォールバック: 初期境界を返す
+        return this.getInitialBounds();
+    }
+
     getInitialBounds() {
         const center = this.centerMarker.getLatLng();
         const offset = 0.001;
