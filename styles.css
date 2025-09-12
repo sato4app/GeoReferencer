@@ -234,7 +234,7 @@ html, body, #map {
 .json-load-row {
     display: flex;
     align-items: flex-start;
-    gap: 60px;
+    gap: 48px;
     margin-bottom: 4px;
 }
 
@@ -262,27 +262,34 @@ html, body, #map {
     flex-direction: column;
     gap: 4px;
     flex: 1;
-    align-items: flex-end;
 }
 
 .count-item-inline {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
     font-size: 11px;
+    width: 100%;
 }
 
 .count-item-inline label {
     font-size: 11px;
     color: var(--color-dark);
     font-weight: var(--font-weight-normal);
-    min-width: 40px;
+    text-align: left;
     flex-shrink: 0;
+}
+
+.count-item-inline .count-value-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
 }
 
 .count-item-inline .count-field {
     width: 30px;
     font-size: 11px;
+    text-align: right;
 }
 
 .count-item-inline .unit-label {
