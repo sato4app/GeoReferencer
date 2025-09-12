@@ -595,21 +595,6 @@ export class RouteSpotHandler {
                     this.logger.debug(`ルート座標数: ${latLngs.length}`, latLngs);
                     
                     if (latLngs.length > 1) {
-                        const polyline = L.polyline(latLngs, {
-                            color: '#ff6600',
-                            weight: 3,
-                            opacity: 0.8
-                        }, { pane: 'routeLines' }).addTo(this.mapCore.getMap());
-                        
-                        const routeInfo = `
-                            <div>
-                                <strong>ルート: ${item.name || item.routeId}</strong><br>
-                                ファイル: ${item.fileName}<br>
-                                ポイント数: ${latLngs.length}
-                            </div>
-                        `;
-                        polyline.bindPopup(routeInfo);
-                        
                         points.forEach((point, pointIndex) => {
                             let uiType = 'waypoint';
                             let label = '中間点';
@@ -675,17 +660,6 @@ export class RouteSpotHandler {
                             this.routeMarkers.push(marker);
                         });
                         
-                        if (!this.routeMarkers) this.routeMarkers = [];
-                        // ポリラインにも各頂点の元座標系メタを付与
-                        polyline.__meta = {
-                            points: points.map(p => ({
-                                origin: p.__origin || 'gps',
-                                imageX: p.__imageX,
-                                imageY: p.__imageY
-                            })),
-                            routeId: item.name || item.routeId
-                        };
-                        this.routeMarkers.push(polyline);
                         displayCount++;
                     }
                 } else if (type === 'spot') {
