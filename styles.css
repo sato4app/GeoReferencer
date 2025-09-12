@@ -217,24 +217,6 @@ html, body, #map {
     gap: 6px;
 }
 
-/* ポイント座標ボタンのスタイル */
-.point-coord-button {
-    padding: 2px 6px;
-    font-size: 10px;
-    background: var(--color-primary);
-    color: var(--color-white);
-    border: 1px solid var(--color-primary-dark);
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    white-space: nowrap;
-    align-self: flex-start;
-}
-
-.point-coord-button:hover {
-    background: var(--color-primary-dark);
-    transform: translateY(-1px);
-}
 
 /* JSONデータ読み込み結果表示 */
 .json-data-counts {
@@ -246,6 +228,25 @@ html, body, #map {
     padding: 6px;
     background: rgba(240, 240, 240, 0.9);
     border-radius: var(--border-radius-small);
+}
+
+/* 読み込みJSONボタンのスタイル */
+.load-json-button {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--color-success);
+    color: var(--color-white);
+    border: 1px solid var(--color-success-dark);
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-bottom: 4px;
+    font-weight: var(--font-weight-bold);
+}
+
+.load-json-button:hover {
+    background: var(--color-success-dark);
+    transform: translateY(-1px);
 }
 
 .json-data-counts .count-item {

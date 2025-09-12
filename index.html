@@ -64,13 +64,6 @@
                             PNG画像
                         </label>
                     </div>
-                    <div class="radio-item">
-                        <label>
-                            <input type="radio" name="fileType" value="pointCoord">
-                            ポイント<br>ルート<br>スポット
-                        </label>
-                        <button id="pointCoordBtn" class="point-coord-button" title="ポイント座標ファイルを読み込む">位置</button>
-                    </div>
                 </div>
             </div>
             
@@ -81,6 +74,7 @@
             
             <!-- JSONデータ読み込み結果表示 -->
             <div class="json-data-counts">
+                <button id="loadJsonBtn" class="load-json-button" title="ポイント・ルート・スポットのJSONファイルを読み込む">読み込みJSON</button>
                 <div class="count-item">
                     <label>ポイント</label>
                     <input type="text" id="pointCount" readonly value="0" class="count-field">
