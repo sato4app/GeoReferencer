@@ -129,6 +129,7 @@ export class Georeferencing {
     async performAutomaticGeoreferencing(matchedPairs) {
         try {
             this.logger.info('精密版ジオリファレンシング開始', matchedPairs.length + 'ペア');
+            console.log('🚀 精密版ジオリファレンシング開始', matchedPairs.length + 'ペア');
 
             // 一致するポイント数をすべて使用（精密版のみ）
             const controlPoints = matchedPairs;
@@ -138,6 +139,11 @@ export class Georeferencing {
             
             if (transformation) {
                 await this.applyTransformationToImage(transformation, controlPoints);
+                
+                // 変換適用後に手動でルート・スポット同期を実行
+                console.log('🎯 手動ルート・スポット同期実行開始');
+                this.syncRouteSpotPositions();
+                
                 this.logger.info('自動ジオリファレンシング完了');
             } else {
                 this.logger.warn('変換パラメータの計算に失敗しました');
