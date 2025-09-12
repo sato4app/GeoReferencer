@@ -246,7 +246,6 @@ export class CoordinateDisplay {
                 markerInfo.type === 'georeference-point'
             );
 
-            this.logger.info(`画像境界変更に応じたマーカー位置更新開始: ${georefMarkers.length}個`);
 
             georefMarkers.forEach((markerInfo, index) => {
                 const marker = markerInfo.marker;
@@ -263,7 +262,6 @@ export class CoordinateDisplay {
                 }
             });
 
-            this.logger.info(`画像境界変更に応じたマーカー位置更新完了: ${georefMarkers.length}個`);
 
         } catch (error) {
             this.logger.error('画像境界変更対応エラー', error);

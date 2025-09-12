@@ -394,7 +394,6 @@ export class Georeferencing {
                 markerInfo.type === 'georeference-point'
             );
 
-            this.logger.info('ポイントJSONマーカー位置更新開始', georefMarkers.length + '個');
 
             for (const markerInfo of georefMarkers) {
                 const marker = markerInfo.marker;
@@ -422,7 +421,6 @@ export class Georeferencing {
                 }
             }
 
-            this.logger.info('ポイントJSONマーカー位置更新完了');
             
             // 追加: 確実にポイント位置同期を実行
             this.syncPointPositions();
@@ -476,10 +474,8 @@ export class Georeferencing {
 
     syncPointPositions() {
         try {
-            this.logger.info('=== ポイント位置同期処理開始 ===');
             
             if (!this.currentTransformation) {
-                this.logger.info('変換パラメータがないため、画像境界ベースの位置更新を実行');
                 // ジオリファレンス変換が適用されていない場合は、画像境界ベースで更新
                 this.syncPointPositionsBasedOnImageBounds();
                 return;
@@ -494,7 +490,6 @@ export class Georeferencing {
                 markerInfo.type === 'georeference-point'
             );
 
-            this.logger.info(`フィルタ後のマーカー: ${georefMarkers.length}個`);
 
             georefMarkers.forEach((markerInfo, index) => {
                 const marker = markerInfo.marker;
@@ -516,7 +511,6 @@ export class Georeferencing {
 
                 if (transformedGpsCoords) {
                     const oldPos = marker.getLatLng();
-                    this.logger.info(`マーカー${index}: ${data.name || data.id} 位置更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${transformedGpsCoords[0].toFixed(6)}, ${transformedGpsCoords[1].toFixed(6)}]`);
                     
                     // マーカーの位置を更新
                     marker.setLatLng(transformedGpsCoords);
@@ -533,7 +527,6 @@ export class Georeferencing {
                 }
             });
             
-            this.logger.info(`=== ポイント位置同期完了: ${georefMarkers.length}個更新 ===`);
             
         } catch (error) {
             this.logger.error('ポイント位置同期エラー', error);
@@ -543,13 +536,11 @@ export class Georeferencing {
     // 画像境界ベースの位置同期（ジオリファレンス未適用時）
     syncPointPositionsBasedOnImageBounds() {
         try {
-            this.logger.info('=== 画像境界ベース位置同期処理開始 ===');
 
             const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
                 markerInfo.type === 'georeference-point'
             );
 
-            this.logger.info(`対象マーカー: ${georefMarkers.length}個`);
 
             georefMarkers.forEach((markerInfo, index) => {
                 const marker = markerInfo.marker;
@@ -562,7 +553,6 @@ export class Georeferencing {
                         const newLatLng = coordinateDisplay.convertImageToLatLng(data.imageX, data.imageY);
                         const oldPos = marker.getLatLng();
                         
-                        this.logger.info(`マーカー${index}: ${data.name || data.id} 画像境界ベース更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)}]`);
                         
                         marker.setLatLng(newLatLng);
                         
@@ -580,7 +570,6 @@ export class Georeferencing {
                 }
             });
 
-            this.logger.info(`=== 画像境界ベース位置同期完了: ${georefMarkers.length}個更新 ===`);
 
         } catch (error) {
             this.logger.error('画像境界ベース位置同期エラー', error);
@@ -594,25 +583,17 @@ export class Georeferencing {
                 return;
             }
 
-            this.logger.info('🎯 === ルート・スポット位置同期開始 ===');
 
             // ルートマーカーの位置同期
             if (this.routeSpotHandler.routeMarkers && this.routeSpotHandler.routeMarkers.length > 0) {
-                this.logger.info(`📍 ルートマーカー同期開始: ${this.routeSpotHandler.routeMarkers.length}個`);
                 this.syncRouteMarkers();
-            } else {
-                this.logger.info('📍 ルートマーカーは存在しません。');
             }
 
             // スポットマーカーの位置同期
             if (this.routeSpotHandler.spotMarkers && this.routeSpotHandler.spotMarkers.length > 0) {
-                this.logger.info(`🏷️ スポットマーカー同期開始: ${this.routeSpotHandler.spotMarkers.length}個`);
                 this.syncSpotMarkers();
-            } else {
-                this.logger.info('🏷️ スポットマーカーは存在しません。');
             }
 
-            this.logger.info('✅ === ルート・スポット位置同期完了 ===');
 
         } catch (error) {
             this.logger.error('❌ ルート・スポット位置同期エラー', error);
@@ -666,7 +647,6 @@ export class Georeferencing {
                 }
             });
 
-            this.logger.info(`ルート同期 集計: 移動=${movedMarkers}, スキップ=${skippedMarkers}`);
 
         } catch (error) {
             this.logger.error('❌ ルートマーカー同期エラー', error);
@@ -700,7 +680,6 @@ export class Georeferencing {
                 }
             });
 
-            this.logger.info(`スポット同期 集計: 移動=${moved}, スキップ=${skipped}`);
 
         } catch (error) {
             this.logger.error('❌ スポットマーカー同期エラー', error);
