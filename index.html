@@ -75,21 +75,25 @@
             
             <!-- JSONデータ読み込み結果表示 -->
             <div class="json-data-counts">
-                <button id="loadJsonBtn" class="load-json-button" title="ポイント・ルート・スポットのJSONファイルを読み込む">読み込みJSON</button>
-                <div class="count-item">
-                    <label>ポイント</label>
-                    <input type="text" id="pointCount" readonly value="0" class="count-field">
-                    <span class="unit-label">個</span>
-                </div>
-                <div class="count-item">
-                    <label>ルート</label>
-                    <input type="text" id="routeCount" readonly value="0" class="count-field">
-                    <span class="unit-label">本</span>
-                </div>
-                <div class="count-item">
-                    <label>スポット</label>
-                    <input type="text" id="spotCount" readonly value="0" class="count-field">
-                    <span class="unit-label">個</span>
+                <div class="json-load-row">
+                    <button id="loadJsonBtn" class="load-json-button" title="ポイント・ルート・スポットのJSONファイルを読み込む">画像内座標<br>の読み込み</button>
+                    <div class="count-fields-inline">
+                        <div class="count-item-inline">
+                            <label>ポイント</label>
+                            <input type="text" id="pointCount" readonly value="0" class="count-field">
+                            <span class="unit-label">個</span>
+                        </div>
+                        <div class="count-item-inline">
+                            <label>ルート</label>
+                            <input type="text" id="routeCount" readonly value="0" class="count-field">
+                            <span class="unit-label">本</span>
+                        </div>
+                        <div class="count-item-inline">
+                            <label>スポット</label>
+                            <input type="text" id="spotCount" readonly value="0" class="count-field">
+                            <span class="unit-label">個</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             
