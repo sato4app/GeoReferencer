@@ -701,49 +701,90 @@ export class Georeferencing {
 
     transformGpsToCurrentPosition(lat, lng) {
         try {
-            // 現在の画像境界を取得
+            // ポイントと同様の精密なアフィン変換を使用する場合
+            if (this.currentTransformation && this.currentTransformation.type === 'precise') {
+                // GPS座標を画像座標に逆変換してからアフィン変換を適用
+                const imageCoords = this.reverseTransformGpsToImage(lat, lng);
+                if (imageCoords) {
+                    const transformedGps = coordinateTransforms.applyAffineTransform(
+                        imageCoords[0], 
+                        imageCoords[1], 
+                        this.currentTransformation
+                    );
+                    if (transformedGps) {
+                        console.log(`🔄 精密座標変換: [${lat.toFixed(6)}, ${lng.toFixed(6)}] → [${transformedGps[0].toFixed(6)}, ${transformedGps[1].toFixed(6)}]`);
+                        return transformedGps;
+                    }
+                }
+            }
+
+            // フォールバック: 画像境界ベースの変換（移動量を制限）
             if (!this.imageOverlay || typeof this.imageOverlay.getBounds !== 'function') {
                 console.log('⚠️ imageOverlayまたはgetBoundsメソッドが利用できません');
                 this.logger.warn('imageOverlayまたはgetBoundsメソッドが利用できません');
-                return null;
+                return [lat, lng]; // 元の座標をそのまま返す
             }
 
             const bounds = this.imageOverlay.getBounds();
             if (!bounds) {
                 console.log('⚠️ 画像境界が取得できません');
                 this.logger.warn('画像境界が取得できません');
-                return null;
+                return [lat, lng];
             }
 
             // 元の画像境界（初期境界）を取得
             if (typeof this.imageOverlay.getInitialBounds !== 'function') {
                 console.log('⚠️ getInitialBoundsメソッドが利用できません');
                 this.logger.warn('getInitialBoundsメソッドが利用できません');
-                return null;
+                return [lat, lng];
             }
 
             const initialBounds = this.imageOverlay.getInitialBounds();
             if (!initialBounds) {
                 console.log('⚠️ 初期画像境界が取得できません');
                 this.logger.warn('初期画像境界が取得できません');
-                return null;
+                return [lat, lng];
             }
 
-            // 座標の相対位置を計算（初期境界内での位置）
-            const relativeX = (lng - initialBounds.getWest()) / (initialBounds.getEast() - initialBounds.getWest());
-            const relativeY = (lat - initialBounds.getNorth()) / (initialBounds.getSouth() - initialBounds.getNorth());
+            // 境界の変化量を計算
+            const latShift = bounds.getCenter().lat - initialBounds.getCenter().lat;
+            const lngShift = bounds.getCenter().lng - initialBounds.getCenter().lng;
 
-            // 新しい境界での座標を計算
-            const newLng = bounds.getWest() + relativeX * (bounds.getEast() - bounds.getWest());
-            const newLat = bounds.getNorth() + relativeY * (bounds.getSouth() - bounds.getNorth());
+            // 小さな移動量のみ適用（大幅移動を防ぐ）
+            const maxShift = 0.001; // 約100m程度の制限
+            const limitedLatShift = Math.max(-maxShift, Math.min(maxShift, latShift));
+            const limitedLngShift = Math.max(-maxShift, Math.min(maxShift, lngShift));
 
-            console.log(`🔄 座標変換: [${lat.toFixed(6)}, ${lng.toFixed(6)}] → [${newLat.toFixed(6)}, ${newLng.toFixed(6)}]`);
+            const newLat = lat + limitedLatShift;
+            const newLng = lng + limitedLngShift;
+
+            console.log(`🔄 制限付き座標変換: [${lat.toFixed(6)}, ${lng.toFixed(6)}] → [${newLat.toFixed(6)}, ${newLng.toFixed(6)}] (shift: ${limitedLatShift.toFixed(6)}, ${limitedLngShift.toFixed(6)})`);
 
             return [newLat, newLng];
 
         } catch (error) {
             this.logger.error('❌ GPS座標変換エラー', error);
             console.error('❌ GPS座標変換エラー', error);
+            return [lat, lng]; // エラー時は元の座標を返す
+        }
+    }
+
+    reverseTransformGpsToImage(lat, lng) {
+        try {
+            // GPS座標から画像座標への逆変換
+            // これは精密なアフィン変換の逆変換が必要
+            if (!this.currentTransformation || !this.currentTransformation.inverse) {
+                return null;
+            }
+            
+            // 逆変換マトリックスを使用
+            const inverse = this.currentTransformation.inverse;
+            const x = inverse.a * lng + inverse.b * lat + inverse.c;
+            const y = inverse.d * lng + inverse.e * lat + inverse.f;
+            
+            return [x, y];
+        } catch (error) {
+            this.logger.warn('GPS→画像座標逆変換に失敗', error);
             return null;
         }
     }
