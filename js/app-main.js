@@ -144,6 +144,26 @@ class GeoReferencerApp {
                 });
             }
 
+            // 読み込みJSONボタン
+            const loadJsonBtn = document.getElementById('loadJsonBtn');
+            const multiJsonInput = document.getElementById('multiJsonInput');
+            
+            if (loadJsonBtn) {
+                loadJsonBtn.addEventListener('click', () => {
+                    if (multiJsonInput) {
+                        multiJsonInput.click();
+                    } else {
+                        this.logger.warn('複数JSONファイル入力要素が見つかりません');
+                    }
+                });
+            }
+            
+            if (multiJsonInput) {
+                multiJsonInput.addEventListener('change', (event) => {
+                    this.handleMultiJsonLoad(event);
+                });
+            }
+
             // 画像の重ね合わせボタン
             const matchPointsBtn = document.getElementById('matchPointsBtn');
             if (matchPointsBtn) {
@@ -277,6 +297,80 @@ class GeoReferencerApp {
         } catch (error) {
             this.logger.error('ルート・スポット(座標)JSON読み込みエラー', error);
             errorHandler.handle(error, 'ルート・スポット(座標)JSONファイルの読み込みに失敗しました。', 'ルート・スポット(座標)JSON読み込み');
+        }
+    }
+
+    async handleMultiJsonLoad(event) {
+        try {
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
+
+            this.logger.info(`複数JSONファイル読み込み開始: ${files.length}ファイル`);
+            
+            let pointsProcessed = 0;
+            let routesProcessed = 0;
+            let spotsProcessed = 0;
+            
+            // 各ファイルを処理
+            for (const file of files) {
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    
+                    this.logger.info(`JSONファイル処理開始: ${file.name}`);
+                    
+                    // ファイル内容を判定して適切な処理を実行
+                    if (data.points && Array.isArray(data.points)) {
+                        // ポイントデータの場合
+                        this.pointJsonData = data;
+                        this.georeferencing.setPointJsonData(data);
+                        
+                        // 画像上にポイント座標を表示
+                        if (this.imageOverlay && data.points) {
+                            // 既存のマーカーをクリア
+                            this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                            
+                            this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'points', this.imageCoordinateMarkers);
+                            
+                            // GeoreferencingクラスにもmarkerInfoを渡す
+                            this.imageCoordinateMarkers.forEach(markerInfo => {
+                                this.georeferencing.addImageCoordinateMarker(markerInfo);
+                            });
+                            
+                            this.logger.info(`ポイントマーカー登録完了: ${this.imageCoordinateMarkers.length}個`);
+                        }
+                        
+                        pointsProcessed++;
+                        
+                    } else if (data.routes || data.spots) {
+                        // ルート・スポットデータの場合
+                        await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
+                        
+                        if (data.routes) routesProcessed++;
+                        if (data.spots) spotsProcessed++;
+                        
+                    } else {
+                        this.logger.warn(`未知のJSONファイル形式: ${file.name}`);
+                    }
+                    
+                } catch (fileError) {
+                    this.logger.error(`ファイル処理エラー: ${file.name}`, fileError);
+                    // 個別ファイルのエラーは警告として処理し、他のファイルの処理を続行
+                    console.warn(`ファイル ${file.name} の処理中にエラーが発生しました:`, fileError);
+                }
+            }
+            
+            // UIを更新
+            if (this.pointJsonData) {
+                this.uiHandlers.updatePointCoordCount(this.pointJsonData);
+            }
+            this.uiHandlers.updateRouteSpotCount(this.routeSpotHandler);
+            
+            this.logger.info(`複数JSONファイル読み込み完了 - ポイント: ${pointsProcessed}, ルート: ${routesProcessed}, スポット: ${spotsProcessed}`);
+            
+        } catch (error) {
+            this.logger.error('複数JSON読み込みエラー', error);
+            errorHandler.handle(error, '複数JSONファイルの読み込みに失敗しました。', '複数JSON読み込み');
         }
     }
 
