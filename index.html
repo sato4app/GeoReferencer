@@ -107,18 +107,21 @@
             <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
             <button id="matchPointsBtn" title="ポイントのマッチングと画像の重ね合わせを実行" class="leaflet-bar leaflet-control">画像の重ね合わせ（ジオリファレンス）</button>
             
-            <!-- 一致するポイント数表示フィールド -->
-            <div class="point-count-container">
-                <label for="matchedPointCountField">一致するポイント数</label>
-                <input type="text" id="matchedPointCountField" readonly value="0">
-                <span class="unit-label">個</span>
-            </div>
-            
-            
-            <!-- 不一致ポイント表示フィールド -->
-            <div class="point-count-container unmatched-points">
-                <label for="unmatchedPointsField">不一致ポイント</label>
-                <textarea id="unmatchedPointsField" readonly placeholder="マッチングしなかったポイント" style="width: 100%; font-size: 12px;"></textarea>
+            <!-- ポイントマッチング結果表示 -->
+            <div class="matching-results-container">
+                <div class="matching-summary">
+                    <div class="matched-count">
+                        <label for="matchedPointCountField">一致するポイント数</label>
+                        <div class="count-value-group">
+                            <input type="text" id="matchedPointCountField" readonly value="0" class="count-field">
+                            <span class="unit-label">個</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="unmatched-points">
+                    <label for="unmatchedPointsField">不一致ポイント</label>
+                    <textarea id="unmatchedPointsField" readonly placeholder="マッチングしなかったポイント"></textarea>
+                </div>
             </div>
             
             

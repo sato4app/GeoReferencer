@@ -397,41 +397,7 @@ html, body, #map {
 }
 
 /* ポイント数表示コンテナ */
-.point-count-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 15px;
-    padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(70, 130, 180, 0.3);
-    border-radius: 4px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-/* 不一致ポイント表示フィールド専用スタイル */
-.point-count-container.unmatched-points {
-    align-items: flex-start;
-}
-
-.point-count-container label {
-    font-size: 12px;
-    font-weight: bold;
-    color: #333;
-    white-space: nowrap;
-}
-
-.point-count-container input {
-    width: 40px;
-    padding: 2px 4px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-    font-size: 12px;
-    text-align: center;
-    background-color: #f9f9f9;
-    color: #333;
-}
+/* 旧 .point-count-container スタイルは削除済み - .matching-results-container を使用 */
 
 /* GPS緑丸マーカーのスタイル */
 .gps-green-circle-marker {
@@ -919,6 +885,91 @@ select:focus {
     
     .overlay-controls {
         color: var(--color-dark);
+    }
+}
+
+/* ======================================
+   マッチング結果表示コンテナ
+   ====================================== */
+
+/* 統合されたマッチング結果コンテナ */
+.matching-results-container {
+    margin-bottom: 15px;
+    padding: 12px;
+    border: 2px solid rgba(70, 130, 180, 0.4);
+    border-radius: var(--border-radius);
+    background: var(--color-overlay);
+    box-shadow: 0 2px 4px var(--color-shadow);
+}
+
+/* マッチング概要セクション */
+.matching-summary {
+    margin-bottom: 10px;
+}
+
+.matched-count {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-medium);
+}
+
+.matched-count label {
+    font-size: var(--font-size-normal);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-dark);
+    white-space: nowrap;
+}
+
+/* 不一致ポイントセクション */
+.unmatched-points {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 10px;
+}
+
+.unmatched-points label {
+    display: block;
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-dark);
+    margin-bottom: 5px;
+}
+
+.unmatched-points textarea {
+    width: 100%;
+    height: 60px;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius-small);
+    font-size: var(--font-size-small);
+    font-family: monospace;
+    background-color: #f9f9f9;
+    color: var(--color-dark);
+    resize: vertical;
+    line-height: 1.3;
+}
+
+.unmatched-points textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+    .matching-results-container {
+        border-color: rgba(135, 206, 250, 0.4);
+    }
+
+    .unmatched-points textarea {
+        background-color: #2a2a2a;
+        border-color: #555;
+        color: #fff;
+    }
+
+    .unmatched-points textarea:focus {
+        border-color: #87ceeb;
+        box-shadow: 0 0 0 2px rgba(135, 206, 250, 0.2);
     }
 }
 
