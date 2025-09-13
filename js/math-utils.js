@@ -1,11 +1,111 @@
-// 行列計算ユーティリティモジュール
-// ジオリファレンシングの最小二乗法計算で使用
+// 統合された数学ユーティリティモジュール
+// 座標変換、行列計算、アフィン変換を統一管理
 import { Logger } from './utils.js';
 
-export class MatrixUtils {
+export class MathUtils {
     constructor() {
-        this.logger = new Logger('MatrixUtils');
+        this.logger = new Logger('MathUtils');
+        this.EARTH_RADIUS = 6378137; // 地球の半径（メートル）
+        this.WEB_MERCATOR_MAX = 20037508.34; // Web Mercator最大値
     }
+
+    // ==========================================
+    // 座標変換関数
+    // ==========================================
+
+    // 経度をWeb Mercator X座標に変換
+    lonToWebMercatorX(lon) {
+        return lon * this.WEB_MERCATOR_MAX / 180;
+    }
+
+    // 緯度をWeb Mercator Y座標に変換
+    latToWebMercatorY(lat) {
+        const y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+        return y * this.WEB_MERCATOR_MAX / 180;
+    }
+
+    // Web Mercator X座標を経度に変換
+    webMercatorXToLon(x) {
+        return x * 180 / this.WEB_MERCATOR_MAX;
+    }
+
+    // Web Mercator Y座標を緯度に変換
+    webMercatorYToLat(y) {
+        const lat = y * 180 / this.WEB_MERCATOR_MAX;
+        return 180 / Math.PI * (2 * Math.atan(Math.exp(lat * Math.PI / 180)) - Math.PI / 2);
+    }
+
+    // メートル/ピクセル変換（Mercator投影補正）
+    calculateMetersPerPixel(centerLat, zoomLevel) {
+        return 156543.03392 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, zoomLevel);
+    }
+
+    // GPS座標間の距離計算（Leaflet.mapのdistanceメソッドと同等）
+    calculateGpsDistance(lat1, lng1, lat2, lng2) {
+        const R = this.EARTH_RADIUS;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    // 画像境界から画像座標をGPS座標に変換
+    convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight) {
+        try {
+            if (!imageBounds || !imageWidth || !imageHeight) {
+                this.logger.warn('画像境界または画像サイズが不正です');
+                return null;
+            }
+
+            const southWest = imageBounds.getSouthWest();
+            const northEast = imageBounds.getNorthEast();
+            
+            const xRatio = imageX / imageWidth;
+            const yRatio = imageY / imageHeight;
+            
+            const lng = southWest.lng + (northEast.lng - southWest.lng) * xRatio;
+            const lat = northEast.lat - (northEast.lat - southWest.lat) * yRatio;
+            
+            return [lat, lng];
+            
+        } catch (error) {
+            this.logger.error('画像座標→GPS座標変換エラー', error);
+            return null;
+        }
+    }
+
+    // アフィン変換で画像座標をGPS座標に変換
+    applyAffineTransform(imageX, imageY, transformation) {
+        try {
+            if (!transformation || !transformation.transformation) {
+                this.logger.error('変換パラメータが不正です');
+                return null;
+            }
+
+            const trans = transformation.transformation;
+            
+            // アフィン変換でWeb Mercator座標に変換
+            const webMercatorX = trans.a * imageX + trans.b * imageY + trans.c;
+            const webMercatorY = trans.d * imageX + trans.e * imageY + trans.f;
+            
+            // Web MercatorからGPS座標に変換
+            const lat = this.webMercatorYToLat(webMercatorY);
+            const lng = this.webMercatorXToLon(webMercatorX);
+            
+            return [lat, lng];
+            
+        } catch (error) {
+            this.logger.error('アフィン変換エラー', error);
+            return null;
+        }
+    }
+
+    // ==========================================
+    // 行列計算関数
+    // ==========================================
 
     // 行列の転置
     transpose(matrix) {
@@ -102,8 +202,12 @@ export class MatrixUtils {
         }
     }
 
+    // ==========================================
+    // アフィン変換関数
+    // ==========================================
+
     // 最小二乗法でアフィン変換パラメータを計算
-    calculateAffineTransformation(controlPoints, coordinateTransforms) {
+    calculateAffineTransformation(controlPoints) {
         try {
             const n = controlPoints.length;
             
@@ -115,8 +219,8 @@ export class MatrixUtils {
             for (let i = 0; i < n; i++) {
                 const imageX = controlPoints[i].pointJson.imageX;
                 const imageY = controlPoints[i].pointJson.imageY;
-                const gpsX = coordinateTransforms.lonToWebMercatorX(controlPoints[i].gpsPoint.lng);
-                const gpsY = coordinateTransforms.latToWebMercatorY(controlPoints[i].gpsPoint.lat);
+                const gpsX = this.lonToWebMercatorX(controlPoints[i].gpsPoint.lng);
+                const gpsY = this.latToWebMercatorY(controlPoints[i].gpsPoint.lat);
 
                 // X座標の方程式
                 A[i * 2][0] = imageX;     // a
@@ -161,7 +265,7 @@ export class MatrixUtils {
     }
 
     // 変換精度を計算
-    calculateTransformationAccuracy(controlPoints, transformation, coordinateTransforms) {
+    calculateTransformationAccuracy(controlPoints, transformation) {
         try {
             const errors = [];
             
@@ -174,8 +278,8 @@ export class MatrixUtils {
                 const transformedY = transformation.d * imageX + transformation.e * imageY + transformation.f;
                 
                 // 実際のGPS座標（Web Mercator）
-                const actualX = coordinateTransforms.lonToWebMercatorX(point.gpsPoint.lng);
-                const actualY = coordinateTransforms.latToWebMercatorY(point.gpsPoint.lat);
+                const actualX = this.lonToWebMercatorX(point.gpsPoint.lng);
+                const actualY = this.latToWebMercatorY(point.gpsPoint.lat);
                 
                 // 誤差計算（メートル単位）
                 const errorDistance = Math.sqrt(
@@ -205,4 +309,4 @@ export class MatrixUtils {
 }
 
 // シングルトンインスタンスをエクスポート
-export const matrixUtils = new MatrixUtils();
+export const mathUtils = new MathUtils();

@@ -1,8 +1,7 @@
 // ジオリファレンシング（画像重ね合わせ）機能を管理するモジュール
 import { Logger, errorHandler } from './utils.js';
 import { CONFIG } from './constants.js';
-import { coordinateTransforms } from './coordinate-transforms.js';
-import { matrixUtils } from './matrix-utils.js';
+import { mathUtils } from './math-utils.js';
 
 export class Georeferencing {
     constructor(mapCore, imageOverlay, gpsData) {
@@ -198,12 +197,12 @@ export class Georeferencing {
     }
 
     calculateLeastSquaresTransformation(controlPoints) {
-        return matrixUtils.calculateAffineTransformation(controlPoints, coordinateTransforms);
+        return mathUtils.calculateAffineTransformation(controlPoints);
     }
 
 
     calculateTransformationAccuracy(controlPoints, transformation) {
-        return matrixUtils.calculateTransformationAccuracy(controlPoints, transformation, coordinateTransforms);
+        return mathUtils.calculateTransformationAccuracy(controlPoints, transformation);
     }
 
     async applyTransformationToImage(transformation, controlPoints) {
@@ -249,8 +248,8 @@ export class Georeferencing {
             
             this.logger.info(`画像中心のWeb Mercator座標: (${centerWebMercatorX}, ${centerWebMercatorY})`);
             
-            const centerLat = coordinateTransforms.webMercatorYToLat(centerWebMercatorY);
-            const centerLng = coordinateTransforms.webMercatorXToLon(centerWebMercatorX);
+            const centerLat = mathUtils.webMercatorYToLat(centerWebMercatorY);
+            const centerLng = mathUtils.webMercatorXToLon(centerWebMercatorX);
 
             this.logger.info(`画像中心のGPS座標: [${centerLat}, ${centerLng}]`);
             this.logger.info(`精度情報:`, transformation.accuracy);
@@ -288,7 +287,7 @@ export class Georeferencing {
                 const imageDistance = Math.sqrt(imageDistanceX * imageDistanceX + imageDistanceY * imageDistanceY);
                 
                 // GPS上の実距離（メートル）
-                const gpsDistance = coordinateTransforms.calculateGpsDistance(
+                const gpsDistance = mathUtils.calculateGpsDistance(
                     point1.gpsPoint.lat, point1.gpsPoint.lng,
                     point2.gpsPoint.lat, point2.gpsPoint.lng
                 );
@@ -303,7 +302,7 @@ export class Georeferencing {
                 // 現在のズームレベルでの地図解像度
                 const centerPos = this.mapCore.getMap().getCenter();
                 const currentZoom = this.mapCore.getMap().getZoom();
-                const metersPerPixelAtCenter = coordinateTransforms.calculateMetersPerPixel(centerPos.lat, currentZoom);
+                const metersPerPixelAtCenter = mathUtils.calculateMetersPerPixel(centerPos.lat, currentZoom);
                 
                 return realWorldScale / metersPerPixelAtCenter;
                 
@@ -437,7 +436,7 @@ export class Georeferencing {
             this.logger.debug(`座標変換開始: 画像座標(${imageX}, ${imageY}), 変換方式: ${transformation.type}`);
             
             if (transformation.type === 'precise') {
-                const result = coordinateTransforms.applyAffineTransform(imageX, imageY, transformation);
+                const result = mathUtils.applyAffineTransform(imageX, imageY, transformation);
                 if (result) {
                     this.logger.debug(`精密版変換結果: GPS(${result[0].toFixed(6)}, ${result[1].toFixed(6)})`);
                 }

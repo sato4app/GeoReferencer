@@ -1,6 +1,7 @@
-// ルート・スポット処理機能を管理するモジュール
+// ルート・スポットデータ処理機能を管理するモジュール
+// JSONファイル自動判定、ルート・スポットマーカー表示機能を提供
 import { Logger, errorHandler } from './utils.js';
-import { coordinateTransforms } from './coordinate-transforms.js';
+import { mathUtils } from './math-utils.js';
 
 export class RouteSpotHandler {
     constructor(mapCore, imageOverlay = null) {
@@ -167,41 +168,8 @@ export class RouteSpotHandler {
     }
 
     outputRouteDebugInfo(route, originalData) {
-        try {
-            let startPointId = null;
-            let endPointId = null;
-            let intermediatePoints = 0;
-            
-            if (originalData.routeInfo && (originalData.routeInfo.startPoint || originalData.routeInfo.endPoint)) {
-                startPointId = originalData.routeInfo.startPoint || 'なし';
-                endPointId = originalData.routeInfo.endPoint || 'なし';
-                intermediatePoints = originalData.routeInfo.waypointCount || 0;
-            } else if (originalData.points && Array.isArray(originalData.points)) {
-                const totalPoints = originalData.points.length;
-                if (totalPoints > 0) {
-                    const startPoint = originalData.points[0];
-                    const endPoint = originalData.points[totalPoints - 1];
-                    
-                    startPointId = startPoint.id || startPoint.name || startPoint.pointId || 'なし';
-                    endPointId = endPoint.id || endPoint.name || endPoint.pointId || 'なし';
-                    intermediatePoints = Math.max(0, totalPoints - 2);
-                }
-            } else if (originalData.coordinates && Array.isArray(originalData.coordinates)) {
-                const totalPoints = originalData.coordinates.length;
-                intermediatePoints = Math.max(0, totalPoints - 2);
-                startPointId = '座標のみ';
-                endPointId = '座標のみ';
-            } else if (originalData.geometry && originalData.geometry.coordinates) {
-                const totalPoints = originalData.geometry.coordinates.length;
-                intermediatePoints = Math.max(0, totalPoints - 2);
-                startPointId = 'GeoJSON';
-                endPointId = 'GeoJSON';
-            }
-            
-            
-            
-        } catch (error) {
-        }
+        // デバッグ情報出力機能は簡略化
+        this.logger.debug(`ルート処理完了: ${route.fileName}`);
     }
 
     processSpotData(data, fileName) {
@@ -390,7 +358,7 @@ export class RouteSpotHandler {
                 return null;
             }
 
-            const result = coordinateTransforms.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
+            const result = mathUtils.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
             return result ? { lat: result[0], lng: result[1] } : null;
             
         } catch (error) {
@@ -441,10 +409,7 @@ export class RouteSpotHandler {
             }
         });
         
-        // 総数を出力
-        if (type === 'route') {
-        } else if (type === 'spot') {
-        }
+        this.logger.debug(`${type}データマージ完了: 新規${addedCount}件, 更新${updatedCount}件`);
         
         return merged;
     }
@@ -592,7 +557,7 @@ export class RouteSpotHandler {
                         }));
                     }
                     
-                    this.logger.debug(`ルート座標数: ${latLngs.length}`, latLngs);
+                    this.logger.debug(`ルート座標数: ${latLngs.length}`);
                     
                     if (latLngs.length > 1) {
                         points.forEach((point, pointIndex) => {
@@ -678,7 +643,7 @@ export class RouteSpotHandler {
                         latLng = [coords[1], coords[0]];
                     }
                     
-                    this.logger.debug(`スポット座標:`, latLng);
+                    this.logger.debug(`スポット座標: ${latLng[0]}, ${latLng[1]}`);
                     
                     if (latLng && latLng[0] && latLng[1]) {
                         const squareIcon = L.divIcon({

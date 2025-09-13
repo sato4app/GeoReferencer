@@ -1,6 +1,6 @@
 // 画像座標表示・変換機能を管理するモジュール
 import { Logger, errorHandler } from './utils.js';
-import { coordinateTransforms } from './coordinate-transforms.js';
+import { mathUtils } from './math-utils.js';
 
 export class CoordinateDisplay {
     constructor(mapCore, imageOverlay) {
@@ -152,7 +152,7 @@ export class CoordinateDisplay {
             return [lat, lng];
         }
         
-        return coordinateTransforms.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
+        return mathUtils.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
     }
 
     determineMarkerType(coord, type) {

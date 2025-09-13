@@ -1,4 +1,5 @@
-// GPS データ処理機能を管理するモジュール - GeoJSON対応版とExcelファイル読み込み機能を統合
+// GPS データ処理機能を管理するモジュール
+// GeoJSONファイル読み込み、Excelファイル読み込み、地図表示機能を提供
 import { Logger, errorHandler } from './utils.js';
 import { CONFIG } from './constants.js';
 
@@ -218,7 +219,7 @@ export class GPSData {
         return nearest;
     }
 
-    // 2点間の距離計算（簡易版）
+    // 2点間の距離計算（簡易版・ユークリッド距離）
     calculateDistance(lat1, lng1, lat2, lng2) {
         const dlat = lat2 - lat1;
         const dlng = lng2 - lng1;
@@ -261,176 +262,9 @@ export class GPSData {
         return this.gpsPoints.length;
     }
 
-    // ===============================================
-    // ルート・スポット読み込み機能（JSONファイル）
-    // ===============================================
-
-    // JSONファイル読み込み処理（ルート・スポット用）
-    async loadRouteSpotJsonFile(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            
-            reader.onload = (e) => {
-                try {
-                    const jsonData = JSON.parse(e.target.result);
-                    const processedData = this.processRouteSpotJsonData(jsonData);
-                    
-                    this.logger.info('ルート・スポットJSON読み込み完了', Object.keys(processedData).length + '項目');
-                    resolve(processedData);
-                } catch (error) {
-                    this.logger.error('ルート・スポットJSON処理エラー', error);
-                    reject(new Error('ルート・スポットJSONデータの処理に失敗しました: ' + error.message));
-                }
-            };
-            
-            reader.onerror = () => {
-                const error = new Error('ファイルの読み込みに失敗しました');
-                this.logger.error('ファイル読み込みエラー', error);
-                reject(error);
-            };
-            
-            reader.readAsText(file);
-        });
-    }
-
-    // 統合JSONデータ処理（ポイント・ルート・スポット自動分類）
-    processRouteSpotJsonData(jsonData) {
-        try {
-            const result = {
-                points: [],
-                routes: [],
-                spots: [],
-                counts: {
-                    points: 0,
-                    routes: 0,
-                    spots: 0
-                }
-            };
-            
-            // JSONデータの各プロパティを処理
-            for (const [key, value] of Object.entries(jsonData)) {
-                const classification = this.classifyData(value);
-                
-                switch (classification) {
-                    case 'point':
-                        result.points.push({ key, data: value });
-                        result.counts.points++;
-                        break;
-                    case 'route':
-                        result.routes.push({ key, data: value });
-                        result.counts.routes++;
-                        break;
-                    case 'spot':
-                        result.spots.push({ key, data: value });
-                        result.counts.spots++;
-                        break;
-                    default:
-                        this.logger.debug(`分類不可データ: ${key}`, value);
-                        break;
-                }
-            }
-            
-            this.logger.info('統合JSONデータ分類完了', 
-                `ポイント: ${result.counts.points}件, ルート: ${result.counts.routes}件, スポット: ${result.counts.spots}件`);
-            
-            return result;
-            
-        } catch (error) {
-            this.logger.error('統合JSONデータ処理エラー', error);
-            throw new Error('統合JSONデータの形式が正しくありません');
-        }
-    }
-
-    // データの分類判定
-    classifyData(data) {
-        // データがオブジェクトでない場合は分類不可
-        if (!data || typeof data !== 'object') {
-            return 'unknown';
-        }
-
-        // ルートの判定
-        if (this.isRouteData(data)) {
-            return 'route';
-        }
-
-        // スポットの判定
-        if (this.isSpotData(data)) {
-            return 'spot';
-        }
-
-        // ポイントの判定
-        if (this.isPointData(data)) {
-            return 'point';
-        }
-
-        return 'unknown';
-    }
-
-    // ポイントデータかどうかを判定
-    isPointData(data) {
-        // pointsオブジェクトを持ち、imageX, imageYで構成する座標がある
-        if (data.points && typeof data.points === 'object') {
-            for (const point of Object.values(data.points)) {
-                if (point && typeof point === 'object' && 
-                    'imageX' in point && 'imageY' in point &&
-                    point.id && (!point.type || point.type !== 'waypoint')) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    // ルートデータかどうかを判定
-    isRouteData(data) {
-        // routeInfoオブジェクトがある
-        if (!data.routeInfo || typeof data.routeInfo !== 'object') {
-            return false;
-        }
-
-        // routeInfoは、startPoint,endPoint属性を持つ
-        if (!data.routeInfo.startPoint || !data.routeInfo.endPoint) {
-            return false;
-        }
-
-        // pointsオブジェクトがある
-        if (!data.points || typeof data.points !== 'object') {
-            return false;
-        }
-
-        // pointsは、type属性(値="waypoint")を持ち、imageX, imageYの座標を持つ
-        for (const point of Object.values(data.points)) {
-            if (point && typeof point === 'object' && 
-                point.type === 'waypoint' &&
-                'imageX' in point && 'imageY' in point) {
-                return true; // waypointが1つでもあればルートと判定
-            }
-        }
-
-        return false;
-    }
-
-    // スポットデータかどうかを判定
-    isSpotData(data) {
-        // spotsオブジェクトがある
-        if (!data.spots || typeof data.spots !== 'object') {
-            return false;
-        }
-
-        // spotsは、name属性(値はブランクでない文字列)を持ち、imageX, imageYの座標を持つ
-        for (const spot of Object.values(data.spots)) {
-            if (spot && typeof spot === 'object' && 
-                spot.name && typeof spot.name === 'string' && spot.name.trim() !== '' &&
-                'imageX' in spot && 'imageY' in spot) {
-                return true; // 条件を満たすspotが1つでもあればスポットと判定
-            }
-        }
-
-        return false;
-    }
 
     // ===============================================
-    // Excelファイル読み込み機能（file-handler.jsから統合）
+    // Excelファイル読み込み機能
     // ===============================================
     
     async loadExcelFile(file) {
