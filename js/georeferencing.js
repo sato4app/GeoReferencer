@@ -56,21 +56,8 @@ export class Georeferencing {
 
     setupGeoreferencingUI() {
         try {
-            if (!this.mapCore.getMap().hasLayer(this.imageOverlay.centerMarker)) {
-                this.imageOverlay.centerMarker.addTo(this.mapCore.getMap());
-            }
+            // 手動移動UI要素は削除されたため、設定は不要
 
-            if (!this.mapCore.getMap().getPane('centerMarker')) {
-                this.mapCore.getMap().createPane('centerMarker');
-                this.mapCore.getMap().getPane('centerMarker').style.zIndex = 650;
-            }
-            
-            if (!this.mapCore.getMap().getPane('dragHandles')) {
-                this.mapCore.getMap().createPane('dragHandles');
-                this.mapCore.getMap().getPane('dragHandles').style.zIndex = 660;
-            }
-
-            
         } catch (error) {
             this.logger.error('ジオリファレンスUI設定エラー', error);
         }
@@ -246,8 +233,8 @@ export class Georeferencing {
             this.logger.info(`画像中心のGPS座標: [${centerLat}, ${centerLng}]`);
             this.logger.info(`精度情報:`, transformation.accuracy);
 
-            // 中心位置を設定
-            this.imageOverlay.setCenterPosition([centerLat, centerLng]);
+            // 中心位置を設定（手動移動機能は削除済み）
+            // this.imageOverlay.setCenterPosition([centerLat, centerLng]);
             
             // スケール計算（制御点ベース）
             const scale = this.calculateScaleFromTransformation(transformation);

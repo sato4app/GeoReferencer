@@ -412,9 +412,9 @@ class GeoReferencerApp {
                 throw new Error('GPS座標データが読み込まれていません。');
             }
 
-            // 2. 初期表示境界の設定
-            const centerPos = this.mapCore.getMap().getCenter();
-            this.imageOverlay.setCenterPosition(centerPos);
+            // 2. 初期表示境界の設定（手動移動機能は削除済み）
+            // const centerPos = this.mapCore.getMap().getCenter();
+            // this.imageOverlay.setCenterPosition(centerPos);
             
             // 3-10. Georeferencingクラスに処理を委譲
             await this.georeferencing.executeGeoreferencing();

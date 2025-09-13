@@ -82,13 +82,11 @@ export class MapCore {
             this.map.createPane('spotMarkers');
             this.map.getPane('spotMarkers').style.zIndex = 630; // ルート中間点と同じ
 
-            // ドラッグハンドル用の専用ペインを作成
-            this.map.createPane('dragHandles');
-            this.map.getPane('dragHandles').style.zIndex = 650;
-
-            // 中心マーカー用の専用ペインを作成
-            this.map.createPane('centerMarker');
-            this.map.getPane('centerMarker').style.zIndex = 700;
+            // 手動移動機能は削除済み
+            // this.map.createPane('dragHandles');
+            // this.map.getPane('dragHandles').style.zIndex = 650;
+            // this.map.createPane('centerMarker');
+            // this.map.getPane('centerMarker').style.zIndex = 700;
 
             // 経路線用の専用ペインを作成
             this.map.createPane('routeLines');
