@@ -11,6 +11,7 @@ export class ImageOverlay {
         this.centerMarker = null;
         this.isMovingImage = false;
         this.imageUpdateCallbacks = [];
+        this.transformedCenter = null; // アフィン変換結果の中心位置
         
         // 内部scale管理（初期値はconstantsから取得）
         this.currentScale = this.getDefaultScale();
@@ -66,12 +67,12 @@ export class ImageOverlay {
         if (!this.imageOverlay || !this.currentImage.src) {
             return;
         }
-        
+
         // 内部管理のscale値を使用
         const scale = this.getCurrentScale();
-        
-        // 画像の中心位置は初期位置を使用
-        const centerPos = this.map.getCenter();
+
+        // 画像の中心位置：アフィン変換結果があればそれを使用、なければ地図中心を使用
+        const centerPos = this.transformedCenter || this.map.getCenter();
         
         // naturalWidth/naturalHeightを使用して正確なピクセル数を取得
         const imageWidth = this.currentImage.naturalWidth || this.currentImage.width;
@@ -199,6 +200,13 @@ export class ImageOverlay {
     // 画像更新時のコールバックを登録
     addImageUpdateCallback(callback) {
         this.imageUpdateCallbacks.push(callback);
+    }
+
+    // アフィン変換結果による画像位置・スケール設定
+    setTransformedPosition(centerLat, centerLng, scale) {
+        this.transformedCenter = { lat: centerLat, lng: centerLng };
+        this.setCurrentScale(scale);
+        this.updateImageDisplay();
     }
 
     // 画像更新時のコールバックを実行
