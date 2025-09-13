@@ -18,7 +18,6 @@ export class Georeferencing {
     async executeGeoreferencing() {
         try {
             const currentBounds = this.imageOverlay.getInitialBounds();
-            this.logger.debug('初期境界設定完了', currentBounds);
             
             const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
             const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
@@ -46,12 +45,6 @@ export class Georeferencing {
                 throw new Error('地理座標の計算に失敗しました。');
             }
 
-            this.logger.debug('ジオリファレンス計算完了', {
-                imageSize: { width: imageWidth, height: imageHeight },
-                metersPerPixel,
-                scale,
-                offsets: { lat: latOffset, lng: lngOffset }
-            });
 
             this.imageOverlay.updateImageDisplay();
             
@@ -77,7 +70,6 @@ export class Georeferencing {
                 this.mapCore.getMap().getPane('dragHandles').style.zIndex = 660;
             }
 
-            this.logger.debug('ジオリファレンスUI設定完了');
             
         } catch (error) {
             this.logger.error('ジオリファレンスUI設定エラー', error);
@@ -385,7 +377,6 @@ export class Georeferencing {
     async updatePointJsonMarkersAfterTransformation() {
         try {
             if (!this.currentTransformation || !this.imageCoordinateMarkers || this.imageCoordinateMarkers.length === 0) {
-                this.logger.debug('変換パラメータまたはポイントJSONマーカーが存在しません');
                 return;
             }
 
@@ -433,12 +424,10 @@ export class Georeferencing {
 
     transformImageCoordsToGps(imageX, imageY, transformation) {
         try {
-            this.logger.debug(`座標変換開始: 画像座標(${imageX}, ${imageY}), 変換方式: ${transformation.type}`);
             
             if (transformation.type === 'precise') {
                 const result = mathUtils.applyAffineTransform(imageX, imageY, transformation);
                 if (result) {
-                    this.logger.debug(`精密版変換結果: GPS(${result[0].toFixed(6)}, ${result[1].toFixed(6)})`);
                 }
                 return result;
             } else {
@@ -473,60 +462,11 @@ export class Georeferencing {
 
     syncPointPositions() {
         try {
-            
             if (!this.currentTransformation) {
-                // ジオリファレンス変換が適用されていない場合は、画像境界ベースで更新
                 this.syncPointPositionsBasedOnImageBounds();
                 return;
             }
-
-            this.logger.info('現在の変換情報:', {
-                type: this.currentTransformation.type,
-                totalMarkers: this.imageCoordinateMarkers.length
-            });
-
-            const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
-                markerInfo.type === 'georeference-point'
-            );
-
-
-            georefMarkers.forEach((markerInfo, index) => {
-                const marker = markerInfo.marker;
-                const data = markerInfo.data;  // ポップアップではなくmarkerInfo.dataから直接取得
-                
-                if (!data || data.imageX === undefined || data.imageY === undefined) {
-                    this.logger.warn(`マーカー${index}: 画像座標データが見つかりません`, data);
-                    return;
-                }
-
-                this.logger.debug(`マーカー${index}: 画像座標(${data.imageX}, ${data.imageY}) - ${data.name || data.id}`);
-
-                // 現在の変換を使って新しい座標を計算
-                const transformedGpsCoords = this.transformImageCoordsToGps(
-                    data.imageX, 
-                    data.imageY, 
-                    this.currentTransformation
-                );
-
-                if (transformedGpsCoords) {
-                    const oldPos = marker.getLatLng();
-                    
-                    // マーカーの位置を更新
-                    marker.setLatLng(transformedGpsCoords);
-                    
-                    // ポップアップ内容も更新（元の画像座標を保持）
-                    const updatedPopupContent = this.createUpdatedPopupContent({
-                        imageX: data.imageX,
-                        imageY: data.imageY,
-                        name: data.name || data.id
-                    }, transformedGpsCoords);
-                    marker.bindPopup(updatedPopupContent);
-                } else {
-                    this.logger.warn(`マーカー${index}: 座標変換に失敗`);
-                }
-            });
-            
-            
+            this.updateMarkerPositions(true);
         } catch (error) {
             this.logger.error('ポイント位置同期エラー', error);
         }
@@ -535,41 +475,7 @@ export class Georeferencing {
     // 画像境界ベースの位置同期（ジオリファレンス未適用時）
     syncPointPositionsBasedOnImageBounds() {
         try {
-
-            const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
-                markerInfo.type === 'georeference-point'
-            );
-
-
-            georefMarkers.forEach((markerInfo, index) => {
-                const marker = markerInfo.marker;
-                const data = markerInfo.data;
-
-                if (data && data.imageX !== undefined && data.imageY !== undefined) {
-                    // CoordinateDisplayクラスの変換メソッドを使用
-                    const coordinateDisplay = this.getCoordinateDisplay();
-                    if (coordinateDisplay) {
-                        const newLatLng = coordinateDisplay.convertImageToLatLng(data.imageX, data.imageY);
-                        const oldPos = marker.getLatLng();
-                        
-                        
-                        marker.setLatLng(newLatLng);
-                        
-                        // ポップアップ内容も更新（画像座標を保持）
-                        const updatedPopupContent = `
-                            <div>
-                                <strong>${data.name || data.id}</strong><br>
-                                画像座標: (${data.imageX}, ${data.imageY})<br>
-                                現在のGPS: (${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)})<br>
-                                <small>画像境界ベース変換</small>
-                            </div>
-                        `;
-                        marker.bindPopup(updatedPopupContent);
-                    }
-                }
-            });
-
-
+            this.updateMarkerPositions(false);
         } catch (error) {
             this.logger.error('画像境界ベース位置同期エラー', error);
         }
@@ -755,6 +661,52 @@ export class Georeferencing {
 
     getCoordinateDisplay() {
         return this.coordinateDisplay;
+    }
+
+    // マーカー位置更新の統合メソッド
+    updateMarkerPositions(useTransformation) {
+        const georefMarkers = this.imageCoordinateMarkers.filter(markerInfo => 
+            markerInfo.type === 'georeference-point'
+        );
+
+        georefMarkers.forEach((markerInfo, index) => {
+            const marker = markerInfo.marker;
+            const data = markerInfo.data;
+
+            if (!data || data.imageX === undefined || data.imageY === undefined) {
+                this.logger.warn(`マーカー${index}: 画像座標データが不完全`, data);
+                return;
+            }
+
+            let newLatLng;
+            let popupDescription;
+            
+            if (useTransformation && this.currentTransformation) {
+                // ジオリファレンス変換使用
+                newLatLng = this.transformImageCoordsToGps(data.imageX, data.imageY, this.currentTransformation);
+                popupDescription = 'ジオリファレンス変換適用済み';
+            } else {
+                // 画像境界ベース変換使用
+                const coordinateDisplay = this.getCoordinateDisplay();
+                if (coordinateDisplay) {
+                    newLatLng = coordinateDisplay.convertImageToLatLng(data.imageX, data.imageY);
+                    popupDescription = '画像境界ベース変換';
+                }
+            }
+
+            if (newLatLng) {
+                marker.setLatLng(newLatLng);
+                const updatedPopupContent = `
+                    <div>
+                        <strong>${data.name || data.id}</strong><br>
+                        画像座標: (${data.imageX}, ${data.imageY})<br>
+                        変換後GPS: (${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)})<br>
+                        <small>${popupDescription}</small>
+                    </div>
+                `;
+                marker.bindPopup(updatedPopupContent);
+            }
+        });
     }
 
     setPointJsonData(data) {

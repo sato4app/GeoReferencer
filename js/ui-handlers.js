@@ -13,7 +13,6 @@ export class UIHandlers {
                 const points = gpsData.getPoints();
                 const count = points ? points.length : 0;
                 gpsPointCountField.value = count;
-                this.logger.debug(`GPS ポイント数更新: ${count}個`);
             }
         } catch (error) {
             this.logger.error('GPS ポイント数更新エラー', error);
@@ -39,7 +38,6 @@ export class UIHandlers {
                 }
                 
                 pointCountField.value = count;
-                this.logger.debug(`ポイント座標数更新: ${count}個 (waypoint除外)`);
             }
         } catch (error) {
             this.logger.error('ポイント座標数更新エラー', error);
@@ -54,13 +52,11 @@ export class UIHandlers {
             if (routeCountField) {
                 const routeCount = routeSpotHandler.getRouteCount();
                 routeCountField.value = routeCount;
-                this.logger.debug(`ルート数更新: ${routeCount}本`);
             }
             
             if (spotCountField) {
                 const spotCount = routeSpotHandler.getSpotCount();
                 spotCountField.value = spotCount;
-                this.logger.debug(`スポット数更新: ${spotCount}個`);
             }
             
         } catch (error) {

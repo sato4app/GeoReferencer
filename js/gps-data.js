@@ -176,7 +176,6 @@ export class GPSData {
                 }
             });
             this.gpsMarkers = [];
-            this.logger.debug('GPS マーカー削除完了');
         } catch (error) {
             this.logger.error('GPS マーカー削除エラー', error);
         }

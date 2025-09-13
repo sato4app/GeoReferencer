@@ -33,11 +33,9 @@ class GeoReferencerApp {
             
             // コアモジュール初期化
             this.mapCore = new MapCore();
-            this.logger.debug('MapCore初期化開始');
             
             // MapCoreの初期化完了を待つ
             await this.mapCore.initPromise;
-            this.logger.debug('MapCore初期化Promise完了');
             
             // 他のモジュールを初期化
             await this.initializeModules();
@@ -75,7 +73,6 @@ class GeoReferencerApp {
             // RouteSpotHandlerインスタンスをGeoreferencingに注入
             this.georeferencing.setRouteSpotHandler(this.routeSpotHandler);
 
-            this.logger.debug('全モジュール初期化完了');
             
         } catch (error) {
             this.logger.error('モジュール初期化エラー', error);
@@ -194,7 +191,6 @@ class GeoReferencerApp {
                 });
             }
 
-            this.logger.debug('イベントハンドラー設定完了');
             
         } catch (error) {
             this.logger.error('イベントハンドラー設定エラー', error);
@@ -569,7 +565,7 @@ class GeoReferencerApp {
                 this.fileHandler.currentFileName = file.name;
             }
         } catch (error) {
-            this.logger.debug('ディレクトリ記録できませんでした', error);
+            // ディレクトリ記録はオプショナルなのでエラーを無視
         }
     }
 }

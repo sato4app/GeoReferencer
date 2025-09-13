@@ -256,7 +256,6 @@ export class CoordinateDisplay {
                     const newLatLng = this.convertImageToLatLng(data.imageX, data.imageY);
                     const oldPos = marker.getLatLng();
                     
-                    this.logger.debug(`マーカー${index}: 画像境界更新 [${oldPos.lat.toFixed(6)}, ${oldPos.lng.toFixed(6)}] → [${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)}]`);
                     
                     marker.setLatLng(newLatLng);
                 }

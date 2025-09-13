@@ -169,7 +169,6 @@ export class RouteSpotHandler {
 
     outputRouteDebugInfo(route, originalData) {
         // デバッグ情報出力機能は簡略化
-        this.logger.debug(`ルート処理完了: ${route.fileName}`);
     }
 
     processSpotData(data, fileName) {
@@ -405,11 +404,9 @@ export class RouteSpotHandler {
                     merged[duplicateIndex] = newItem;
                 }
                 updatedCount++;
-                this.logger.debug(`${type}を更新: ${newItem.fileName}`);
             }
         });
         
-        this.logger.debug(`${type}データマージ完了: 新規${addedCount}件, 更新${updatedCount}件`);
         
         return merged;
     }
@@ -507,12 +504,10 @@ export class RouteSpotHandler {
             }
 
             this.logger.info(`${type}データの地図表示開始`, data.length + '項目');
-            this.logger.debug(`データ詳細:`, data);
 
             let displayCount = 0;
 
             data.forEach((item, index) => {
-                this.logger.debug(`処理中: ${type}[${index}]`, item);
 
                 if (type === 'route') {
                     let latLngs = [];
@@ -557,7 +552,6 @@ export class RouteSpotHandler {
                         }));
                     }
                     
-                    this.logger.debug(`ルート座標数: ${latLngs.length}`);
                     
                     if (latLngs.length > 1) {
                         points.forEach((point, pointIndex) => {
@@ -643,7 +637,6 @@ export class RouteSpotHandler {
                         latLng = [coords[1], coords[0]];
                     }
                     
-                    this.logger.debug(`スポット座標: ${latLng[0]}, ${latLng[1]}`);
                     
                     if (latLng && latLng[0] && latLng[1]) {
                         const squareIcon = L.divIcon({
