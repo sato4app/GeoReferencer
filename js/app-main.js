@@ -429,22 +429,114 @@ class GeoReferencerApp {
         try {
             this.logger.info('GeoJSON出力処理開始');
             
-            // GPSDataからポイントデータをGeoJSON形式で出力
-            if (!this.gpsData) {
-                throw new Error('GPSデータが読み込まれていません。');
+            // ジオリファレンス済みデータをGeoJSON形式で出力
+            if (!this.georeferencing) {
+                throw new Error('ジオリファレンス機能が初期化されていません。');
             }
 
-            // GeoJSON形式で出力
-            const geoJson = this.gpsData.exportAsGeoJson();
+            // ジオリファレンス済みデータを収集
+            const geoJsonData = await this.collectGeoreferencedData();
+            
+            if (!geoJsonData.features || geoJsonData.features.length === 0) {
+                throw new Error('出力対象のデータがありません。ジオリファレンスを実行してください。');
+            }
             
             // ファイルとしてダウンロード
-            this.uiHandlers.downloadGeoJson(geoJson);
+            this.uiHandlers.downloadGeoJson(geoJsonData);
             
-            this.logger.info('GeoJSON出力完了');
+            this.logger.info(`GeoJSON出力完了: ${geoJsonData.features.length}件`);
             
         } catch (error) {
             this.logger.error('GeoJSON出力エラー', error);
-            errorHandler.handle(error, 'GeoJSONの出力に失敗しました。', 'GeoJSON出力');
+            errorHandler.handle(error, error.message, 'GeoJSON出力');
+        }
+    }
+}
+
+    
+    async collectGeoreferencedData() {
+        try {
+            const features = [];
+            
+            // 1. ジオリファレンスで使用されたポイント（元のGPS値）を収集
+            if (this.gpsData && this.georeferencing) {
+                const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
+                
+                for (const pair of matchResult.matchedPairs) {
+                    features.push({
+                        type: 'Feature',
+                        properties: {
+                            id: pair.pointJsonId,
+                            name: pair.gpsPoint.pointId,
+                            type: 'matched_point',
+                            source: 'gps_original',
+                            description: 'ジオリファレンス制御点（元GPS値）'
+                        },
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [pair.gpsPoint.lng, pair.gpsPoint.lat, pair.gpsPoint.elevation || 0]
+                        }
+                    });
+                }
+            }
+            
+            // 2. ジオリファレンス変換されたルート中間点を収集
+            if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+                for (const marker of this.routeSpotHandler.routeMarkers) {
+                    const meta = marker.__meta;
+                    if (meta && meta.origin === 'image') {
+                        const latLng = marker.getLatLng();
+                        features.push({
+                            type: 'Feature',
+                            properties: {
+                                id: `route_${meta.routeId}_${meta.label}`,
+                                name: meta.label || 'ルートポイント',
+                                type: 'route_point',
+                                source: 'image_transformed',
+                                route_id: meta.routeId,
+                                description: 'ジオリファレンス変換済みルートポイント'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [latLng.lng, latLng.lat, 0]
+                            }
+                        });
+                    }
+                }
+            }
+            
+            // 3. ジオリファレンス変換されたスポットを収集
+            if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
+                for (const marker of this.routeSpotHandler.spotMarkers) {
+                    const meta = marker.__meta;
+                    if (meta && meta.origin === 'image') {
+                        const latLng = marker.getLatLng();
+                        features.push({
+                            type: 'Feature',
+                            properties: {
+                                id: `spot_${meta.spotId}`,
+                                name: meta.spotId || 'スポット',
+                                type: 'spot',
+                                source: 'image_transformed',
+                                description: 'ジオリファレンス変換済みスポット'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [latLng.lng, latLng.lat, 0]
+                            }
+                        });
+                    }
+                }
+            }
+            
+            return {
+                type: 'FeatureCollection',
+                features: features
+            };
+            
+        } catch (error) {
+            this.logger.error('ジオリファレンス済みデータ収集エラー', error);
+            throw new Error('ジオリファレンス済みデータの収集に失敗しました。');
         }
     }
 }
