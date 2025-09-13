@@ -194,23 +194,44 @@ export class Georeferencing {
             const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
             const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
 
-            // 画像中心の座標を計算
-            const imageCenterX = imageWidth / 2;
-            const imageCenterY = imageHeight / 2;
+            // 画像の4隅の座標をアフィン変換でGPS座標に変換
+            const corners = [
+                { x: 0, y: 0 },                    // 左上
+                { x: imageWidth, y: 0 },           // 右上
+                { x: imageWidth, y: imageHeight }, // 右下
+                { x: 0, y: imageHeight }           // 左下
+            ];
 
-            // アフィン変換で画像中心をGPS座標に変換
-            const centerWebMercatorX = transformation.transformation.a * imageCenterX +
-                                      transformation.transformation.b * imageCenterY +
-                                      transformation.transformation.c;
-            const centerWebMercatorY = transformation.transformation.d * imageCenterX +
-                                      transformation.transformation.e * imageCenterY +
-                                      transformation.transformation.f;
+            const transformedCorners = corners.map(corner => {
+                const webMercatorX = transformation.transformation.a * corner.x +
+                                   transformation.transformation.b * corner.y +
+                                   transformation.transformation.c;
+                const webMercatorY = transformation.transformation.d * corner.x +
+                                   transformation.transformation.e * corner.y +
+                                   transformation.transformation.f;
+                
+                return {
+                    lat: mathUtils.webMercatorYToLat(webMercatorY),
+                    lng: mathUtils.webMercatorXToLon(webMercatorX)
+                };
+            });
 
-            const centerLat = mathUtils.webMercatorYToLat(centerWebMercatorY);
-            const centerLng = mathUtils.webMercatorXToLon(centerWebMercatorX);
+            // 変換後の境界を計算
+            const lats = transformedCorners.map(c => c.lat);
+            const lngs = transformedCorners.map(c => c.lng);
+            const minLat = Math.min(...lats);
+            const maxLat = Math.max(...lats);
+            const minLng = Math.min(...lngs);
+            const maxLng = Math.max(...lngs);
+
+            // 画像の中心位置を計算
+            const centerLat = (minLat + maxLat) / 2;
+            const centerLng = (minLng + maxLng) / 2;
 
             // スケール計算（制御点ベース）
             const scale = this.calculateScaleFromTransformation(transformation);
+
+            this.logger.info(`アフィン変換適用: 中心位置=(${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}), スケール=${scale.toFixed(6)}`);
 
             // アフィン変換結果による画像位置・スケール設定
             this.imageOverlay.setTransformedPosition(centerLat, centerLng, scale);
@@ -229,20 +250,55 @@ export class Georeferencing {
             const t = transformation.transformation;
 
             // アフィン変換行列の変形スケールを計算
-            // |det(transformation matrix)| = |a * e - b * d|
+            // スケールは回転を考慮したベクトルの長さで計算
             const scaleX = Math.sqrt(t.a * t.a + t.d * t.d);
             const scaleY = Math.sqrt(t.b * t.b + t.e * t.e);
 
             // 平均スケールを使用（等方的スケーリングと仮定）
             const averageScale = (scaleX + scaleY) / 2;
 
-            // 現在のズームレベルでの地図解像度で正規化
+            // 制御点から実際のスケールを計算して検証
+            if (transformation.controlPoints && transformation.controlPoints.length >= 2) {
+                const point1 = transformation.controlPoints[0];
+                const point2 = transformation.controlPoints[1];
+                
+                // 画像座標での距離
+                const imageDistance = Math.sqrt(
+                    Math.pow(point2.pointJson.imageX - point1.pointJson.imageX, 2) +
+                    Math.pow(point2.pointJson.imageY - point1.pointJson.imageY, 2)
+                );
+                
+                // GPS座標での距離（メートル）
+                const gpsDistance = mathUtils.calculateGpsDistance(
+                    point1.gpsPoint.lat, point1.gpsPoint.lng,
+                    point2.gpsPoint.lat, point2.gpsPoint.lng
+                );
+                
+                if (imageDistance > 0 && gpsDistance > 0) {
+                    // 実際のスケール（メートル/ピクセル）
+                    const actualScale = gpsDistance / imageDistance;
+                    
+                    // 現在のズームレベルでの地図解像度で正規化
+                    const centerPos = this.mapCore.getMap().getCenter();
+                    const currentZoom = this.mapCore.getMap().getZoom();
+                    const metersPerPixelAtCenter = mathUtils.calculateMetersPerPixel(centerPos.lat, currentZoom);
+                    
+                    // 実際のスケールをLeafletのスケールに変換
+                    const leafletScale = actualScale / metersPerPixelAtCenter;
+                    
+                    this.logger.info(`スケール計算: 画像距離=${imageDistance.toFixed(2)}px, GPS距離=${gpsDistance.toFixed(2)}m, 実際スケール=${actualScale.toFixed(6)}m/px, Leafletスケール=${leafletScale.toFixed(6)}`);
+                    
+                    return leafletScale;
+                }
+            }
+
+            // フォールバック: アフィン変換行列から計算
             const centerPos = this.mapCore.getMap().getCenter();
             const currentZoom = this.mapCore.getMap().getZoom();
             const metersPerPixelAtCenter = mathUtils.calculateMetersPerPixel(centerPos.lat, currentZoom);
-
-            // アフィン変換のスケールをLeafletのスケールに変換
             const leafletScale = averageScale / metersPerPixelAtCenter;
+
+            this.logger.info(`フォールバックスケール計算: 平均スケール=${averageScale.toFixed(6)}, Leafletスケール=${leafletScale.toFixed(6)}`);
 
             return leafletScale;
 
