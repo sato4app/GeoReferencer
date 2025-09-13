@@ -76,7 +76,8 @@ export class UIHandlers {
             if (unmatchedPointsField) {
                 let displayText = '';
                 if (result.unmatchedPoints && result.unmatchedPoints.length > 0) {
-                    displayText = result.unmatchedPoints.join('\n');
+                    // 1行のテキストフィールドに複数ポイントを表示する場合はスペース区切りで表示
+                    displayText = result.unmatchedPoints.join(' ');
                 }
                 unmatchedPointsField.value = displayText;
             }
