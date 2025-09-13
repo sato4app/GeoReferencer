@@ -105,11 +105,6 @@ export class MapCore {
         return this.initialCenter;
     }
 
-    // 設定値を取得（後方互換性のため残す）
-    getConfig() {
-        // config.jsonは廃止されたため、nullを返す
-        return null;
-    }
 
     showErrorMessage(title, message) {
         const messageBox = document.createElement('div');

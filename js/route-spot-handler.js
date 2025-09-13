@@ -156,8 +156,7 @@ export class RouteSpotHandler {
                 startPoint: this.extractStartPoint(data),
                 endPoint: this.extractEndPoint(data)
             };
-            
-            this.outputRouteDebugInfo(route, data);
+
             routes.push(route);
             
         } catch (error) {
@@ -167,9 +166,6 @@ export class RouteSpotHandler {
         return routes;
     }
 
-    outputRouteDebugInfo(route, originalData) {
-        // デバッグ情報出力機能は簡略化
-    }
 
     processSpotData(data, fileName) {
         const spots = [];
@@ -568,31 +564,11 @@ export class RouteSpotHandler {
 
                             let marker;
                             if (uiType === 'waypoint' || point.type === 'waypoint') {
-                                const diamondIcon = L.divIcon({
-                                    className: 'diamond-marker',
-                                    html: '<div style="width: 8px; height: 8px; background-color: #ffa500; transform: rotate(45deg);"></div>',
-                                    iconSize: [8, 8],
-                                    iconAnchor: [4, 4]
-                                });
-                                marker = L.marker([point.lat, point.lng], { icon: diamondIcon, pane: 'wayPointMarkers' }).addTo(this.mapCore.getMap());
+                                marker = mathUtils.createCustomMarker([point.lat, point.lng], 'wayPoint', this.mapCore).addTo(this.mapCore.getMap());
                             } else if (uiType === 'route-start') {
-                                marker = L.circleMarker([point.lat, point.lng], {
-                                    radius: 7,
-                                    color: '#00cc00',
-                                    fillColor: '#00cc00',
-                                    fillOpacity: 0.9,
-                                    weight: 2,
-                                    pane: 'pointJsonMarkers'
-                                }).addTo(this.mapCore.getMap());
+                                marker = mathUtils.createCustomMarker([point.lat, point.lng], 'route-start', this.mapCore).addTo(this.mapCore.getMap());
                             } else if (uiType === 'route-end') {
-                                marker = L.circleMarker([point.lat, point.lng], {
-                                    radius: 7,
-                                    color: '#cc0000',
-                                    fillColor: '#cc0000',
-                                    fillOpacity: 0.9,
-                                    weight: 2,
-                                    pane: 'pointJsonMarkers'
-                                }).addTo(this.mapCore.getMap());
+                                marker = mathUtils.createCustomMarker([point.lat, point.lng], 'route-end', this.mapCore).addTo(this.mapCore.getMap());
                             }
                             
                             // マーカーに元座標系メタを付与
@@ -639,16 +615,7 @@ export class RouteSpotHandler {
                     
                     
                     if (latLng && latLng[0] && latLng[1]) {
-                        const squareIcon = L.divIcon({
-                            className: 'square-spot-marker',
-                            html: '<div style="width: 10px; height: 10px; background-color: #0066ff; border: 1px solid #004499;"></div>',
-                            iconSize: [10, 10],
-                            iconAnchor: [5, 5]
-                        });
-                        const marker = L.marker(latLng, { 
-                            icon: squareIcon, 
-                            pane: 'pointJsonMarkers' 
-                        }).addTo(this.mapCore.getMap());
+                        const marker = mathUtils.createCustomMarker(latLng, 'spot', this.mapCore).addTo(this.mapCore.getMap());
                         
                         const spotInfo = `
                             <div>

@@ -2,6 +2,7 @@
 // GeoJSONファイル読み込み、Excelファイル読み込み、地図表示機能を提供
 import { Logger, errorHandler } from './utils.js';
 import { CONFIG } from './constants.js';
+import { mathUtils } from './math-utils.js';
 
 export class GPSData {
     constructor() {
@@ -104,19 +105,8 @@ export class GPSData {
             }
 
             this.gpsPoints.forEach((point, index) => {
-                // 緑の丸マーカーのカスタムアイコンを作成
-                const greenCircleIcon = L.divIcon({
-                    className: 'gps-green-circle-marker',
-                    html: '<div style="width: 16px; height: 16px; background-color: #008000; border-radius: 50%;"></div>',
-                    iconSize: [16, 16],
-                    iconAnchor: [8, 8]
-                });
-                
-                const marker = L.marker([point.lat, point.lng], {
-                    title: point.pointId,
-                    icon: greenCircleIcon,
-                    pane: 'gpsMarkers'
-                }).addTo(map);
+                const marker = mathUtils.createCustomMarker([point.lat, point.lng], 'gps-point').addTo(map);
+                marker.options.title = point.pointId;
                 
                 // ポップアップを設定
                 const popupContent = this.createPopupContent(point);

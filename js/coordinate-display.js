@@ -23,7 +23,7 @@ export class CoordinateDisplay {
                 if (coord.imageX !== undefined && coord.imageY !== undefined) {
                     const latLng = this.convertImageToLatLng(coord.imageX, coord.imageY);
                     const markerType = this.determineMarkerType(coord, type);
-                    const marker = this.createCustomMarker(latLng, markerType).addTo(this.mapCore.getMap());
+                    const marker = mathUtils.createCustomMarker(latLng, markerType, this.mapCore).addTo(this.mapCore.getMap());
                     
                     const popupContent = `
                         <div>
@@ -166,53 +166,7 @@ export class CoordinateDisplay {
         return 'pointJSON';
     }
 
-    createCustomMarker(latLng, markerType) {
-        switch (markerType) {
-            case 'pointJSON':
-                return L.circleMarker(latLng, {
-                    radius: 6,
-                    color: '#ff0000',
-                    fillColor: '#ff0000',
-                    fillOpacity: 1,
-                    weight: 0,
-                    pane: 'pointJsonMarkers'
-                });
-                
-            case 'wayPoint':
-                const diamondIcon = L.divIcon({
-                    className: 'diamond-marker',
-                    html: '<div style="width: 8px; height: 8px; background-color: #ffa500; transform: rotate(45deg);"></div>',
-                    iconSize: [8, 8],
-                    iconAnchor: [4, 4]
-                });
-                return L.marker(latLng, { 
-                    icon: diamondIcon,
-                    pane: 'wayPointMarkers'
-                });
-                
-            case 'spot':
-                const squareIcon = L.divIcon({
-                    className: 'square-marker',
-                    html: '<div style="width: 12px; height: 12px; background-color: #0000ff;"></div>',
-                    iconSize: [12, 12],
-                    iconAnchor: [6, 6]
-                });
-                return L.marker(latLng, { 
-                    icon: squareIcon,
-                    pane: 'spotMarkers'
-                });
-                
-            default:
-                return L.circleMarker(latLng, {
-                    radius: 6,
-                    color: '#ff0000',
-                    fillColor: '#ff0000',
-                    fillOpacity: 1,
-                    weight: 0,
-                    pane: 'pointJsonMarkers'
-                });
-        }
-    }
+    // createCustomMarkerはmathUtilsに統合されました
 
     clearImageCoordinateMarkers(imageCoordinateMarkers, markerType = 'all') {
         if (imageCoordinateMarkers && imageCoordinateMarkers.length > 0) {

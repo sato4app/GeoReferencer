@@ -1,5 +1,5 @@
 /**
- * ファイル操作を管理するクラス - GeoJSON出力専用
+ * 統合ファイル操作を管理するクラス - 読み込み・出力機能統合
  */
 export class FileHandler {
     constructor() {
@@ -157,5 +157,130 @@ export class FileHandler {
      */
     isFileSystemAccessSupported() {
         return 'showSaveFilePicker' in window;
+    }
+
+    // ==========================================
+    // ファイル読み込み統合機能
+    // ==========================================
+
+    /**
+     * 統合ファイル読み込みメソッド
+     * @param {File} file - 読み込みファイル
+     * @param {string} fileType - ファイル種別 ('json', 'excel', 'image')
+     * @returns {Promise} 読み込み結果
+     */
+    async loadFile(file, fileType) {
+        try {
+            switch (fileType) {
+                case 'json':
+                    return await this.loadJsonFile(file);
+                case 'excel':
+                    return await this.loadExcelFile(file);
+                case 'image':
+                    return await this.loadImageFile(file);
+                default:
+                    throw new Error(`未対応のファイル種別: ${fileType}`);
+            }
+        } catch (error) {
+            throw new Error(`ファイル読み込みエラー (${fileType}): ${error.message}`);
+        }
+    }
+
+    /**
+     * JSONファイル読み込み
+     */
+    async loadJsonFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    resolve(data);
+                } catch (error) {
+                    reject(new Error('JSONファイルの解析に失敗しました: ' + error.message));
+                }
+            };
+
+            reader.onerror = () => reject(new Error('JSONファイル読み込みエラー'));
+            reader.readAsText(file);
+        });
+    }
+
+    /**
+     * Excelファイル読み込み
+     */
+    async loadExcelFile(file) {
+        if (!this.isExcelFile(file)) {
+            throw new Error('Excelファイル(.xlsx)を選択してください');
+        }
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    resolve(jsonData);
+                } catch (error) {
+                    reject(new Error('Excelファイルの読み込みに失敗しました: ' + error.message));
+                }
+            };
+
+            reader.onerror = () => reject(new Error('Excelファイル読み込みエラー'));
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    /**
+     * 画像ファイル読み込み
+     */
+    async loadImageFile(file) {
+        if (!this.isPngFile(file)) {
+            throw new Error('PNG形式の画像ファイルを選択してください');
+        }
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    resolve({
+                        dataUrl: e.target.result,
+                        image: img,
+                        width: img.naturalWidth || img.width,
+                        height: img.naturalHeight || img.height
+                    });
+                };
+                img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+                img.src = e.target.result;
+            };
+
+            reader.onerror = () => reject(new Error('画像ファイル読み込みエラー'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    /**
+     * ファイル種別判定
+     */
+    isExcelFile(file) {
+        return file.name.toLowerCase().endsWith('.xlsx') &&
+               file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    }
+
+    isPngFile(file) {
+        return file && file.type.includes('png');
+    }
+
+    isJsonFile(file) {
+        return file && (file.type.includes('json') || file.name.toLowerCase().endsWith('.json'));
     }
 }

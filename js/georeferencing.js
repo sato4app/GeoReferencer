@@ -2,6 +2,8 @@
 import { Logger, errorHandler } from './utils.js';
 import { CONFIG } from './constants.js';
 import { mathUtils } from './math-utils.js';
+import { AffineTransformation } from './affine-transformation.js';
+import { MarkerSynchronizer } from './marker-synchronizer.js';
 
 export class Georeferencing {
     constructor(mapCore, imageOverlay, gpsData) {
@@ -13,6 +15,10 @@ export class Georeferencing {
         this.currentTransformation = null;
         this.imageCoordinateMarkers = [];
         this.imageUpdateCallbackRegistered = false;
+
+        // 分離されたモジュールのインスタンス化
+        this.affineTransformation = new AffineTransformation();
+        this.markerSynchronizer = null; // 後で初期化
     }
 
     async executeGeoreferencing() {

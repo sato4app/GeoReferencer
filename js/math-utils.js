@@ -1,5 +1,5 @@
-// 統合された数学ユーティリティモジュール
-// 座標変換、行列計算、アフィン変換を統一管理
+// 統合された数学・座標変換ユーティリティモジュール
+// 座標変換、行列計算、アフィン変換、マーカー作成を統一管理
 import { Logger } from './utils.js';
 
 export class MathUtils {
@@ -198,6 +198,116 @@ export class MathUtils {
 
         } catch (error) {
             this.logger.error('ガウス・ジョーダン法エラー', error);
+            return null;
+        }
+    }
+
+    // ==========================================
+    // マーカー作成機能（統合）
+    // ==========================================
+
+    // カスタムマーカー作成（coordinate-display.jsから統合）
+    createCustomMarker(latLng, markerType, mapCore) {
+        switch (markerType) {
+            case 'pointJSON':
+            case 'georeference-point':
+                return L.circleMarker(latLng, {
+                    radius: 6,
+                    color: '#ff0000',
+                    fillColor: '#ff0000',
+                    fillOpacity: 1,
+                    weight: 0,
+                    pane: 'pointJsonMarkers'
+                });
+
+            case 'wayPoint':
+                const diamondIcon = L.divIcon({
+                    className: 'diamond-marker',
+                    html: '<div style="width: 8px; height: 8px; background-color: #ffa500; transform: rotate(45deg);"></div>',
+                    iconSize: [8, 8],
+                    iconAnchor: [4, 4]
+                });
+                return L.marker(latLng, {
+                    icon: diamondIcon,
+                    pane: 'wayPointMarkers'
+                });
+
+            case 'spot':
+                const squareIcon = L.divIcon({
+                    className: 'square-marker',
+                    html: '<div style="width: 12px; height: 12px; background-color: #0000ff;"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
+                return L.marker(latLng, {
+                    icon: squareIcon,
+                    pane: 'spotMarkers'
+                });
+
+            case 'route-start':
+                return L.circleMarker(latLng, {
+                    radius: 7,
+                    color: '#00cc00',
+                    fillColor: '#00cc00',
+                    fillOpacity: 0.9,
+                    weight: 2,
+                    pane: 'pointJsonMarkers'
+                });
+
+            case 'route-end':
+                return L.circleMarker(latLng, {
+                    radius: 7,
+                    color: '#cc0000',
+                    fillColor: '#cc0000',
+                    fillOpacity: 0.9,
+                    weight: 2,
+                    pane: 'pointJsonMarkers'
+                });
+
+            case 'gps-point':
+                const greenCircleIcon = L.divIcon({
+                    className: 'gps-green-circle-marker',
+                    html: '<div style="width: 16px; height: 16px; background-color: #008000; border-radius: 50%;"></div>',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+                return L.marker(latLng, {
+                    icon: greenCircleIcon,
+                    pane: 'gpsMarkers'
+                });
+
+            default:
+                return L.circleMarker(latLng, {
+                    radius: 6,
+                    color: '#ff0000',
+                    fillColor: '#ff0000',
+                    fillOpacity: 1,
+                    weight: 0,
+                    pane: 'pointJsonMarkers'
+                });
+        }
+    }
+
+    // 画像座標をLatLng座標に変換（境界ベース）
+    convertImageToLatLngFromBounds(imageX, imageY, imageBounds, imageWidth, imageHeight, fallbackCenter = null) {
+        try {
+            if (!imageBounds || !imageWidth || !imageHeight) {
+                if (fallbackCenter) {
+                    const normalizedX = (imageX - 500) / 1000;
+                    const normalizedY = (imageY - 500) / 1000;
+                    const lat = fallbackCenter[0] + normalizedY * 0.01;
+                    const lng = fallbackCenter[1] + normalizedX * 0.01;
+                    return [lat, lng];
+                }
+                this.logger.warn('画像境界または画像サイズが不正です');
+                return null;
+            }
+
+            const result = this.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
+            return result;
+
+        } catch (error) {
+            this.logger.error('画像座標→GPS座標変換エラー（境界ベース）', error);
             return null;
         }
     }
