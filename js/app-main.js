@@ -6,6 +6,7 @@ import { Georeferencing } from './georeferencing.js';
 import { RouteSpotHandler } from './route-spot-handler.js';
 import { CoordinateDisplay } from './coordinate-display.js';
 import { UIHandlers } from './ui-handlers.js';
+import { FileHandler } from './file-handler.js';
 import { CONFIG, EVENTS, DEFAULTS } from './constants.js';
 import { Logger, errorHandler } from './utils.js';
 
@@ -19,6 +20,7 @@ class GeoReferencerApp {
         this.routeSpotHandler = null;
         this.coordinateDisplay = null;
         this.uiHandlers = null;
+        this.fileHandler = null;
         this.pointJsonData = null;
         this.imageCoordinateMarkers = [];
         
@@ -65,6 +67,7 @@ class GeoReferencerApp {
             this.routeSpotHandler = new RouteSpotHandler(this.mapCore, this.imageOverlay);
             this.coordinateDisplay = new CoordinateDisplay(this.mapCore, this.imageOverlay);
             this.uiHandlers = new UIHandlers();
+            this.fileHandler = new FileHandler();
 
             // CoordinateDisplayインスタンスをGeoreferencingに注入
             this.georeferencing.setCoordinateDisplay(this.coordinateDisplay);
@@ -112,12 +115,16 @@ class GeoReferencerApp {
             if (gpsExcelInput) {
                 gpsExcelInput.addEventListener('change', (event) => {
                     this.handleGpsExcelLoad(event);
+                    // ファイルハンドラーにディレクトリを記録
+                    this.recordFileDirectory(event.target.files[0]);
                 });
             }
             
             if (imageInput) {
                 imageInput.addEventListener('change', (event) => {
                     this.handleImageLoad(event);
+                    // ファイルハンドラーにディレクトリを記録
+                    this.recordFileDirectory(event.target.files[0]);
                 });
             }
             
@@ -164,6 +171,10 @@ class GeoReferencerApp {
             if (multiJsonInput) {
                 multiJsonInput.addEventListener('change', (event) => {
                     this.handleMultiJsonLoad(event);
+                    // ファイルハンドラーにディレクトリを記録
+                    if (event.target.files.length > 0) {
+                        this.recordFileDirectory(event.target.files[0]);
+                    }
                 });
             }
 
@@ -441,8 +452,14 @@ class GeoReferencerApp {
                 throw new Error('出力対象のデータがありません。ジオリファレンスを実行してください。');
             }
             
-            // ファイルとしてダウンロード
-            this.uiHandlers.downloadGeoJson(geoJsonData);
+            // ファイルとして保存
+            const result = await this.fileHandler.saveGeoJsonWithUserChoice(geoJsonData, this.fileHandler.getDefaultGeoJsonFileName());
+            
+            if (result.success) {
+                this.logger.info(`GeoJSON保存成功: ${result.filename}`);
+            } else if (result.error !== 'キャンセル') {
+                throw new Error(result.error);
+            }
             
             this.logger.info(`GeoJSON出力完了: ${geoJsonData.features.length}件`);
             
@@ -451,9 +468,7 @@ class GeoReferencerApp {
             errorHandler.handle(error, error.message, 'GeoJSON出力');
         }
     }
-}
 
-    
     async collectGeoreferencedData() {
         try {
             const features = [];
@@ -537,6 +552,24 @@ class GeoReferencerApp {
         } catch (error) {
             this.logger.error('ジオリファレンス済みデータ収集エラー', error);
             throw new Error('ジオリファレンス済みデータの収集に失敗しました。');
+        }
+    }
+
+    /**
+     * ファイルのディレクトリを記録する（File System Access API使用時）
+     * @param {File} file - 読み込んだファイル
+     */
+    async recordFileDirectory(file) {
+        try {
+            // File System Access APIがサポートされているかチェック
+            if (this.fileHandler && this.fileHandler.isFileSystemAccessSupported() && file.webkitRelativePath) {
+                // ファイルハンドルが利用可能な場合のみ処理
+                // 注意: 通常のファイル入力ではFile System Access APIを使用できない
+                // ここではフォールバックとしてファイル名を記録
+                this.fileHandler.currentFileName = file.name;
+            }
+        } catch (error) {
+            this.logger.debug('ディレクトリ記録できませんでした', error);
         }
     }
 }
