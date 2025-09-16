@@ -468,12 +468,22 @@ class GeoReferencerApp {
     async collectGeoreferencedData() {
         try {
             const features = [];
-            
+
             // 1. ジオリファレンスで使用されたポイント（元のGPS値）を収集
             if (this.gpsData && this.georeferencing) {
                 const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
-                
+
                 for (const pair of matchResult.matchedPairs) {
+                    const elevation = pair.gpsPoint.elevation;
+
+                    // 標高が正の値でない場合は標高を除外
+                    let coordinates;
+                    if (elevation && elevation > 0) {
+                        coordinates = [this.roundCoordinate(pair.gpsPoint.lng), this.roundCoordinate(pair.gpsPoint.lat), elevation];
+                    } else {
+                        coordinates = [this.roundCoordinate(pair.gpsPoint.lng), this.roundCoordinate(pair.gpsPoint.lat)];
+                    }
+
                     features.push({
                         type: 'Feature',
                         properties: {
@@ -485,12 +495,12 @@ class GeoReferencerApp {
                         },
                         geometry: {
                             type: 'Point',
-                            coordinates: [pair.gpsPoint.lng, pair.gpsPoint.lat, pair.gpsPoint.elevation || 0]
+                            coordinates: coordinates
                         }
                     });
                 }
             }
-            
+
             // 2. ジオリファレンス変換されたルート中間点を収集
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
                 for (const marker of this.routeSpotHandler.routeMarkers) {
@@ -509,16 +519,18 @@ class GeoReferencerApp {
                             },
                             geometry: {
                                 type: 'Point',
-                                coordinates: [latLng.lng, latLng.lat, 0]
+                                coordinates: [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)]
                             }
                         });
                     }
                 }
             }
-            
-            // 3. ジオリファレンス変換されたスポットを収集
+
+            // 3. ジオリファレンス変換されたスポットを収集（最新の分のみ）
             if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
-                for (const marker of this.routeSpotHandler.spotMarkers) {
+                const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
+
+                for (const marker of latestSpots) {
                     const meta = marker.__meta;
                     if (meta && meta.origin === 'image') {
                         const latLng = marker.getLatLng();
@@ -529,26 +541,63 @@ class GeoReferencerApp {
                                 name: meta.spotId || 'スポット',
                                 type: 'spot',
                                 source: 'image_transformed',
-                                description: 'ジオリファレンス変換済みスポット'
+                                description: 'ジオリファレンス変換済みスポット（最新分のみ）'
                             },
                             geometry: {
                                 type: 'Point',
-                                coordinates: [latLng.lng, latLng.lat, 0]
+                                coordinates: [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)]
                             }
                         });
                     }
                 }
             }
-            
+
             return {
                 type: 'FeatureCollection',
                 features: features
             };
-            
+
         } catch (error) {
             this.logger.error('ジオリファレンス済みデータ収集エラー', error);
             throw new Error('ジオリファレンス済みデータの収集に失敗しました。');
         }
+    }
+
+    /**
+     * 座標を小数点5桁に丸める
+     * @param {number} coordinate - 座標値
+     * @returns {number} 小数点5桁に丸められた座標値
+     */
+    roundCoordinate(coordinate) {
+        return Math.round(coordinate * 100000) / 100000;
+    }
+
+    /**
+     * スポットマーカーから最新の分のみを取得
+     * @param {Array} spotMarkers - 全スポットマーカー
+     * @returns {Array} 最新の分のスポットマーカー
+     */
+    getLatestSpots(spotMarkers) {
+        if (!spotMarkers || spotMarkers.length === 0) {
+            return [];
+        }
+
+        // スポットIDごとにグループ化し、最新のタイムスタンプのみを保持
+        const latestSpotsMap = new Map();
+
+        for (const marker of spotMarkers) {
+            const meta = marker.__meta;
+            if (meta && meta.spotId) {
+                const spotId = meta.spotId;
+                const timestamp = meta.timestamp || 0; // タイムスタンプがない場合は0
+
+                if (!latestSpotsMap.has(spotId) || timestamp > latestSpotsMap.get(spotId).__meta.timestamp) {
+                    latestSpotsMap.set(spotId, marker);
+                }
+            }
+        }
+
+        return Array.from(latestSpotsMap.values());
     }
 
     /**
