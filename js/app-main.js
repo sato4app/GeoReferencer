@@ -23,6 +23,9 @@ class GeoReferencerApp {
         this.fileHandler = null;
         this.pointJsonData = null;
         this.imageCoordinateMarkers = [];
+
+        // PNG画像ファイル名を記録
+        this.currentPngFileName = null;
         
         this.logger.info('GeoReferencerApp初期化開始');
     }
@@ -240,12 +243,16 @@ class GeoReferencerApp {
             if (!file) return;
 
             this.logger.info('PNG画像ファイル読み込み開始', file.name);
-            
+
+            // PNGファイル名を記録（拡張子を除去）
+            this.currentPngFileName = file.name.replace(/\.[^/.]+$/, '');
+            this.logger.info('PNGファイル名記録', this.currentPngFileName);
+
             if (this.imageOverlay) {
                 await this.imageOverlay.loadImage(file);
                 this.logger.info('PNG画像ファイル読み込み完了');
             }
-            
+
         } catch (error) {
             this.logger.error('画像読み込みエラー', error);
             errorHandler.handle(error, '画像ファイルの読み込みに失敗しました。', '画像読み込み');
@@ -449,7 +456,8 @@ class GeoReferencerApp {
             }
             
             // ファイルとして保存
-            const result = await this.fileHandler.saveGeoJsonWithUserChoice(geoJsonData, this.fileHandler.getDefaultGeoJsonFileName());
+            const geoJsonFileName = this.getGeoJsonFileName();
+            const result = await this.fileHandler.saveGeoJsonWithUserChoice(geoJsonData, geoJsonFileName);
             
             if (result.success) {
                 this.logger.info(`GeoJSON保存成功: ${result.filename}`);
@@ -541,7 +549,7 @@ class GeoReferencerApp {
                                 name: meta.spotId || 'スポット',
                                 type: 'spot',
                                 source: 'image_transformed',
-                                description: 'ジオリファレンス変換済みスポット（最新分のみ）'
+                                description: 'ジオリファレンス変換済みスポット'
                             },
                             geometry: {
                                 type: 'Point',
@@ -561,6 +569,18 @@ class GeoReferencerApp {
             this.logger.error('ジオリファレンス済みデータ収集エラー', error);
             throw new Error('ジオリファレンス済みデータの収集に失敗しました。');
         }
+    }
+
+    /**
+     * GeoJSONファイル名を生成
+     * @returns {string} GeoJSONファイル名
+     */
+    getGeoJsonFileName() {
+        if (this.currentPngFileName) {
+            return `${this.currentPngFileName}-GPS`;
+        }
+        // PNG画像が読み込まれていない場合はデフォルト名を使用
+        return this.fileHandler.getDefaultGeoJsonFileName();
     }
 
     /**
