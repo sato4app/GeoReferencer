@@ -55,11 +55,11 @@ export class MapCore {
             // 地図の初期化（デフォルトズームコントロールを無効化）
             this.map = L.map('map', { zoomControl: false }).setView(this.initialCenter, this.initialZoom);
 
-            // ズームコントロールを右下に追加（スケールの上に配置）
-            L.control.zoom({ position: 'bottomright' }).addTo(this.map);
-
             // スケールバーを右下に追加
             L.control.scale({ position: 'bottomright', imperial: false, maxWidth: 150 }).addTo(this.map);
+
+            // ズームコントロールを右下に追加（スケールの上に配置）
+            L.control.zoom({ position: 'bottomright' }).addTo(this.map);
 
             // 国土地理院タイルレイヤー
             const tileLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
