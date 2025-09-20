@@ -1,6 +1,8 @@
 /**
  * 統合ファイル操作を管理するクラス - 読み込み・出力機能統合
  */
+import { CONFIG } from './constants.js';
+
 export class FileHandler {
     constructor() {
         this.currentFileHandle = null;
@@ -225,6 +227,20 @@ export class FileHandler {
 
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
+
+                    // 読み込み行数を制限
+                    const range = worksheet['!ref'];
+                    if (range) {
+                        const decoded = XLSX.utils.decode_range(range);
+                        const originalRows = decoded.e.r + 1; // 1ベースの行数
+
+                        // データ行数を制限（設定値から1を引いて0ベースインデックスに調整）
+                        const maxRows = CONFIG.MAX_EXCEL_ROWS - 1;
+                        if (decoded.e.r > maxRows) {
+                            decoded.e.r = maxRows;
+                            worksheet['!ref'] = XLSX.utils.encode_range(decoded);
+                        }
+                    }
 
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                     resolve(jsonData);

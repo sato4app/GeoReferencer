@@ -3,7 +3,6 @@ import { Logger, errorHandler } from './utils.js';
 import { CONFIG } from './constants.js';
 import { mathUtils } from './math-utils.js';
 import { AffineTransformation } from './affine-transformation.js';
-import { MarkerSynchronizer } from './marker-synchronizer.js';
 
 export class Georeferencing {
     constructor(mapCore, imageOverlay, gpsData) {
@@ -18,7 +17,6 @@ export class Georeferencing {
 
         // 分離されたモジュールのインスタンス化
         this.affineTransformation = new AffineTransformation();
-        this.markerSynchronizer = null; // 後で初期化
     }
 
     async executeGeoreferencing() {
@@ -62,7 +60,6 @@ export class Georeferencing {
 
     setupGeoreferencingUI() {
         try {
-            // 手動移動UI要素は削除されたため、設定は不要
 
         } catch (error) {
             this.logger.error('ジオリファレンスUI設定エラー', error);
@@ -110,7 +107,7 @@ export class Georeferencing {
             // 一致するポイント数をすべて使用（精密版のみ）
             const controlPoints = matchedPairs;
             
-            const transformation = this.calculatePreciseAffineTransformation(controlPoints);
+            const transformation = this.affineTransformation.calculatePreciseTransformation(controlPoints);
             
             if (transformation) {
                 await this.applyTransformationToImage(transformation, controlPoints);
@@ -130,53 +127,6 @@ export class Georeferencing {
 
 
 
-    calculatePreciseAffineTransformation(controlPoints) {
-        try {
-            
-            if (controlPoints.length < 3) {
-                this.logger.error('精密アフィン変換には最低3つのポイントが必要です');
-                return null;
-            }
-
-            // 一致するポイント数をすべて使用
-            const usePoints = controlPoints;
-            
-            // 最小二乗法によるアフィン変換パラメータ計算
-            const transformation = this.calculateLeastSquaresTransformation(usePoints);
-            
-            if (!transformation) {
-                this.logger.error('精密変換計算に失敗');
-                return null;
-            }
-
-            // 変換精度を計算
-            const accuracy = this.calculateTransformationAccuracy(usePoints, transformation);
-            
-            const result = {
-                type: 'precise',
-                transformation: transformation,
-                accuracy: accuracy,
-                controlPoints: usePoints,
-                usedPoints: usePoints.length
-            };
-
-            
-            return result;
-            
-        } catch (error) {
-            this.logger.error('精密アフィン変換計算エラー', error);
-            return null;
-        }
-    }
-
-    calculateLeastSquaresTransformation(controlPoints) {
-        return mathUtils.calculateAffineTransformation(controlPoints);
-    }
-
-
-    calculateTransformationAccuracy(controlPoints, transformation) {
-        return mathUtils.calculateTransformationAccuracy(controlPoints, transformation);
-    }
 
     async applyTransformationToImage(transformation, controlPoints) {
         try {

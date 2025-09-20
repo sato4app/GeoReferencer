@@ -209,7 +209,7 @@ class GeoReferencerApp {
             this.logger.info('GPS Excelファイル読み込み開始', file.name);
             
             // GPSDataクラスのExcel読み込み機能を使用
-            const rawData = await this.gpsData.loadExcelFile(file);
+            const rawData = await this.fileHandler.loadExcelFile(file);
             
             // Excel データを検証・変換
             const validatedData = this.uiHandlers.validateAndConvertExcelData(rawData);
@@ -417,9 +417,7 @@ class GeoReferencerApp {
                 throw new Error('GPS座標データが読み込まれていません。');
             }
 
-            // 2. 初期表示境界の設定（手動移動機能は削除済み）
-            // const centerPos = this.mapCore.getMap().getCenter();
-            // this.imageOverlay.setCenterPosition(centerPos);
+            // 2. 初期表示境界の設定
             
             // 3-10. Georeferencingクラスに処理を委譲
             await this.georeferencing.executeGeoreferencing();
