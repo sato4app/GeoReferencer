@@ -25,13 +25,7 @@ export class CoordinateDisplay {
                     const markerType = this.determineMarkerType(coord, type);
                     const marker = mathUtils.createCustomMarker(latLng, markerType, this.mapCore).addTo(this.mapCore.getMap());
                     
-                    const popupContent = `
-                        <div>
-                            <strong>${coord.name || `${type} ${index + 1}`}</strong><br>
-                            画像座標: (${coord.imageX}, ${coord.imageY})<br>
-                            ${coord.description || ''}
-                        </div>
-                    `;
+                    const popupContent = this.createCoordinatePopupContent(coord, type, index, latLng);
                     marker.bindPopup(popupContent);
                     
                     if (!imageCoordinateMarkers) {
@@ -164,6 +158,61 @@ export class CoordinateDisplay {
             return 'pointJSON';
         }
         return 'pointJSON';
+    }
+
+    createCoordinatePopupContent(coord, type, index, latLng) {
+        const pointId = coord.name || coord.id || `${type} ${index + 1}`;
+        const lat = latLng[0].toFixed(5);
+        const lng = latLng[1].toFixed(5);
+
+        return `
+            <div>
+                <strong>座標ポイント</strong>: <strong>${pointId}</strong><br>
+                <strong>画像座標</strong>: (${coord.imageX}, ${coord.imageY})<br>
+                <strong>変換後GPS</strong>: (${lat}, ${lng})<br>
+                ジオリファレンス変換適用済み
+            </div>
+        `;
+    }
+
+    static createGpsPopupContent(point) {
+        const lat = point.lat.toFixed(5);
+        const lng = point.lng.toFixed(5);
+        const location = point.location || '';
+
+        return `
+            <div>
+                <strong>GPSポイント</strong>: <strong>${point.pointId}</strong><br>
+                <strong>名称</strong>: ${location}<br>
+                <strong>GPS</strong>: (${lat}, ${lng})
+            </div>
+        `;
+    }
+
+    static createRouteWaypointPopupContent(point, routeName, label, pointIndex) {
+        const lat = point.lat.toFixed(5);
+        const lng = point.lng.toFixed(5);
+
+        return `
+            <div>
+                <strong>座標中間点</strong>: <strong>waypoint-${pointIndex + 1}</strong><br>
+                <strong>ルート</strong>: ${routeName}<br>
+                <strong>変換後GPS</strong>: (${lat}, ${lng})
+            </div>
+        `;
+    }
+
+    static createSpotPopupContent(item, latLng) {
+        const lat = latLng[0].toFixed(5);
+        const lng = latLng[1].toFixed(5);
+
+        return `
+            <div>
+                <strong>座標スポット</strong>: <strong>${item.name || item.spotId}</strong><br>
+                <strong>参照ファイル名</strong>: ${item.fileName}<br>
+                <strong>変換後GPS</strong>: (${lat}, ${lng})
+            </div>
+        `;
     }
 
     // createCustomMarkerはmathUtilsに統合されました

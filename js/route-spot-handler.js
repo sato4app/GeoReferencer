@@ -2,6 +2,7 @@
 // JSONファイル自動判定、ルート・スポットマーカー表示機能を提供
 import { Logger, errorHandler } from './utils.js';
 import { mathUtils } from './math-utils.js';
+import { CoordinateDisplay } from './coordinate-display.js';
 
 export class RouteSpotHandler {
     constructor(mapCore, imageOverlay = null) {
@@ -582,13 +583,12 @@ export class RouteSpotHandler {
                                 };
                             }
 
-                            const pointInfo = `
-                                <div>
-                                    <strong>${label}: ${point.name || point.id || pointIndex + 1}</strong><br>
-                                    ルート: ${item.name || item.routeId}<br>
-                                    座標: (${point.lat.toFixed(6)}, ${point.lng.toFixed(6)})
-                                </div>
-                            `;
+                            const pointInfo = CoordinateDisplay.createRouteWaypointPopupContent(
+                                point,
+                                item.name || item.routeId,
+                                label,
+                                pointIndex
+                            );
                             marker.bindPopup(pointInfo);
                             
                             if (!this.routeMarkers) this.routeMarkers = [];
@@ -617,13 +617,7 @@ export class RouteSpotHandler {
                     if (latLng && latLng[0] && latLng[1]) {
                         const marker = mathUtils.createCustomMarker(latLng, 'spot', this.mapCore).addTo(this.mapCore.getMap());
                         
-                        const spotInfo = `
-                            <div>
-                                <strong>スポット: ${item.name || item.spotId}</strong><br>
-                                ファイル: ${item.fileName}<br>
-                                座標: (${latLng[0].toFixed(6)}, ${latLng[1].toFixed(6)})
-                            </div>
-                        `;
+                        const spotInfo = CoordinateDisplay.createSpotPopupContent(item, latLng);
                         marker.bindPopup(spotInfo);
                         
                         // スポットにも元座標系メタを付与

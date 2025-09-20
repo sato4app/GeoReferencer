@@ -3,6 +3,7 @@
 import { Logger, errorHandler } from './utils.js';
 import { CONFIG } from './constants.js';
 import { mathUtils } from './math-utils.js';
+import { CoordinateDisplay } from './coordinate-display.js';
 
 export class GPSData {
     constructor() {
@@ -109,7 +110,7 @@ export class GPSData {
                 marker.options.title = point.pointId;
                 
                 // ポップアップを設定
-                const popupContent = this.createPopupContent(point);
+                const popupContent = CoordinateDisplay.createGpsPopupContent(point);
                 marker.bindPopup(popupContent);
                 
                 // マーカーを保存
@@ -127,35 +128,6 @@ export class GPSData {
         }
     }
 
-    // ポップアップコンテンツ作成
-    createPopupContent(point) {
-        const dmsLat = this.decimalToDMS(point.lat, 'lat');
-        const dmsLng = this.decimalToDMS(point.lng, 'lng');
-        
-        return `
-            <div class="gps-popup">
-                <h4>${point.pointId}</h4>
-                <p><strong>緯度:</strong> ${point.lat.toFixed(6)}</p>
-                <p><strong>経度:</strong> ${point.lng.toFixed(6)}</p>
-                <p><strong>DMS:</strong> ${dmsLat} / ${dmsLng}</p>
-                <p><strong>標高:</strong> ${point.elevation}m</p>
-                ${point.location ? `<p><strong>場所:</strong> ${point.location}</p>` : ''}
-            </div>
-        `;
-    }
-
-    // 10進数から度分秒(DMS)形式に変換
-    decimalToDMS(decimal, type) {
-        const abs = Math.abs(decimal);
-        const degrees = Math.floor(abs);
-        const minutesFloat = (abs - degrees) * 60;
-        const minutes = Math.floor(minutesFloat);
-        const seconds = Math.round((minutesFloat - minutes) * 60 * 100) / 100;
-        
-        const direction = type === 'lat' ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W');
-        
-        return `${degrees}°${minutes}'${seconds}"${direction}`;
-    }
 
     // 地図からマーカーを削除
     clearMarkersFromMap() {
