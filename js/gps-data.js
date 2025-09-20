@@ -150,7 +150,6 @@ export class GPSData {
     setPointsFromExcelData(validatedData) {
         try {
             this.gpsPoints = validatedData;
-            this.logger.info('Excel GPSポイント設定完了', validatedData.length + 'ポイント');
         } catch (error) {
             this.logger.error('Excel GPSポイント設定エラー', error);
             throw error;
@@ -253,7 +252,6 @@ export class GPSData {
                         if (decoded.e.r > maxRows) {
                             decoded.e.r = maxRows;
                             worksheet['!ref'] = XLSX.utils.encode_range(decoded);
-                            this.logger.info(`Excel読み込み行数制限: ${originalRows}行 → ${CONFIG.MAX_EXCEL_ROWS}行に制限`);
                         }
                     }
                     

@@ -242,7 +242,6 @@ class GeoReferencerApp {
             const file = event.target.files[0];
             if (!file) return;
 
-            this.logger.info('PNG画像ファイル読み込み開始', file.name);
 
             // PNGファイル名を記録（拡張子を除去）
             this.currentPngFileName = file.name.replace(/\.[^/.]+$/, '');
@@ -250,7 +249,6 @@ class GeoReferencerApp {
 
             if (this.imageOverlay) {
                 await this.imageOverlay.loadImage(file);
-                this.logger.info('PNG画像ファイル読み込み完了');
             }
 
         } catch (error) {
