@@ -449,20 +449,10 @@ export class Georeferencing {
 
     createUpdatedPopupContent(pointInfo, transformedCoords) {
         try {
-            const [lat, lng] = transformedCoords;
-            
-            return `
-                <div>
-                    <strong>${pointInfo.name}</strong><br>
-                    画像座標: (${pointInfo.imageX}, ${pointInfo.imageY})<br>
-                    変換後GPS: (${lat.toFixed(6)}, ${lng.toFixed(6)})<br>
-                    <small>ジオリファレンス変換適用済み</small>
-                </div>
-            `;
-            
+            return pointInfo.name || 'ポイント';
         } catch (error) {
             this.logger.error('ポップアップ内容作成エラー', error);
-            return 'ポップアップ作成エラー';
+            return pointInfo.name || 'ポイント';
         }
     }
 
@@ -702,14 +692,7 @@ export class Georeferencing {
 
             if (newLatLng) {
                 marker.setLatLng(newLatLng);
-                const updatedPopupContent = `
-                    <div>
-                        <strong>${data.name || data.id}</strong><br>
-                        画像座標: (${data.imageX}, ${data.imageY})<br>
-                        変換後GPS: (${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)})<br>
-                        <small>${popupDescription}</small>
-                    </div>
-                `;
+                const updatedPopupContent = data.name || data.id || 'ポイント';
                 marker.bindPopup(updatedPopupContent);
             }
         });

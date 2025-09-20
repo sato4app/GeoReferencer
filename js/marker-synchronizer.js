@@ -61,14 +61,7 @@ export class MarkerSynchronizer {
 
             if (newLatLng) {
                 marker.setLatLng(newLatLng);
-                const updatedPopupContent = `
-                    <div>
-                        <strong>${data.name || data.id}</strong><br>
-                        画像座標: (${data.imageX}, ${data.imageY})<br>
-                        変換後GPS: (${newLatLng[0].toFixed(6)}, ${newLatLng[1].toFixed(6)})<br>
-                        <small>${popupDescription}</small>
-                    </div>
-                `;
+                const updatedPopupContent = data.name || data.id || 'ポイント';
                 marker.bindPopup(updatedPopupContent);
             }
         });

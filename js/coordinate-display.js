@@ -166,16 +166,8 @@ export class CoordinateDisplay {
     }
 
     static createGpsPopupContent(point) {
-        // デバッグ用：pointオブジェクトの内容を確認
-        console.log('GPSポップアップ作成 - point:', point);
-
         const location = point.location || '';
-
-        // locationが空の場合、他のプロパティからも名称を探す
         const displayName = location || point.name || point.pointId || '';
-
-        console.log('GPSポップアップ - pointId:', point.pointId, 'location:', location, 'displayName:', displayName);
-
         return `${point.pointId}<br>${displayName}`;
     }
 
