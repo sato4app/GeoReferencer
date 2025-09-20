@@ -59,7 +59,7 @@ export class GPSData {
                             lat: coordinates[1],
                             lng: coordinates[0],
                             elevation: coordinates[2] || properties.elevation || 0,
-                            location: properties.location || properties.description || '',
+                            location: properties.name || properties.location || properties.description || '',
                             gpsElevation: properties.gpsElevation || 0
                         };
                         
@@ -77,7 +77,7 @@ export class GPSData {
                         lat: coordinates[1],
                         lng: coordinates[0],
                         elevation: coordinates[2] || properties.elevation || 0,
-                        location: properties.location || properties.description || '',
+                        location: properties.name || properties.location || properties.description || '',
                         gpsElevation: properties.gpsElevation || 0
                     };
                     
