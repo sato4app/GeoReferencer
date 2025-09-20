@@ -53,16 +53,22 @@ export class GPSData {
                     if (feature.geometry && feature.geometry.type === 'Point') {
                         const coordinates = feature.geometry.coordinates;
                         const properties = feature.properties || {};
-                        
+
+                        // デバッグ用：プロパティの内容を確認
+                        console.log(`Feature ${index} properties:`, properties);
+
                         const point = {
                             pointId: properties.id || properties.name || `Point_${index + 1}`,
                             lat: coordinates[1],
                             lng: coordinates[0],
                             elevation: coordinates[2] || properties.elevation || 0,
                             location: properties.name || properties.location || properties.description || '',
-                            gpsElevation: properties.gpsElevation || 0
+                            gpsElevation: properties.gpsElevation || 0,
+                            // 全てのプロパティを保持（デバッグ用）
+                            originalProperties: properties
                         };
-                        
+
+                        console.log(`Processed point ${index}:`, point);
                         processedData.push(point);
                     }
                 });
@@ -71,16 +77,22 @@ export class GPSData {
                 if (geoJsonData.geometry.type === 'Point') {
                     const coordinates = geoJsonData.geometry.coordinates;
                     const properties = geoJsonData.properties || {};
-                    
+
+                    // デバッグ用：プロパティの内容を確認
+                    console.log('Single feature properties:', properties);
+
                     const point = {
                         pointId: properties.id || properties.name || 'Point_1',
                         lat: coordinates[1],
                         lng: coordinates[0],
                         elevation: coordinates[2] || properties.elevation || 0,
                         location: properties.name || properties.location || properties.description || '',
-                        gpsElevation: properties.gpsElevation || 0
+                        gpsElevation: properties.gpsElevation || 0,
+                        // 全てのプロパティを保持（デバッグ用）
+                        originalProperties: properties
                     };
-                    
+
+                    console.log('Processed single point:', point);
                     processedData.push(point);
                 }
             }
