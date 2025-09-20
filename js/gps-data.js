@@ -24,7 +24,7 @@ export class GPSData {
                     const processedData = this.processGeoJsonData(geoJsonData);
                     this.gpsPoints = processedData;
                     
-                    this.logger.info('GeoJSON読み込み完了', processedData.length + 'ポイント');
+                    console.log(`GeoJSON読み込み完了: GPSポイント ${processedData.length}件`);
                     resolve(processedData);
                 } catch (error) {
                     this.logger.error('GeoJSON処理エラー', error);
@@ -85,7 +85,6 @@ export class GPSData {
                 }
             }
             
-            this.logger.info('GeoJSONデータ処理完了', processedData.length + 'ポイント処理');
             return processedData;
             
         } catch (error) {
@@ -120,7 +119,6 @@ export class GPSData {
                     index: index
                 });
             });
-            this.logger.info('GPS ポイント表示完了', this.gpsMarkers.length + 'ポイント');
             
         } catch (error) {
             this.logger.error('GPS ポイント表示エラー', error);

@@ -19,7 +19,6 @@ export class RouteSpotHandler {
         try {
             if (!files.length) return;
 
-            this.logger.info(`ルート・スポット(座標)JSONファイル読み込み開始: ${files.length}ファイル`);
             
             const routeData = [];
             const spotData = [];
@@ -46,7 +45,6 @@ export class RouteSpotHandler {
                         continue;
                     }
                     
-                    this.logger.info(`ファイル読み込み完了: ${file.name} (${detectedType}として処理)`);
                 } catch (fileError) {
                     this.logger.error(`ファイル読み込みエラー: ${file.name}`, fileError);
                 }
@@ -68,7 +66,15 @@ export class RouteSpotHandler {
                 }
             }
             
-            this.logger.info(`ルート・スポット(座標)JSON読み込み完了: ルート${routeData.length}本、スポット${spotData.length}個追加`);
+            // ルート中間点数を計算
+            let totalWaypoints = 0;
+            routeData.forEach(route => {
+                if (route.points && Array.isArray(route.points)) {
+                    totalWaypoints += route.points.length;
+                }
+            });
+
+            console.log(`JSON読み込み完了: ルート ${routeData.length}本、ルート中間点 ${totalWaypoints}点、スポット ${spotData.length}個`);
             
         } catch (error) {
             this.logger.error('ルート・スポット(座標)JSON読み込みエラー', error);
@@ -500,7 +506,6 @@ export class RouteSpotHandler {
                 throw new Error('地図が初期化されていません。');
             }
 
-            this.logger.info(`${type}データの地図表示開始`, data.length + '項目');
 
             let displayCount = 0;
 
@@ -636,7 +641,6 @@ export class RouteSpotHandler {
                 }
             });
 
-            this.logger.info(`${type}データの地図表示完了: ${displayCount}/${data.length}項目表示`);
             
         } catch (error) {
             this.logger.error('ルート・スポット地図表示エラー', error);

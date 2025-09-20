@@ -17,7 +17,6 @@ export class CoordinateDisplay {
 
             const coordinates = this.extractImageCoordinates(data);
             
-            this.logger.info(`${type}の座標表示開始`, coordinates.length + 'ポイント');
 
             coordinates.forEach((coord, index) => {
                 if (coord.imageX !== undefined && coord.imageY !== undefined) {
@@ -40,7 +39,7 @@ export class CoordinateDisplay {
                 }
             });
 
-            this.logger.info(`${type}の座標表示完了`, coordinates.length + 'ポイント表示');
+            console.log(`画像座標表示完了: ${type} ${coordinates.length}点`);
             
             return imageCoordinateMarkers;
             
