@@ -14,9 +14,7 @@ export class CoordinateDisplay {
             if (!this.imageOverlay || !this.mapCore || !this.mapCore.getMap()) {
                 throw new Error('地図または画像オーバーレイが初期化されていません。');
             }
-
             const coordinates = this.extractImageCoordinates(data);
-            
 
             coordinates.forEach((coord, index) => {
                 if (coord.imageX !== undefined && coord.imageY !== undefined) {
@@ -38,9 +36,6 @@ export class CoordinateDisplay {
                     });
                 }
             });
-
-            console.log(`画像座標表示完了: ${type} ${coordinates.length}点`);
-            
             return imageCoordinateMarkers;
             
         } catch (error) {

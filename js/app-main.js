@@ -245,7 +245,7 @@ class GeoReferencerApp {
 
             // PNGファイル名を記録（拡張子を除去）
             this.currentPngFileName = file.name.replace(/\.[^/.]+$/, '');
-            this.logger.info('PNGファイル名記録', this.currentPngFileName);
+            this.logger.info('PNGファイル:', this.currentPngFileName);
 
             if (this.imageOverlay) {
                 await this.imageOverlay.loadImage(file);
@@ -375,7 +375,7 @@ class GeoReferencerApp {
                                 this.georeferencing.addImageCoordinateMarker(markerInfo);
                             });
                             
-                            this.logger.info(`ポイントマーカー登録完了: ${this.imageCoordinateMarkers.length}個`);
+                            this.logger.info(`ポイント: ${this.imageCoordinateMarkers.length}個`);
                         }
                         
                         pointsProcessed++;
