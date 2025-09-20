@@ -74,7 +74,15 @@ export class RouteSpotHandler {
                 }
             });
 
-            console.log(`JSON読み込み完了: ルート ${routeData.length}本、ルート中間点 ${totalWaypoints}点、スポット ${spotData.length}個`);
+            if (routeData.length > 0) {
+                console.log(`JSON読み込み完了: ルート 中間点 ${totalWaypoints}点`);
+            }
+            else if (spotData.length > 0) {
+                console.log(`JSON読み込み完了: スポット ${spotData.length}個`);
+            }
+            else {
+                console.log(`JSON読み込み完了: ルート なし、スポット なし`);
+            }
             
         } catch (error) {
             this.logger.error('ルート・スポット(座標)JSON読み込みエラー', error);
