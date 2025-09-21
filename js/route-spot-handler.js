@@ -566,7 +566,6 @@ export class RouteSpotHandler {
                     if (latLngs.length > 1) {
                         points.forEach((point, pointIndex) => {
                             let label = 'ポイント';
-                            let markerType = 'pointJSON'; // 開始・終了点はポイントマーカー
 
                             if (pointIndex === 0) {
                                 label = '開始点';
@@ -574,10 +573,10 @@ export class RouteSpotHandler {
                                 label = '終了点';
                             } else {
                                 label = '中間点';
-                                markerType = 'wayPoint'; // 中間点はダイヤモンド型
                             }
 
-                            let marker = mathUtils.createCustomMarker([point.lat, point.lng], markerType, this.mapCore).addTo(this.mapCore.getMap());
+                            // ルートのすべてのポイントをダイヤモンド型マーカーで統一
+                            let marker = mathUtils.createCustomMarker([point.lat, point.lng], 'wayPoint', this.mapCore).addTo(this.mapCore.getMap());
                             
                             // マーカーに元座標系メタを付与
                             if (marker) {
