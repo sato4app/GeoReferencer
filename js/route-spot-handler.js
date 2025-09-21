@@ -565,25 +565,17 @@ export class RouteSpotHandler {
                     
                     if (latLngs.length > 1) {
                         points.forEach((point, pointIndex) => {
-                            let uiType = 'waypoint';
-                            let label = '中間点';
+                            let label = 'ポイント';
                             if (pointIndex === 0) {
-                                uiType = 'route-start';
                                 label = '開始点';
                             } else if (pointIndex === points.length - 1) {
-                                uiType = 'route-end';
                                 label = '終了点';
+                            } else {
+                                label = '中間点';
                             }
 
-
-                            let marker;
-                            if (uiType === 'waypoint' || point.type === 'waypoint') {
-                                marker = mathUtils.createCustomMarker([point.lat, point.lng], 'wayPoint', this.mapCore).addTo(this.mapCore.getMap());
-                            } else if (uiType === 'route-start') {
-                                marker = mathUtils.createCustomMarker([point.lat, point.lng], 'route-start', this.mapCore).addTo(this.mapCore.getMap());
-                            } else if (uiType === 'route-end') {
-                                marker = mathUtils.createCustomMarker([point.lat, point.lng], 'route-end', this.mapCore).addTo(this.mapCore.getMap());
-                            }
+                            // すべてのルートポイントを統一的にポイントマーカーとして表示
+                            let marker = mathUtils.createCustomMarker([point.lat, point.lng], 'pointJSON', this.mapCore).addTo(this.mapCore.getMap());
                             
                             // マーカーに元座標系メタを付与
                             if (marker) {

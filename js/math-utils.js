@@ -244,26 +244,6 @@ export class MathUtils {
                     pane: 'spotMarkers'
                 });
 
-            case 'route-start':
-                return L.circleMarker(latLng, {
-                    radius: 7,
-                    color: '#00cc00',
-                    fillColor: '#00cc00',
-                    fillOpacity: 0.9,
-                    weight: 2,
-                    pane: 'pointJsonMarkers'
-                });
-
-            case 'route-end':
-                return L.circleMarker(latLng, {
-                    radius: 7,
-                    color: '#cc0000',
-                    fillColor: '#cc0000',
-                    fillOpacity: 0.9,
-                    weight: 2,
-                    pane: 'pointJsonMarkers'
-                });
-
             case 'gps-point':
                 const greenCircleIcon = L.divIcon({
                     className: 'gps-green-circle-marker',
