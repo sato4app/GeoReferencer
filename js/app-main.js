@@ -492,7 +492,7 @@ class GeoReferencerApp {
                         type: 'Feature',
                         properties: {
                             id: pair.gpsPoint.pointId,
-                            name: pair.gpsPoint.pointId,
+                            name: pair.gpsPoint.location || pair.gpsPoint.pointId,
                             type: 'ポイントGPS',
                             source: 'GPS_Excel',
                             description: '緊急ポイント（Excel管理GPS値）',
@@ -508,22 +508,59 @@ class GeoReferencerApp {
 
             // 2. ルート中間点（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
-                let waypointCounter = 1;
+                // ルートデータから開始・終了ポイント情報を取得
+                const routeGroupMap = new Map();
+
                 for (const marker of this.routeSpotHandler.routeMarkers) {
                     const meta = marker.__meta;
                     if (meta && meta.origin === 'image') {
-                        const latLng = marker.getLatLng();
-                        const waypointName = `waypoint_${String(waypointCounter).padStart(2, '0')}`;
                         const routeId = meta.routeId || 'unknown_route';
+
+                        if (!routeGroupMap.has(routeId)) {
+                            routeGroupMap.set(routeId, []);
+                        }
+                        routeGroupMap.get(routeId).push(marker);
+                    }
+                }
+
+                // 各ルートグループごとに処理
+                for (const [routeId, markers] of routeGroupMap) {
+                    // ルートデータから開始・終了ポイント情報を検索
+                    let startPoint = 'unknown_start';
+                    let endPoint = 'unknown_end';
+
+                    if (this.routeSpotHandler.routeData) {
+                        const routeData = this.routeSpotHandler.routeData.find(route =>
+                            (route.routeId === routeId) ||
+                            (route.name === routeId) ||
+                            (route.fileName && route.fileName.replace('.json', '') === routeId)
+                        );
+
+                        if (routeData) {
+                            startPoint = (routeData.startPoint && routeData.startPoint.id) ||
+                                        (routeData.routeInfo && routeData.routeInfo.startPoint) ||
+                                        'unknown_start';
+                            endPoint = (routeData.endPoint && routeData.endPoint.id) ||
+                                      (routeData.routeInfo && routeData.routeInfo.endPoint) ||
+                                      'unknown_end';
+                        }
+                    }
+
+                    const fullRouteId = `route_${startPoint}_to_${endPoint}`;
+
+                    // マーカーを順番に処理
+                    markers.forEach((marker, index) => {
+                        const latLng = marker.getLatLng();
+                        const waypointName = `waypoint_${String(index + 1).padStart(2, '0')}`;
 
                         features.push({
                             type: 'Feature',
                             properties: {
-                                id: `route_${routeId}_${waypointName}`,
+                                id: `${fullRouteId}_${waypointName}`,
                                 name: waypointName,
                                 type: 'route_waypoint',
                                 source: 'image_transformed',
-                                route_id: `route_${routeId}`,
+                                route_id: fullRouteId,
                                 description: 'ルート中間点'
                             },
                             geometry: {
@@ -531,8 +568,7 @@ class GeoReferencerApp {
                                 coordinates: [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)]
                             }
                         });
-                        waypointCounter++;
-                    }
+                    });
                 }
             }
 
