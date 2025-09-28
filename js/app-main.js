@@ -473,7 +473,7 @@ class GeoReferencerApp {
         try {
             const features = [];
 
-            // 1. ジオリファレンスで使用されたポイント（元のGPS値）を収集
+            // 1. ポイントGPS（Excelから読み込まれたGPSデータ）を収集
             if (this.gpsData && this.georeferencing) {
                 const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
 
@@ -491,11 +491,12 @@ class GeoReferencerApp {
                     features.push({
                         type: 'Feature',
                         properties: {
-                            id: pair.pointJsonId,
+                            id: pair.gpsPoint.pointId,
                             name: pair.gpsPoint.pointId,
-                            type: 'matched_point',
-                            source: 'gps_original',
-                            description: 'ジオリファレンス制御点（元GPS値）'
+                            type: 'ポイントGPS',
+                            source: 'GPS_Excel',
+                            description: '緊急ポイント（Excel管理GPS値）',
+                            notes: ''
                         },
                         geometry: {
                             type: 'Point',
@@ -505,53 +506,62 @@ class GeoReferencerApp {
                 }
             }
 
-            // 2. ジオリファレンス変換されたルート中間点を収集
+            // 2. ルート中間点（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+                let waypointCounter = 1;
                 for (const marker of this.routeSpotHandler.routeMarkers) {
                     const meta = marker.__meta;
                     if (meta && meta.origin === 'image') {
                         const latLng = marker.getLatLng();
+                        const waypointName = `waypoint_${String(waypointCounter).padStart(2, '0')}`;
+                        const routeId = meta.routeId || 'unknown_route';
+
                         features.push({
                             type: 'Feature',
                             properties: {
-                                id: `route_${meta.routeId}_${meta.label}`,
-                                name: meta.label || 'ルートポイント',
-                                type: 'route_point',
+                                id: `route_${routeId}_${waypointName}`,
+                                name: waypointName,
+                                type: 'route_waypoint',
                                 source: 'image_transformed',
-                                route_id: meta.routeId,
-                                description: 'ジオリファレンス変換済みルートポイント'
+                                route_id: `route_${routeId}`,
+                                description: 'ルート中間点'
                             },
                             geometry: {
                                 type: 'Point',
                                 coordinates: [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)]
                             }
                         });
+                        waypointCounter++;
                     }
                 }
             }
 
-            // 3. ジオリファレンス変換されたスポットを収集（最新の分のみ）
+            // 3. スポット（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
                 const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
+                let spotCounter = 1;
 
                 for (const marker of latestSpots) {
                     const meta = marker.__meta;
                     if (meta && meta.origin === 'image') {
                         const latLng = marker.getLatLng();
+                        const spotName = meta.spotId || `spot${String(spotCounter).padStart(2, '0')}`;
+
                         features.push({
                             type: 'Feature',
                             properties: {
-                                id: `spot_${meta.spotId}`,
-                                name: meta.spotId || 'スポット',
+                                id: `spot${String(spotCounter).padStart(2, '0')}_${spotName}`,
+                                name: spotName,
                                 type: 'spot',
                                 source: 'image_transformed',
-                                description: 'ジオリファレンス変換済みスポット'
+                                description: 'スポット'
                             },
                             geometry: {
                                 type: 'Point',
                                 coordinates: [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)]
                             }
                         });
+                        spotCounter++;
                     }
                 }
             }
