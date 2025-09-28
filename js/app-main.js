@@ -492,7 +492,7 @@ class GeoReferencerApp {
                         type: 'Feature',
                         properties: {
                             id: pair.gpsPoint.pointId,
-                            name: pair.gpsPoint.location || pair.gpsPoint.pointId,
+                            name: pair.gpsPoint.name || pair.gpsPoint.location,
                             type: 'ポイントGPS',
                             source: 'GPS_Excel',
                             description: '緊急ポイント（Excel管理GPS値）',
