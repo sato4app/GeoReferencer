@@ -299,4 +299,104 @@ export class FileHandler {
     isJsonFile(file) {
         return file && (file.type.includes('json') || file.name.toLowerCase().endsWith('.json'));
     }
+
+    // ==========================================
+    // Excel データ検証・変換機能（統合）
+    // ==========================================
+
+    /**
+     * Excelデータの検証と変換
+     * @param {Array} rawData - Excel生データ
+     * @returns {Array} 検証済みデータ
+     */
+    validateAndConvertExcelData(rawData) {
+        try {
+            if (!rawData || rawData.length === 0) {
+                throw new Error('Excelファイルが空です。');
+            }
+
+            const requiredColumns = ['ポイントID', '名称', '緯度', '経度'];
+            const optionalColumns = ['標高', '備考'];
+            const allColumns = [...requiredColumns, ...optionalColumns];
+
+            const headerRow = rawData[0];
+            if (!headerRow || headerRow.length === 0) {
+                throw new Error('ヘッダー行が見つかりません。');
+            }
+
+            const columnIndexMap = {};
+            for (const column of allColumns) {
+                const index = headerRow.indexOf(column);
+                if (index !== -1) {
+                    columnIndexMap[column] = index;
+                } else if (requiredColumns.includes(column)) {
+                    throw new Error(`必須列「${column}」が見つかりません。`);
+                }
+            }
+
+            const validatedData = [];
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row || row.length === 0) continue;
+
+                const pointData = {};
+                let isValidRow = true;
+
+                for (const column of requiredColumns) {
+                    const value = row[columnIndexMap[column]];
+                    if (value === undefined || value === null || value === '') {
+                        isValidRow = false;
+                        break;
+                    }
+                    pointData[column] = value;
+                }
+
+                if (!isValidRow) continue;
+
+                for (const column of optionalColumns) {
+                    if (columnIndexMap[column] !== undefined) {
+                        const value = row[columnIndexMap[column]];
+                        if (value !== undefined && value !== null && value !== '') {
+                            pointData[column] = value;
+                        }
+                    }
+                }
+
+                try {
+                    const lat = parseFloat(pointData['緯度']);
+                    const lng = parseFloat(pointData['経度']);
+
+                    if (isNaN(lat) || isNaN(lng)) {
+                        console.warn(`行${i + 1}: 緯度・経度が数値ではありません`);
+                        continue;
+                    }
+
+                    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                        console.warn(`行${i + 1}: 緯度・経度の範囲が不正です`);
+                        continue;
+                    }
+
+                    validatedData.push({
+                        pointId: pointData['ポイントID'],
+                        name: pointData['名称'],
+                        lat: lat,
+                        lng: lng,
+                        elevation: pointData['標高'] || null,
+                        description: pointData['備考'] || null
+                    });
+
+                } catch (error) {
+                    console.warn(`行${i + 1}: データ変換エラー`, error);
+                    continue;
+                }
+            }
+
+            console.info(`Excel検証完了: ${validatedData.length}/${rawData.length - 1}行が有効`);
+            return validatedData;
+
+        } catch (error) {
+            console.error('Excel データ検証エラー', error);
+            throw error;
+        }
+    }
 }

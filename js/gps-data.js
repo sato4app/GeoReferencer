@@ -24,7 +24,7 @@ export class GPSData {
                     const processedData = this.processGeoJsonData(geoJsonData);
                     this.gpsPoints = processedData;
                     
-                    console.log(`GeoJSON読み込み完了: GPSポイント ${processedData.length}件`);
+                    this.logger.info(`GeoJSON読み込み完了: GPSポイント ${processedData.length}件`);
                     resolve(processedData);
                 } catch (error) {
                     this.logger.error('GeoJSON処理エラー', error);

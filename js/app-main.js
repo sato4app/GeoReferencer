@@ -212,7 +212,7 @@ class GeoReferencerApp {
             const rawData = await this.fileHandler.loadExcelFile(file);
             
             // Excel データを検証・変換
-            const validatedData = this.uiHandlers.validateAndConvertExcelData(rawData);
+            const validatedData = this.fileHandler.validateAndConvertExcelData(rawData);
             
             if (validatedData.length === 0) {
                 throw new Error('有効なGPSポイントデータが見つかりませんでした。');

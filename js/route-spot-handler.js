@@ -75,13 +75,13 @@ export class RouteSpotHandler {
             });
 
             if (routeData.length > 0) {
-                console.log(`JSON読み込み完了: ルート 中間点 ${totalWaypoints}点`);
+                this.logger.info(`JSON読み込み完了: ルート 中間点 ${totalWaypoints}点`);
             }
             else if (spotData.length > 0) {
-                console.log(`JSON読み込み完了: スポット ${spotData.length}個`);
+                this.logger.info(`JSON読み込み完了: スポット ${spotData.length}個`);
             }
             else {
-                console.log(`JSON読み込み完了: ルート なし、スポット なし`);
+                this.logger.info(`JSON読み込み完了: ルート なし、スポット なし`);
             }
             
         } catch (error) {
