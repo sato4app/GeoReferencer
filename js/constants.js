@@ -23,6 +23,7 @@ export const CONFIG = {
     // UI設定
     MESSAGE_BOX_Z_INDEX: 10000,
     OVERLAY_CONTROLS_Z_INDEX: 1000,
+    MESSAGE_DISPLAY_DURATION: 3000, // ms
     
     // エラーメッセージ
     ERROR_MESSAGES: {

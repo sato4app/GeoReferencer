@@ -228,8 +228,11 @@ class GeoReferencerApp {
             
             // GPS ポイント数を更新
             this.uiHandlers.updateGpsPointCount(this.gpsData);
-            
+
             this.logger.info(`GPS Excelファイル読み込み完了: ${validatedData.length}ポイント`);
+
+            // 成功メッセージを表示
+            this.showMessage(`${validatedData.length}個のポイントGPSを読み込みました`);
             
         } catch (error) {
             this.logger.error('GPS Excel読み込みエラー', error);
@@ -249,6 +252,9 @@ class GeoReferencerApp {
 
             if (this.imageOverlay) {
                 await this.imageOverlay.loadImage(file);
+
+                // 成功メッセージを表示
+                this.showMessage(`PNG画像ファイルを読み込みました:\n${file.name}`);
             }
 
         } catch (error) {
@@ -426,8 +432,11 @@ class GeoReferencerApp {
             
             // 結果を表示
             this.uiHandlers.updateMatchResults(result);
-            
+
             this.logger.info('画像重ね合わせ処理完了', result);
+
+            // 成功メッセージを表示
+            this.showMessage(`${result.matchedCount}個のポイントにてジオリファレンスを行いました`);
             
         } catch (error) {
             this.logger.error('画像重ね合わせエラー', error);
@@ -457,10 +466,13 @@ class GeoReferencerApp {
             
             if (result.success) {
                 this.logger.info(`GeoJSON保存成功: ${result.filename}`);
+
+                // 成功メッセージを表示
+                this.showMessage(`GPSデータをGeoJSON形式にて出力しました:\n${result.filename}`);
             } else if (result.error !== 'キャンセル') {
                 throw new Error(result.error);
             }
-            
+
             this.logger.info(`GeoJSON出力完了: ${geoJsonData.features.length}件`);
             
         } catch (error) {
@@ -678,6 +690,43 @@ class GeoReferencerApp {
         } catch (error) {
             // ディレクトリ記録はオプショナルなのでエラーを無視
         }
+    }
+
+    /**
+     * メッセージを画面上部に3秒間表示する
+     * @param {string} message - 表示するメッセージ
+     * @param {string} type - メッセージの種類 ('info', 'warning', 'error')
+     */
+    showMessage(message, type = 'info') {
+        const messageArea = document.getElementById('messageArea');
+        if (!messageArea) return;
+
+        messageArea.textContent = message;
+
+        // タイプに応じてクラスを設定
+        let className = 'message-area';
+        let displayDuration = CONFIG.MESSAGE_DISPLAY_DURATION;
+
+        switch (type) {
+            case 'warning':
+                className += ' message-warning';
+                displayDuration = CONFIG.MESSAGE_DISPLAY_DURATION * 1.5; // 警告は少し長く表示
+                break;
+            case 'error':
+                className += ' message-error';
+                displayDuration = CONFIG.MESSAGE_DISPLAY_DURATION * 2; // エラーは更に長く表示
+                break;
+            default:
+                className += ' message-info';
+                break;
+        }
+
+        messageArea.className = className;
+        messageArea.style.display = 'block';
+
+        setTimeout(() => {
+            messageArea.style.display = 'none';
+        }, displayDuration);
     }
 }
 
