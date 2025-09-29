@@ -401,8 +401,11 @@ class GeoReferencerApp {
                 this.uiHandlers.updatePointCoordCount(this.pointJsonData);
             }
             this.uiHandlers.updateRouteSpotCount(this.routeSpotHandler);
-            
+
             this.logger.info(`複数JSONファイル読み込み完了 - ポイント: ${pointsProcessed}, ルート: ${routesProcessed}, スポット: ${spotsProcessed}`);
+
+            // 成功メッセージを表示
+            this.showMessage(`画像内座標(${files.length}ファイル)を読み込みました`);
             
         } catch (error) {
             this.logger.error('複数JSON読み込みエラー', error);
