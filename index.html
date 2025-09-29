@@ -47,7 +47,7 @@
             <!-- 読み込みボタンとラジオボタンの横並び配置 -->
             <div class="load-file-container">
                 <!-- 統合された読み込みボタン -->
-                <button id="loadFileBtn" title="選択した種類のファイルを読み込む" class="leaflet-bar leaflet-control;">読み込み</button>
+                <button id="loadFileBtn" title="選択した種類のファイルを読み込みます" class="leaflet-bar leaflet-control;">読み込み</button>
                 
                 <!-- ファイル種類選択ラジオボタン -->
                 <div class="radio-group">
@@ -79,7 +79,8 @@
             <!-- JSONデータ読み込み結果表示 -->
             <div class="json-data-counts">
                 <div class="json-load-row">
-                    <button id="loadJsonBtn" class="load-json-button leaflet-bar leaflet-control" title="ポイント・ルート・スポットのJSONファイルを読み込む">画像内座標<br>の読み込み</button>
+                    <button id="loadJsonBtn" class="load-json-button leaflet-bar leaflet-control" 
+                            title="ポイント・ルート・スポットのJSONファイルを読み込みます">画像内座標<br>の読み込み</button>
                     <div class="count-fields-inline">
                         <div class="count-item-inline">
                             <label>ポイント</label>
@@ -108,7 +109,8 @@
             
             
             <!-- 画像の重ね合わせ(ジオリファレンス)ボタン -->
-            <button id="matchPointsBtn" title="ポイントのマッチングと画像の重ね合わせを実行" class="leaflet-bar leaflet-control">画像の重ね合わせ（ジオリファレンス）</button>
+            <button id="matchPointsBtn" class="leaflet-bar leaflet-control"
+                    title="ポイントのマッチングと画像の重ね合わせを実行します">画像の重ね合わせ（ジオリファレンス）</button>
             
             <!-- ポイントマッチング結果表示 -->
             <div class="matching-results-container">
@@ -130,7 +132,8 @@
             
             
             <!-- GPS出力 -->
-            <button id="exportGeoJsonBtn" title="ジオリファレンス済みデータをGeoJSON形式で出力" class="leaflet-bar leaflet-control" style="width: 160px;">GPS出力(GeoJSON)</button>
+            <button id="exportGeoJsonBtn"class="leaflet-bar leaflet-control" style="width: 160px;"
+                    title="ジオリファレンス済みデータをGeoJSON形式で出力します">GPS出力(GeoJSON)</button>
             
         </section>
     </aside>
