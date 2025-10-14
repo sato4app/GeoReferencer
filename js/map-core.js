@@ -53,7 +53,7 @@ export class MapCore {
             }
 
             // 地図の初期化（デフォルトズームコントロールを無効化）
-            this.map = L.map('map', { zoomControl: false }).setView(this.initialCenter, this.initialZoom);
+            // this.map = L.map('map', { zoomControl: false }).setView(this.initialCenter, this.initialZoom);
 
             // スケールバーを右下に追加
             L.control.scale({ position: 'bottomright', imperial: false, maxWidth: 150 }).addTo(this.map);
