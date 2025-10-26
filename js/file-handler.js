@@ -315,7 +315,7 @@ export class FileHandler {
                 throw new Error('Excelファイルが空です。');
             }
 
-            const requiredColumns = ['ポイントID', '名称', '緯度', '経度'];
+            const requiredColumns = ['区分', 'ポイントID', '名称', '緯度', '経度'];
             const optionalColumns = ['標高', '備考'];
             const allColumns = [...requiredColumns, ...optionalColumns];
 
@@ -352,6 +352,11 @@ export class FileHandler {
                 }
 
                 if (!isValidRow) continue;
+
+                // 「区分」列の値が「ポイント」の行のみを処理対象とする
+                if (pointData['区分'] !== 'ポイント') {
+                    continue;
+                }
 
                 for (const column of optionalColumns) {
                     if (columnIndexMap[column] !== undefined) {
