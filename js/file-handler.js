@@ -381,12 +381,21 @@ export class FileHandler {
                         continue;
                     }
 
+                    // 標高を数値型に変換（文字列を数値に変換）
+                    let elevation = null;
+                    if (pointData['標高'] !== undefined && pointData['標高'] !== null && pointData['標高'] !== '') {
+                        const elevationValue = parseFloat(pointData['標高']);
+                        if (!isNaN(elevationValue)) {
+                            elevation = elevationValue;
+                        }
+                    }
+
                     validatedData.push({
                         pointId: pointData['ポイントID'],
                         name: pointData['名称'],
                         lat: lat,
                         lng: lng,
-                        elevation: pointData['標高'] || null,
+                        elevation: elevation,
                         description: pointData['備考'] || null
                     });
 

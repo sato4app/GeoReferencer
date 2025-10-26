@@ -7,10 +7,11 @@ GeoReferencerは、PNG画像（ハイキングマップなど）を国土地理�
 
 ### 1.2 主要機能
 - **GPS座標データの読み込み・表示**（Excel/GeoJSON形式）
+- **Excel「区分」列フィルタリング**（「ポイント」のみ読み込み）
 - **PNG画像ファイルの読み込み・オーバーレイ表示**
 - **画像内座標データの読み込み・表示**（JSON形式、複数ファイル対応）
 - **精密アフィン変換によるジオリファレンス**（最小二乗法）
-- **変換済み座標データのGeoJSON出力**（仕様準拠）
+- **変換済み座標データのGeoJSON出力**（仕様準拠、標高数値型対応）
 - **自動ポイントマッチング機能**（IDベース）
 - **リアルタイム座標同期機能**
 
@@ -18,6 +19,7 @@ GeoReferencerは、PNG画像（ハイキングマップなど）を国土地理�
 - **完全ES6モジュール構成**（13ファイル、モジュラーアーキテクチャ）
 - **非同期初期化**（Promise-based確実な初期化）
 - **精密座標変換**（Web Mercator ↔ WGS84）
+- **標高データ数値型変換**（文字列→数値型変換処理）
 - **File System Access API対応**（モダンブラウザ保存）
 
 ## 2. システム構成
@@ -37,7 +39,7 @@ GeoReferencerApp (app-main.js)
 ├── RouteSpotHandler (route-spot-handler.js) [ルート・スポットデータ管理]
 ├── CoordinateDisplay (coordinate-display.js) [座標表示・マーカー管理]
 ├── UIHandlers (ui-handlers.js) [UI操作ハンドラー]
-├── FileHandler (file-handler.js) [ファイル読み込み・保存]
+├── FileHandler (file-handler.js) [ファイル読み込み・保存・Excel検証]
 ├── Utils (utils.js) [ログ・エラーハンドリング]
 ├── MathUtils (math-utils.js) [数学計算・座標変換]
 └── Constants (constants.js) [定数定義]
@@ -57,9 +59,9 @@ GeoReferencer/
 ├── README.md                     # プロジェクト概要
 ├── prompt.md                     # 開発指示書
 ├── docs/                         # ドキュメント
-│   ├── funcspec-202509.md        # 機能仕様書
-│   ├── dataspec-geojson.md       # GeoJSON入出力仕様
-│   └── UsersGuide-202509.md      # 利用者の手引
+│   ├── funcspec-202510.md        # 機能仕様書（本文書）
+│   ├── geojsonSpec-202510.md     # GeoJSON入出力仕様
+│   └── UsersGuide-202510.md      # 利用者の手引
 └── js/                           # JavaScriptモジュール（13ファイル）
     ├── app-main.js              # メインアプリケーション
     ├── map-core.js              # 地図コア機能・レイヤー管理
@@ -70,7 +72,7 @@ GeoReferencer/
     ├── route-spot-handler.js    # ルート・スポットデータ管理
     ├── coordinate-display.js    # 座標表示・マーカー管理
     ├── ui-handlers.js           # UI操作ハンドラー
-    ├── file-handler.js          # ファイル処理統合
+    ├── file-handler.js          # ファイル処理統合・Excel検証
     ├── math-utils.js            # 数学・座標変換統合
     ├── utils.js                 # ユーティリティ・ログ機能
     └── constants.js             # 定数定義
@@ -79,18 +81,21 @@ GeoReferencer/
 ## 3. 機能詳細
 
 ### 3.1 メインアプリケーション（GeoReferencerApp）
+**ファイル**: `js/app-main.js`
 **責任範囲**: アプリケーション全体の初期化・統合・イベント管理
 
 **主要メソッド**:
 - `init()`: 非同期アプリケーション初期化
 - `initializeModules()`: 各モジュールの依存関係を考慮した初期化
 - `setupEventHandlers()`: 統合されたファイル読み込みボタンのイベント設定
+- `handleGpsExcelLoad()`: Excelファイル読み込み処理（区分列フィルタリング対応）
 - `handleMatchPoints()`: ジオリファレンス実行の統合処理
-- `collectGeoreferencedData()`: 変換済み座標データの収集・GeoJSON生成
+- `collectGeoreferencedData()`: 変換済み座標データの収集・GeoJSON生成（標高数値型対応）
 
-**データフロー**: 統合されたファイル読み込み → データ検証 → ジオリファレンス実行 → 結果出力
+**データフロー**: 統合されたファイル読み込み → Excel検証（区分フィルタ） → データ変換（標高数値化） → ジオリファレンス実行 → GeoJSON出力
 
 ### 3.2 地図コア機能（MapCore）
+**ファイル**: `js/map-core.js`
 **責任範囲**: Leaflet地図の初期化・専用ペイン管理・スケールコントロール
 
 **主要機能**:
@@ -106,6 +111,7 @@ GeoReferencer/
 **技術仕様**: 国土地理院標準地図（2-18ズーム）、箕面大滝中心の初期表示
 
 ### 3.3 画像オーバーレイ処理（ImageOverlay）
+**ファイル**: `js/image-overlay.js`
 **責任範囲**: PNG画像の読み込み・表示・境界計算・アフィン変換対応
 
 **主要機能**:
@@ -126,27 +132,29 @@ const lngOffset = (scaledImageWidthMeters / 2) / (earthRadius * cosLat) * (180 /
 ```
 
 ### 3.4 GPS/GeoJSONデータ処理（GPSData）
-**責任範囲**: GeoJSONファイル・Excelファイルの読み込み・変換・地図表示
+**ファイル**: `js/gps-data.js`
+**責任範囲**: GeoJSONファイルの読み込み・変換・地図表示
 
 **対応フォーマット**:
-- **GeoJSON**: FeatureCollection、単一Feature形式
-- **Excel**: 必須列（ポイントID、名称、緯度、経度）、オプション列（標高、備考）
+- **GeoJSON**: FeatureCollection、単一Feature形式（Point geometry）
 
-**データ検証機能**:
-- 座標範囲チェック（緯度: -90～90、経度: -180～180）
-- 数値形式検証
-- 最大1000行の読み込み制限
+**データ変換機能**:
+- `loadGeoJsonFile()`: GeoJSONファイル読み込み（FileReader）
+- `processGeoJsonData()`: GeoJSON構造解析・Point抽出
+- `displayPointsOnMap()`: 地図上へのマーカー表示
+- `setPointsFromExcelData()`: Excelデータから変換されたポイントデータ設定
 
 **マーカー表示**: 緑色円形マーカー（半径16px）、専用GPSペイン使用
 
 ### 3.5 精密アフィン変換処理（Georeferencing）
+**ファイル**: `js/georeferencing.js`
 **責任範囲**: 最小二乗法による6パラメータアフィン変換・精度計算・座標同期
 
 **技術仕様**:
 - **変換方式**: 最小二乗法による6パラメータアフィン変換
 - **最小制御点数**: 3点以上（推奨: 4点以上）
 - **座標系**: WGS84 ↔ Web Mercator変換
-- **精度評価**: 平均誤差・最大誤差・最小誤差の計算表示
+- **精度評価**: 平均誤差・最大誤差・最小誤差の計算表示（メートル単位）
 
 **変換式**:
 ```
@@ -157,10 +165,12 @@ Y = d*x + e*y + f
 **主要メソッド**:
 - `executeGeoreferencing()`: ジオリファレンス実行
 - `performAutomaticGeoreferencing()`: 自動変換処理
+- `matchPointJsonWithGPS()`: IDベース自動マッチング
 - `syncPointPositions()`: ポイント位置の自動同期
 - `syncRouteSpotPositions()`: ルート・スポット位置の自動同期
 
 ### 3.6 アフィン変換計算（AffineTransformation）
+**ファイル**: `js/affine-transformation.js`
 **責任範囲**: 数学的アフィン変換計算の専用処理
 
 **計算手法**:
@@ -171,6 +181,7 @@ Y = d*x + e*y + f
 **精度評価機能**: Web Mercator座標系での誤差計算（メートル単位）
 
 ### 3.7 ルート・スポットデータ管理（RouteSpotHandler）
+**ファイル**: `js/route-spot-handler.js`
 **責任範囲**: JSON自動判定・ルート/スポット処理・マーカー表示
 
 **自動判定基準**:
@@ -185,6 +196,7 @@ Y = d*x + e*y + f
 **重複判定**: 座標・ID双方による重複回避機能
 
 ### 3.8 座標表示・マーカー管理（CoordinateDisplay）
+**ファイル**: `js/coordinate-display.js`
 **責任範囲**: 画像座標の表示・境界ベース座標変換・マーカー管理
 
 **座標変換方式**:
@@ -198,7 +210,8 @@ Y = d*x + e*y + f
 **自動更新機能**: 画像境界変更時のマーカー位置自動調整
 
 ### 3.9 UI操作ハンドラー（UIHandlers）
-**責任範囲**: カウンター更新・マッチング結果表示・Excel検証
+**ファイル**: `js/ui-handlers.js`
+**責任範囲**: カウンター更新・マッチング結果表示
 
 **カウンター管理**:
 - **GPS ポイント数**: リアルタイム更新
@@ -206,18 +219,33 @@ Y = d*x + e*y + f
 - **ルート・スポット数**: 自動判定結果の反映
 - **マッチング結果**: 一致数・不一致ポイント表示
 
-**Excel検証機能**:
-- **必須列チェック**: ポイントID、名称、緯度、経度
-- **データ型検証**: 数値・文字列の厳密チェック
-- **座標範囲検証**: 地球座標系の妥当性確認
-
 ### 3.10 ファイル処理統合（FileHandler）
-**責任範囲**: ファイル読み込み・保存・File System Access API対応
+**ファイル**: `js/file-handler.js`
+**責任範囲**: ファイル読み込み・保存・Excel検証・標高数値型変換
 
 **対応ファイル形式**:
 - **JSON**: 自動構造判定・パース処理
-- **Excel (.xlsx)**: SheetJS使用・1000行制限
+- **Excel (.xlsx)**: SheetJS使用・1000行制限・区分列フィルタリング
 - **PNG画像**: MIME type検証・naturalWidth/Height取得
+
+**Excel検証機能（file-handler.js:312-406）**:
+- **必須列チェック**: 区分、ポイントID、名称、緯度、経度
+- **区分列フィルタリング**: 「区分」列が「ポイント」の行のみ読み込み
+- **標高数値型変換**: parseFloat()による文字列→数値変換
+- **座標範囲検証**: 緯度（-90～90）、経度（-180～180）
+- **データ型検証**: 数値・文字列の厳密チェック
+
+**標高処理（file-handler.js:384-391）**:
+```javascript
+// 標高を数値型に変換（文字列を数値に変換）
+let elevation = null;
+if (pointData['標高'] !== undefined && pointData['標高'] !== null && pointData['標高'] !== '') {
+    const elevationValue = parseFloat(pointData['標高']);
+    if (!isNaN(elevationValue)) {
+        elevation = elevationValue;
+    }
+}
+```
 
 **保存機能**:
 - **File System Access API**: ブラウザネイティブファイル保存
@@ -227,6 +255,7 @@ Y = d*x + e*y + f
 **ファイル名生成**: `{PNG名}-GPS.geojson` 形式の自動生成
 
 ### 3.11 数学・座標変換統合（MathUtils）
+**ファイル**: `js/math-utils.js`
 **責任範囲**: 座標変換・行列計算・マーカー作成の統合ユーティリティ
 
 **座標変換関数**:
@@ -242,6 +271,7 @@ Y = d*x + e*y + f
 **マーカー作成統合**: 複数種類のカスタムマーカー生成機能
 
 ### 3.12 ユーティリティ・ログ機能（Utils）
+**ファイル**: `js/utils.js`
 **責任範囲**: ログ管理・エラーハンドリング・バリデーション
 
 **ログ機能**:
@@ -273,9 +303,14 @@ Y = d*x + e*y + f
 <button id="loadFileBtn">読み込み</button>
 
 <!-- ファイル種類選択 -->
-<input type="radio" name="fileType" value="gpsGeoJson" checked> ポイントGPS
+<input type="radio" name="fileType" value="gpsExcel" checked> ポイントGPS
 <input type="radio" name="fileType" value="image"> PNG画像
 ```
+
+**動作仕様（app-main.js:95-112）**:
+- ラジオボタンで選択されたファイル種別に応じて対応する入力要素をクリック
+- `gpsExcel`: Excelファイル選択ダイアログ表示
+- `image`: PNG画像ファイル選択ダイアログ表示
 
 #### 画像内座標読み込み
 ```html
@@ -285,7 +320,7 @@ Y = d*x + e*y + f
 - **自動分類**: ポイント・ルート・スポットの自動判別
 
 ### 4.3 リアルタイムカウンター表示
-- **GPSポイント数**: 読み込み済みGPS座標数
+- **GPSポイント数**: 読み込み済みGPS座標数（「区分」=「ポイント」のみ）
 - **ポイント数**: 画像内ポイント座標数（waypointを除外）
 - **ルート数**: 検出されたルート数
 - **スポット数**: 検出されたスポット数
@@ -308,15 +343,47 @@ Y = d*x + e*y + f
 ### 5.1 対応ファイル形式
 
 #### 入力ファイル
-- **GPS座標**: Excel (.xlsx) - ポイントID、名称、緯度、経度、標高（opt）、備考（opt）
-- **GPS座標**: GeoJSON - FeatureCollection/Feature Point geometry
+- **GPS座標（Excel .xlsx）**:
+  - 必須列: 区分、ポイントID、名称、緯度、経度
+  - オプション列: 標高、備考
+  - **区分列フィルタリング**: 「区分」=「ポイント」の行のみ読み込み
+  - **標高数値型変換**: 文字列型の標高をparseFloat()で数値型に変換
+- **GPS座標（GeoJSON）**: FeatureCollection/Feature Point geometry
 - **画像**: PNG形式画像ファイル
-- **画像内座標**: JSON形式 - ポイント・ルート・スポット座標データ
+- **画像内座標（JSON）**: ポイント・ルート・スポット座標データ
 
 #### 出力ファイル
-- **GeoJSON**: 変換済み座標データ - Feature形式、座標・プロパティ・メタデータ（`docs/dataspec-geojson.md`準拠）
+- **GeoJSON**: 変換済み座標データ（`docs/geojsonSpec-202510.md`準拠）
+  - 標高フィールドは数値型で出力
 
-### 5.2 JSONファイル自動判定
+### 5.2 Excel読み込み仕様
+
+#### 必須列
+| 列名 | 型 | 説明 | 例 |
+|------|-----|------|-----|
+| 区分 | string | データ種別（「ポイント」のみ読み込み） | "ポイント" |
+| ポイントID | string | 識別子 | "J-05" |
+| 名称 | string | 地点名 | "東海道自然歩道" |
+| 緯度 | number | 緯度（-90～90） | 34.87202 |
+| 経度 | number | 経度（-180～180） | 135.49331 |
+
+#### オプション列
+| 列名 | 型 | 説明 | 例 |
+|------|-----|------|-----|
+| 標高 | number | 標高（メートル、数値型に変換） | 564.7 |
+| 備考 | string | 備考情報 | "" |
+
+#### 区分列フィルタリング仕様
+- **「区分」列が必須**になりました
+- **「区分」=「ポイント」の行のみ**が読み込まれます
+- 「分岐点」「交差点」などの行は自動的に除外されます
+
+#### 標高数値型変換仕様
+- Excelから読み込まれた標高データ（文字列型の可能性あり）を`parseFloat()`で数値型に変換
+- 変換できない値は`null`として扱う
+- GeoJSON出力時に数値型として出力（"で囲まれない）
+
+### 5.3 JSONファイル自動判定
 
 #### ポイントデータ判定
 ```json
@@ -362,19 +429,74 @@ Y = d*x + e*y + f
 }
 ```
 
-### 5.3 GeoJSON出力仕様
-`docs/dataspec-geojson.md`に準拠した3つのFeatureタイプを出力：
+### 5.4 GeoJSON出力仕様
+`docs/geojsonSpec-202510.md`に準拠した3つのFeatureタイプを出力：
 
-1. **ポイントGPS**: `type: "ポイントGPS"`, `source: "GPS_Excel"`
-2. **ルート中間点**: `type: "route_waypoint"`, `source: "image_transformed"`
-3. **スポット**: `type: "spot"`, `source: "image_transformed"`
+#### 1. ポイントGPS
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "id": "J-05",
+    "name": "東海道自然歩道",
+    "type": "ポイントGPS",
+    "source": "GPS_Excel",
+    "description": "ポイント（Excel管理GPS値）",
+    "notes": ""
+  },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [135.49331, 34.87202, 564.7]
+  }
+}
+```
+- `description`: "ポイント（Excel管理GPS値）"（固定値）
+- `source`: "GPS_Excel"（固定値）
+- `coordinates[2]`: 標高は**数値型**で出力
 
-特徴：
-- **ルートID**: `route_{開始ポイント}_to_{終了ポイント}` 形式
-- **中間点ID**: `{route_id}_{waypoint_XX}` 形式
-- **名前フィールド**: GPS Excelの「名称」列を優先使用
+#### 2. ルート中間点
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "id": "route_C-03_to_J-01_waypoint_06",
+    "name": "waypoint_06",
+    "type": "route_waypoint",
+    "source": "image_transformed",
+    "route_id": "route_C-03_to_J-01",
+    "description": "ルート中間点"
+  },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [135.49353, 34.86449]
+  }
+}
+```
+- `id`: `{route_id}_{waypoint_XX}` 形式
+- `route_id`: `route_{開始ポイント}_to_{終了ポイント}` 形式
+- `name`: `waypoint_XX` 形式（2桁ゼロパディング）
 
-### 5.4 ファイル保存機能
+#### 3. スポット
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "id": "spot08_薬師堂",
+    "name": "薬師堂",
+    "type": "spot",
+    "source": "image_transformed",
+    "description": "スポット"
+  },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [135.49052, 34.86557]
+  }
+}
+```
+- `id`: `spot{連番2桁}_{name}` 形式
+- `name`: スポット名（meta.spotIdから取得）
+
+### 5.5 ファイル保存機能
 - **File System Access API**: モダンブラウザでのネイティブ保存
 - **従来ダウンロード**: フォールバック対応
 - **ディレクトリ記憶**: 前回使用フォルダの記録
@@ -489,7 +611,7 @@ export const DEFAULTS = {
 
 ### 8.2 制限事項
 - **ファイル形式**: PNG画像のみ対応（JPEG、SVG等は未対応）
-- **Excel制限**: 最大1000行、.xlsx形式のみ
+- **Excel制限**: 最大1000行、.xlsx形式のみ、「区分」列必須
 - **座標系**: WGS84のみ（JGD2011等は未対応）
 - **ブラウザ制限**: ES6モジュール必須、CORS制限あり
 - **制御点**: 最低3点、推奨4点以上
@@ -498,6 +620,8 @@ export const DEFAULTS = {
 
 #### 自動エラー処理
 - **ファイル形式不正**: 自動検出・ユーザー通知
+- **区分列不一致**: 「ポイント」以外の行を自動除外
+- **標高変換失敗**: 数値変換できない場合はnullとして扱う
 - **座標範囲外**: 自動除外・警告表示
 - **変換失敗**: フォールバック処理・エラー詳細表示
 - **メモリ不足**: 制限値による予防・段階的処理
@@ -525,14 +649,15 @@ http://localhost:8000
 - **完全モジュラー**: 13の独立したES6モジュール
 - **非同期初期化**: Promise-based確実な初期化
 - **型安全性**: 厳密なデータ検証・エラーハンドリング
+- **標高数値型変換**: Excel読み込み時の自動型変換
 - **拡張性**: 新機能追加に配慮した設計
 - **保守性**: 単一責任原則に基づく明確な分離
 
-### 9.3 リファクタリング成果
-- **コード量削減**: 4,663行 → 4,381行（約6%削減）
-- **ファイル数**: 14個 → 13個（marker-synchronizer.js削除）
-- **重複コード解消**: 座標変換・ファイル処理の統合
-- **未使用コード削除**: 不要なラッパーメソッド・コメントアウトコード削除
+### 9.3 最新アップデート（v1.3）
+- **Excel「区分」列フィルタリング**: 「ポイント」のみ読み込み対応
+- **標高数値型変換**: parseFloat()による文字列→数値変換
+- **読み込みボタン修正**: ラジオボタン値の不一致解消（gpsExcel対応）
+- **GeoJSON仕様準拠**: description、スポットID形式の修正
 
 ### 9.4 今後の拡張可能性
 - **座標系追加**: JGD2011、UTM等への対応
@@ -547,3 +672,4 @@ http://localhost:8000
 - **v1.0** (2025-09-12): 初版リリース
 - **v1.1** (2025-09-20): リファクタリング版対応、モジュール統合・分離、不要コード削除
 - **v1.2** (2025-09-28): GeoJSON出力仕様準拠、データソース分類実装、命名規則統一
+- **v1.3** (2025-10-26): Excel「区分」列フィルタリング、標高数値型変換、読み込みボタン修正
