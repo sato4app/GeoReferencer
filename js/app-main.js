@@ -510,7 +510,7 @@ class GeoReferencerApp {
                             name: pair.gpsPoint.name || pair.gpsPoint.location,
                             type: 'ポイントGPS',
                             source: 'GPS_Excel',
-                            description: '緊急ポイント（Excel管理GPS値）',
+                            description: 'ポイント（Excel管理GPS値）',
                             notes: ''
                         },
                         geometry: {
@@ -596,12 +596,14 @@ class GeoReferencerApp {
                     const meta = marker.__meta;
                     if (meta && meta.origin === 'image') {
                         const latLng = marker.getLatLng();
-                        const spotName = meta.spotId || `spot${String(spotCounter).padStart(2, '0')}`;
+                        // meta.spotIdにスポット名が入っている
+                        const spotName = meta.spotId || `未命名スポット${String(spotCounter).padStart(2, '0')}`;
+                        const spotId = `spot${String(spotCounter).padStart(2, '0')}_${spotName}`;
 
                         features.push({
                             type: 'Feature',
                             properties: {
-                                id: `spot${String(spotCounter).padStart(2, '0')}_${spotName}`,
+                                id: spotId,
                                 name: spotName,
                                 type: 'spot',
                                 source: 'image_transformed',
