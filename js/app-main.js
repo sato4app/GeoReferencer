@@ -94,9 +94,9 @@ class GeoReferencerApp {
             if (loadFileBtn) {
                 loadFileBtn.addEventListener('click', () => {
                     const selectedFileType = document.querySelector('input[name="fileType"]:checked')?.value;
-                    
+
                     switch (selectedFileType) {
-                        case 'gpsGeoJson':
+                        case 'gpsExcel':
                             if (gpsExcelInput) gpsExcelInput.click();
                             break;
                         case 'image':
