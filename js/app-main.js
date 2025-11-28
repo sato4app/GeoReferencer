@@ -142,96 +142,39 @@ class GeoReferencerApp {
 
     setupEventHandlers() {
         try {
-            // 統合された読み込みボタン
+            // ポイントGPS読み込みボタン
             const loadFileBtn = document.getElementById('loadFileBtn');
             const gpsExcelInput = document.getElementById('gpsExcelInput');
-            const imageInput = document.getElementById('imageInput');
-            const pointCoordJsonInput = document.getElementById('pointCoordJsonInput');
-            
+
             if (loadFileBtn) {
                 loadFileBtn.addEventListener('click', () => {
-                    const selectedFileType = document.querySelector('input[name="fileType"]:checked')?.value;
-                    
-                    switch (selectedFileType) {
-                        case 'gpsGeoJson':
-                            if (gpsExcelInput) gpsExcelInput.click();
-                            break;
-                        case 'image':
-                            if (imageInput) imageInput.click();
-                            break;
-                        case 'pointCoord':
-                            if (pointCoordJsonInput) pointCoordJsonInput.click();
-                            break;
-                        default:
-                            this.logger.warn('ファイル種類が選択されていません');
-                    }
+                    if (gpsExcelInput) gpsExcelInput.click();
                 });
             }
 
-            // ファイル入力の変更イベント
+            // GPS Excelファイル入力
             if (gpsExcelInput) {
                 gpsExcelInput.addEventListener('change', (event) => {
                     this.handleGpsExcelLoad(event);
-                    // ファイルハンドラーにディレクトリを記録
                     this.recordFileDirectory(event.target.files[0]);
                 });
             }
-            
+
+            // PNG画像読み込みボタン
+            const loadPngBtn = document.getElementById('loadPngBtn');
+            const imageInput = document.getElementById('imageInput');
+
+            if (loadPngBtn) {
+                loadPngBtn.addEventListener('click', () => {
+                    if (imageInput) imageInput.click();
+                });
+            }
+
+            // PNG画像ファイル入力
             if (imageInput) {
                 imageInput.addEventListener('change', (event) => {
-                    this.handleImageLoad(event);
-                    // ファイルハンドラーにディレクトリを記録
+                    this.handlePngLoad(event);
                     this.recordFileDirectory(event.target.files[0]);
-                });
-            }
-            
-            if (pointCoordJsonInput) {
-                pointCoordJsonInput.addEventListener('change', (event) => {
-                    this.handlePointCoordJsonLoad(event);
-                });
-            }
-
-            // ルート・スポット読み込みボタン
-            const loadRouteSpotBtn = document.getElementById('loadRouteSpotBtn');
-            const routeSpotJsonInput = document.getElementById('routeSpotJsonInput');
-            
-            if (loadRouteSpotBtn) {
-                loadRouteSpotBtn.addEventListener('click', () => {
-                    if (routeSpotJsonInput) {
-                        routeSpotJsonInput.click();
-                    } else {
-                        this.logger.warn('ファイル入力要素が見つかりません');
-                    }
-                });
-            }
-            
-            if (routeSpotJsonInput) {
-                routeSpotJsonInput.addEventListener('change', (event) => {
-                    this.handleRouteSpotJsonLoad(event);
-                });
-            }
-
-            // 読み込みJSONボタン
-            const loadJsonBtn = document.getElementById('loadJsonBtn');
-            const multiJsonInput = document.getElementById('multiJsonInput');
-            
-            if (loadJsonBtn) {
-                loadJsonBtn.addEventListener('click', () => {
-                    if (multiJsonInput) {
-                        multiJsonInput.click();
-                    } else {
-                        this.logger.warn('複数JSONファイル入力要素が見つかりません');
-                    }
-                });
-            }
-            
-            if (multiJsonInput) {
-                multiJsonInput.addEventListener('change', (event) => {
-                    this.handleMultiJsonLoad(event);
-                    // ファイルハンドラーにディレクトリを記録
-                    if (event.target.files.length > 0) {
-                        this.recordFileDirectory(event.target.files[0]);
-                    }
                 });
             }
 
@@ -304,7 +247,7 @@ class GeoReferencerApp {
         }
     }
 
-    async handleImageLoad(event) {
+    async handlePngLoad(event) {
         try {
             const file = event.target.files[0];
             if (!file) return;
@@ -315,16 +258,73 @@ class GeoReferencerApp {
             this.logger.info('PNGファイル:', this.currentPngFileName);
             this.logger.info('ProjectID:', this.currentProjectId);
 
+            // PNG画像を読み込み
             if (this.imageOverlay) {
                 await this.imageOverlay.loadImage(file);
-
-                // 成功メッセージを表示
-                this.showMessage(`PNG画像ファイルを読み込みました:\n${file.name}`);
             }
 
+            // Firebaseから画像座標データを自動読み込み
+            await this.loadFromFirebase();
+
+            // 成功メッセージを表示
+            this.showMessage(`PNG画像ファイルを読み込みました:\n${file.name}`);
+
         } catch (error) {
-            this.logger.error('画像読み込みエラー', error);
-            errorHandler.handle(error, '画像ファイルの読み込みに失敗しました。', '画像読み込み');
+            this.logger.error('PNG読み込みエラー', error);
+            errorHandler.handle(error, 'PNG画像の読み込みに失敗しました。', 'PNG読み込み');
+        }
+    }
+
+    async loadFromFirebase() {
+        try {
+            // Firebase接続確認
+            if (!this.firestoreManager) {
+                this.logger.warn('Firebase未接続のため、画像座標データの自動読み込みをスキップします');
+                return;
+            }
+
+            // ProjectID確認
+            if (!this.currentProjectId) {
+                this.logger.warn('ProjectIDが設定されていません');
+                return;
+            }
+
+            this.logger.info('Firebaseから画像座標データ読み込み開始:', this.currentProjectId);
+
+            // プロジェクトの存在確認
+            const projectMeta = await this.firestoreManager.getProjectMetadata(this.currentProjectId);
+            if (!projectMeta) {
+                this.logger.info('Firebaseにプロジェクトが見つかりません:', this.currentProjectId);
+                this.showMessage('新規プロジェクトです');
+                return;
+            }
+
+            // points読み込み
+            const points = await this.firestoreManager.getPoints(this.currentProjectId);
+            this.logger.info(`Firebaseからポイント読み込み: ${points.length}件`);
+
+            // routes読み込み
+            const routes = await this.firestoreManager.getRoutes(this.currentProjectId);
+            this.logger.info(`Firebaseからルート読み込み: ${routes.length}件`);
+
+            // spots読み込み
+            const spots = await this.firestoreManager.getSpots(this.currentProjectId);
+            this.logger.info(`Firebaseからスポット読み込み: ${spots.length}件`);
+
+            // RouteSpotHandlerにデータをロード
+            if (this.routeSpotHandler) {
+                await this.routeSpotHandler.loadFromFirebaseData(points, routes, spots, this.imageOverlay);
+            }
+
+            // UI更新
+            this.uiHandlers.updateRouteSpotCount(this.routeSpotHandler);
+
+            this.logger.info('Firebaseからの画像座標データ読み込み完了');
+
+        } catch (error) {
+            this.logger.error('Firebase読み込みエラー', error);
+            // エラーは警告として表示（致命的ではない）
+            this.showMessage('Firebaseからのデータ読み込みに失敗しました');
         }
     }
 

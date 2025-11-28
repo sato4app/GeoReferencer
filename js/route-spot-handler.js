@@ -9,6 +9,7 @@ export class RouteSpotHandler {
         this.logger = new Logger('RouteSpotHandler');
         this.mapCore = mapCore;
         this.imageOverlay = imageOverlay;
+        this.pointData = [];
         this.routeData = [];
         this.spotData = [];
         this.routeMarkers = [];
@@ -649,11 +650,173 @@ export class RouteSpotHandler {
         }
     }
 
+    getPointCount() {
+        return Array.isArray(this.pointData) ? this.pointData.length : 0;
+    }
+
     getRouteCount() {
         return Array.isArray(this.routeData) ? this.routeData.length : 0;
     }
 
     getSpotCount() {
         return Array.isArray(this.spotData) ? this.spotData.length : 0;
+    }
+
+    /**
+     * Firebaseから取得したデータを地図に表示
+     * @param {Array} points - Firebaseから取得したポイントデータ
+     * @param {Array} routes - Firebaseから取得したルートデータ
+     * @param {Array} spots - Firebaseから取得したスポットデータ
+     * @param {Object} imageOverlay - ImageOverlayインスタンス
+     */
+    async loadFromFirebaseData(points, routes, spots, imageOverlay) {
+        try {
+            this.logger.info('Firebaseデータから地図表示を開始');
+
+            // ImageOverlayインスタンスを更新
+            if (imageOverlay) {
+                this.imageOverlay = imageOverlay;
+            }
+
+            // 既存のマーカーをクリア
+            this.clearAllMarkers();
+
+            // ルートデータを処理
+            const processedRoutes = [];
+            for (const route of routes) {
+                const processedRoute = {
+                    name: route.name || route.id || 'Route',
+                    routeId: route.id || route.firestoreId,
+                    fileName: 'firebase',
+                    routeInfo: {
+                        startPoint: route.startPoint || '',
+                        endPoint: route.endPoint || ''
+                    },
+                    points: route.waypoints.map((waypoint, index) => {
+                        const [lng, lat, elevation] = waypoint.coordinates;
+
+                        // 画像座標からGPS座標に変換
+                        let imageCoords = null;
+                        if (this.imageOverlay && this.imageOverlay.imageOverlay) {
+                            imageCoords = this.convertGpsToImageCoords(lat, lng);
+                        }
+
+                        return {
+                            lat: lat,
+                            lng: lng,
+                            elevation: elevation,
+                            name: waypoint.name || `Waypoint-${index + 1}`,
+                            type: 'waypoint',
+                            imageX: imageCoords ? imageCoords.x : undefined,
+                            imageY: imageCoords ? imageCoords.y : undefined
+                        };
+                    })
+                };
+
+                processedRoutes.push(processedRoute);
+            }
+
+            // スポットデータを処理
+            const processedSpots = [];
+            for (const spot of spots) {
+                const [lng, lat, elevation] = spot.coordinates;
+
+                // 画像座標からGPS座標に変換
+                let imageCoords = null;
+                if (this.imageOverlay && this.imageOverlay.imageOverlay) {
+                    imageCoords = this.convertGpsToImageCoords(lat, lng);
+                }
+
+                const processedSpot = {
+                    name: spot.name || 'Spot',
+                    spotId: spot.id || spot.firestoreId,
+                    fileName: 'firebase',
+                    description: spot.description || '',
+                    coordinates: {
+                        lat: lat,
+                        lng: lng
+                    },
+                    elevation: elevation,
+                    imageX: imageCoords ? imageCoords.x : undefined,
+                    imageY: imageCoords ? imageCoords.y : undefined
+                };
+
+                processedSpots.push(processedSpot);
+            }
+
+            // データを保存
+            this.pointData = points;
+            this.routeData = processedRoutes;
+            this.spotData = processedSpots;
+
+            // 地図に表示
+            if (processedRoutes.length > 0) {
+                await this.displayRouteSpotOnMap(processedRoutes, 'route');
+            }
+
+            if (processedSpots.length > 0) {
+                await this.displayRouteSpotOnMap(processedSpots, 'spot');
+            }
+
+            this.logger.info(`Firebase読み込み完了: ポイント ${points.length}件、ルート ${processedRoutes.length}本、スポット ${processedSpots.length}個`);
+
+        } catch (error) {
+            this.logger.error('Firebaseデータ表示エラー', error);
+            throw error;
+        }
+    }
+
+    /**
+     * GPS座標から画像座標に変換
+     * @param {number} lat - 緯度
+     * @param {number} lng - 経度
+     * @returns {Object|null} {x, y} 画像座標またはnull
+     */
+    convertGpsToImageCoords(lat, lng) {
+        try {
+            if (!this.imageOverlay || !this.imageOverlay.imageOverlay) {
+                return null;
+            }
+
+            const imageBounds = this.imageOverlay.imageOverlay.getBounds();
+            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
+            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+
+            if (!imageBounds || !imageWidth || !imageHeight) {
+                return null;
+            }
+
+            const result = mathUtils.convertGpsToImageCoords(lat, lng, imageBounds, imageWidth, imageHeight);
+            return result ? { x: result[0], y: result[1] } : null;
+
+        } catch (error) {
+            this.logger.error('GPS→画像座標変換エラー', error);
+            return null;
+        }
+    }
+
+    /**
+     * すべてのマーカーをクリア
+     */
+    clearAllMarkers() {
+        // ルートマーカーをクリア
+        if (this.routeMarkers && Array.isArray(this.routeMarkers)) {
+            this.routeMarkers.forEach(marker => {
+                if (marker && this.mapCore && this.mapCore.getMap()) {
+                    this.mapCore.getMap().removeLayer(marker);
+                }
+            });
+            this.routeMarkers = [];
+        }
+
+        // スポットマーカーをクリア
+        if (this.spotMarkers && Array.isArray(this.spotMarkers)) {
+            this.spotMarkers.forEach(marker => {
+                if (marker && this.mapCore && this.mapCore.getMap()) {
+                    this.mapCore.getMap().removeLayer(marker);
+                }
+            });
+            this.spotMarkers = [];
+        }
     }
 }

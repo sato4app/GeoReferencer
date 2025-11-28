@@ -62,17 +62,43 @@ export class MathUtils {
 
             const southWest = imageBounds.getSouthWest();
             const northEast = imageBounds.getNorthEast();
-            
+
             const xRatio = imageX / imageWidth;
             const yRatio = imageY / imageHeight;
-            
+
             const lng = southWest.lng + (northEast.lng - southWest.lng) * xRatio;
             const lat = northEast.lat - (northEast.lat - southWest.lat) * yRatio;
-            
+
             return [lat, lng];
-            
+
         } catch (error) {
             this.logger.error('画像座標→GPS座標変換エラー', error);
+            return null;
+        }
+    }
+
+    // GPS座標を画像座標に変換（convertImageCoordsToGpsの逆変換）
+    convertGpsToImageCoords(lat, lng, imageBounds, imageWidth, imageHeight) {
+        try {
+            if (!imageBounds || !imageWidth || !imageHeight) {
+                this.logger.warn('画像境界または画像サイズが不正です');
+                return null;
+            }
+
+            const southWest = imageBounds.getSouthWest();
+            const northEast = imageBounds.getNorthEast();
+
+            // GPS座標から画像座標への逆変換
+            const xRatio = (lng - southWest.lng) / (northEast.lng - southWest.lng);
+            const yRatio = (northEast.lat - lat) / (northEast.lat - southWest.lat);
+
+            const imageX = xRatio * imageWidth;
+            const imageY = yRatio * imageHeight;
+
+            return [imageX, imageY];
+
+        } catch (error) {
+            this.logger.error('GPS座標→画像座標変換エラー', error);
             return null;
         }
     }
