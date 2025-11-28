@@ -388,12 +388,25 @@ html, body, #map {
     line-height: 1.4;
 }
 
-/* 読み込みボタンの幅を84pxに固定 */
-#loadFileBtn,
+/* 各ボタンの幅を固定 */
+#loadFileBtn {
+    width: 180px !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+}
+
 #loadRouteSpotBtn {
     width: 84px !important;
     box-sizing: border-box !important;
     flex-shrink: 0 !important;
+}
+
+#saveToFirebaseBtn {
+    width: 200px !important;
+}
+
+#fetchElevationBtn {
+    width: 80px !important;
 }
 
 /* ポイント数表示コンテナ */
