@@ -169,7 +169,7 @@ html, body, #map {
 .load-file-container {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 40px;
     margin-bottom: 0px;
 }
 
@@ -407,6 +407,7 @@ html, body, #map {
 
 #fetchElevationBtn {
     width: 80px !important;
+    height: 40px !important;
 }
 
 /* ポイント数表示コンテナ */
@@ -1037,7 +1038,7 @@ select:focus {
 
 .elevation-controls button {
     width: 100%;
-    margin-bottom: var(--spacing-medium);
+    margin-bottom: 20px;
 }
 
 .elevation-checkboxes {

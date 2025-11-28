@@ -90,8 +90,8 @@ class GeoReferencerApp {
             const user = await this.authManager.signInAnonymously();
             this.logger.info('Firebase匿名認証成功', user.uid);
 
-            // FirestoreDataManager初期化
-            this.firestoreManager = new FirestoreDataManager(this.firebaseClient);
+            // FirestoreDataManager初期化（Firestoreインスタンスを渡す）
+            this.firestoreManager = new FirestoreDataManager(this.firebaseClient.getFirestore(), user.uid);
 
             // ElevationFetcher初期化
             this.elevationFetcher = new ElevationFetcher(this.firestoreManager);
