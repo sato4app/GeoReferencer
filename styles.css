@@ -1013,3 +1013,53 @@ select:focus {
     color: #721c24;
 }
 
+/* 標高取得コントロールのスタイル */
+.elevation-controls {
+    margin-top: var(--spacing-large);
+    padding: 12px;
+    border: 2px solid rgba(40, 167, 69, 0.4);
+    border-radius: var(--border-radius);
+    background: var(--color-overlay);
+}
+
+.elevation-controls button {
+    width: 100%;
+    margin-bottom: var(--spacing-medium);
+}
+
+.elevation-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-medium);
+}
+
+.elevation-checkbox-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-medium);
+}
+
+.elevation-checkbox-item label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    font-size: var(--font-size-normal);
+    cursor: pointer;
+}
+
+.elevation-checkbox-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.count-field-wide {
+    width: 60px;
+    padding: 2px 4px;
+    font-size: 12px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
