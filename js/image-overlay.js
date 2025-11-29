@@ -318,10 +318,17 @@ export class ImageOverlay {
 
     getInitialBounds() {
         const center = this.map.getCenter();
-        const offset = 0.001;
+        // 画像を地図中心から少しずらして配置（ジオリファレンスの視覚効果を確認しやすくするため）
+        const offsetLat = 0.003;  // 約330m南にずらす
+        const offsetLng = 0.003;  // 約270m西にずらす
+        const imageOffset = 0.001;  // 画像サイズ
+
+        const centerLat = center.lat - offsetLat;
+        const centerLng = center.lng - offsetLng;
+
         return L.latLngBounds(
-            [center.lat - offset, center.lng - offset],
-            [center.lat + offset, center.lng + offset]
+            [centerLat - imageOffset, centerLng - imageOffset],
+            [centerLat + imageOffset, centerLng + imageOffset]
         );
     }
 }
