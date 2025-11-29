@@ -229,7 +229,8 @@ export class ImageOverlay {
     // ジオリファレンス状態をリセット（画像読み込み時に呼ぶ）
     resetTransformation() {
         this.transformedCenter = null;
-        this.currentScale = this.getDefaultScale();
+        // 初期読み込み時は小さいスケールを使用（ジオリファレンスの視覚効果を確認しやすくするため）
+        this.currentScale = 0.1;  // デフォルトの0.8ではなく、0.1を使用
         this.logger.info(`🔄 ジオリファレンス状態をリセットしました (scale=${this.currentScale.toFixed(6)})`);
     }
 
