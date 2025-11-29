@@ -526,17 +526,32 @@ export class RouteSpotHandler {
                     let points = [];
                     
                     if (item.points && Array.isArray(item.points)) {
+                        // Firebaseから読み込んだデータかどうかを判定
+                        const isFirebaseData = item.fileName === 'firebase';
+
                         points = item.points
                             .map((point, index) => {
                                 const coords = this.extractCoordinates(point);
                                 if (coords) {
+                                    // 画像座標の有無を確認
+                                    const hasImageCoords = point.imageX !== undefined && point.imageY !== undefined;
+                                    // Firebaseデータで画像座標がある場合は'firebase'、そうでない場合は'image'または'gps'
+                                    let origin;
+                                    if (isFirebaseData && hasImageCoords) {
+                                        origin = 'firebase';
+                                    } else if (hasImageCoords) {
+                                        origin = 'image';
+                                    } else {
+                                        origin = 'gps';
+                                    }
+
                                     return {
                                         lat: coords.lat,
                                         lng: coords.lng,
                                         name: point.name || point.id || point.pointId || `Point-${index + 1}`,
                                         type: point.type || 'waypoint',
-                                        // 元データの出自（画像座標 or GPS）を保持
-                                        __origin: (point.imageX !== undefined && point.imageY !== undefined) ? 'image' : 'gps',
+                                        // 元データの出自を保持
+                                        __origin: origin,
                                         __imageX: point.imageX,
                                         __imageY: point.imageY
                                     };
@@ -582,10 +597,9 @@ export class RouteSpotHandler {
                             
                             // マーカーに元座標系メタを付与
                             if (marker) {
-                                // Firebaseから読み込んだデータの場合、imageXとimageYが存在する
-                                const hasImageCoords = point.imageX !== undefined && point.imageY !== undefined;
+                                // __originを優先的に使用（上で正しく設定済み）
                                 marker.__meta = {
-                                    origin: hasImageCoords ? 'firebase' : (point.__origin || 'gps'),
+                                    origin: point.__origin || 'gps',
                                     imageX: point.imageX || point.__imageX,
                                     imageY: point.imageY || point.__imageY,
                                     routeId: item.name || item.routeId,
