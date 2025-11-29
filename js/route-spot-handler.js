@@ -973,6 +973,20 @@ export class RouteSpotHandler {
     }
 
     /**
+     * ポイントマーカーのみをクリア
+     */
+    clearPointMarkers() {
+        if (this.pointMarkers && Array.isArray(this.pointMarkers)) {
+            this.pointMarkers.forEach(marker => {
+                if (marker && this.mapCore && this.mapCore.getMap()) {
+                    this.mapCore.getMap().removeLayer(marker);
+                }
+            });
+            this.pointMarkers = [];
+        }
+    }
+
+    /**
      * Firebaseポイントを地図に表示（赤いマーカー）
      * @param {Array} points - ポイントデータ配列
      */
