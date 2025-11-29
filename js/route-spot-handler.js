@@ -693,7 +693,7 @@ export class RouteSpotHandler {
                         endPoint: route.endPoint || ''
                     },
                     points: (route.waypoints || []).map((waypoint, index) => {
-                        const [lng, lat, elevation] = waypoint.coordinates;
+                        const [lng, lat, elevation] = waypoint.coordinates || [];
 
                         // 画像座標からGPS座標に変換
                         let imageCoords = null;
@@ -719,7 +719,7 @@ export class RouteSpotHandler {
             // スポットデータを処理
             const processedSpots = [];
             for (const spot of (spots || [])) {
-                const [lng, lat, elevation] = spot.coordinates;
+                const [lng, lat, elevation] = spot.coordinates || [];
 
                 // 画像座標からGPS座標に変換
                 let imageCoords = null;
