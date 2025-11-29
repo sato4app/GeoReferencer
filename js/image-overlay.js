@@ -73,6 +73,12 @@ export class ImageOverlay {
 
         // 画像の中心位置：アフィン変換結果があればそれを使用、なければ地図中心を使用
         const centerPos = this.transformedCenter || this.map.getCenter();
+
+        if (this.transformedCenter) {
+            this.logger.info(`📍 画像表示: ジオリファレンス済み位置を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)})`);
+        } else {
+            this.logger.info(`📍 画像表示: 地図中心を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)})`);
+        }
         
         // naturalWidth/naturalHeightを使用して正確なピクセル数を取得
         const imageWidth = this.currentImage.naturalWidth || this.currentImage.width;
@@ -169,32 +175,35 @@ export class ImageOverlay {
     loadImage(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            
+
             reader.onload = (e) => {
                 this.currentImage.onload = () => {
                     if (this.imageOverlay) {
                         this.map.removeLayer(this.imageOverlay);
                     }
-                    
+
+                    // ジオリファレンス状態をリセット
+                    this.resetTransformation();
+
                     this.imageOverlay = L.imageOverlay(e.target.result, this.getInitialBounds(), {
                         opacity: this.getDisplayOpacity(),
                         interactive: false
                     }).addTo(this.map);
-                    
+
                     // ファイル名を記録
                     this.currentImageFileName = file.name;
-                    
+
                     // 画像レイヤーが完全に読み込まれるまで少し待つ
                     setTimeout(() => {
                         this.updateImageDisplay();
                         resolve();
                     }, 100);
                 };
-                
+
                 this.currentImage.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
                 this.currentImage.src = e.target.result;
             };
-            
+
             reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
             reader.readAsDataURL(file);
         });
@@ -213,10 +222,17 @@ export class ImageOverlay {
         this.imageUpdateCallbacks.push(callback);
     }
 
+    // ジオリファレンス状態をリセット（画像読み込み時に呼ぶ）
+    resetTransformation() {
+        this.transformedCenter = null;
+        this.logger.info('🔄 ジオリファレンス状態をリセットしました');
+    }
+
     // アフィン変換結果による画像位置・スケール設定
     setTransformedPosition(centerLat, centerLng, scale) {
         this.transformedCenter = { lat: centerLat, lng: centerLng };
         this.setCurrentScale(scale);
+        this.logger.info(`📍 変換後の画像中心: (${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}), スケール=${scale.toFixed(6)}`);
         
         // アフィン変換結果の場合は、直接境界を設定
         if (this.imageOverlay && this.currentImage.src) {
