@@ -113,7 +113,7 @@ export class Georeferencing {
                 await this.applyTransformationToImage(transformation, controlPoints);
                 
                 // 変換適用後に手動でルート・スポット同期を実行
-                this.syncRouteSpotPositions();
+                await this.syncRouteSpotPositions();
             } else {
                 this.logger.warn('変換パラメータの計算に失敗しました');
             }
@@ -452,7 +452,7 @@ export class Georeferencing {
         }
     }
 
-    syncRouteSpotPositions() {
+    async syncRouteSpotPositions() {
         try {
             if (!this.routeSpotHandler) {
                 this.logger.warn('⚠️ RouteSpotHandlerが設定されていません。ルート・スポット同期をスキップします。');
@@ -471,8 +471,8 @@ export class Georeferencing {
             }
 
             // Firebaseポイントマーカーの位置同期
-            if (this.routeSpotHandler.pointMarkers && this.routeSpotHandler.pointMarkers.length > 0) {
-                this.syncFirebasePointMarkers();
+            if (this.routeSpotHandler.pointData && this.routeSpotHandler.pointData.length > 0) {
+                await this.syncFirebasePointMarkers();
             }
 
 
@@ -570,50 +570,47 @@ export class Georeferencing {
         }
     }
 
-    syncFirebasePointMarkers() {
+    async syncFirebasePointMarkers() {
         try {
-            if (!this.routeSpotHandler || !this.routeSpotHandler.pointMarkers) {
+            if (!this.routeSpotHandler || !this.routeSpotHandler.pointData) {
+                this.logger.warn('RouteSpotHandlerまたはpointDataが存在しません');
                 return;
             }
 
-            let moved = 0;
+            let created = 0;
             let skipped = 0;
 
-            this.routeSpotHandler.pointMarkers.forEach((marker, index) => {
-                const meta = marker.__meta;
-                // Firebaseポイントは常にfirebase originを持ち、画像座標を保持
-                if (meta && meta.origin === 'firebase' && meta.imageX !== undefined && meta.imageY !== undefined) {
-                    const currentPos = marker.getLatLng();
-                    this.logger.info(`🔍 ポイント ${meta.id} 変換開始: 現在位置=(${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}), 画像座標=(${meta.imageX}, ${meta.imageY})`);
-                    const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
-                    if (newPos && newPos.length === 2 && isFinite(newPos[0]) && isFinite(newPos[1])) {
-                        this.logger.info(`✅ ポイント ${meta.id}: (${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}) → (${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)})`);
-                        marker.setLatLng(newPos);
-                        moved++;
+            // 既存のマーカーを全てクリア
+            this.routeSpotHandler.clearPointMarkers();
 
-                        // ポップアップも更新
-                        const popupContent = `
-                            <div style="font-size: 12px;">
-                                <strong>${meta.id}</strong><br>
-                                緯度: ${newPos[0].toFixed(6)}<br>
-                                経度: ${newPos[1].toFixed(6)}<br>
-                                画像座標: (${Math.round(meta.imageX)}, ${Math.round(meta.imageY)})
-                            </div>
-                        `;
-                        marker.bindPopup(popupContent);
-                    } else {
-                        this.logger.warn(`ポイント ${meta.id}: 変換失敗 - newPos=${newPos}`);
-                        skipped++;
-                    }
+            // pointDataの各ポイントについてGPS座標を計算し、マーカーを作成
+            for (const point of this.routeSpotHandler.pointData) {
+                if (point.imageX === undefined || point.imageY === undefined) {
+                    this.logger.warn(`ポイント ${point.id}: 画像座標がありません`);
+                    skipped++;
+                    continue;
+                }
+
+                // アフィン変換でGPS座標を計算
+                const gpsCoords = this.transformImageCoordsToGps(point.imageX, point.imageY, this.currentTransformation);
+
+                if (gpsCoords && gpsCoords.length === 2 && isFinite(gpsCoords[0]) && isFinite(gpsCoords[1])) {
+                    // pointDataにGPS座標を保存
+                    point.lat = gpsCoords[0];
+                    point.lng = gpsCoords[1];
+
+                    this.logger.info(`✅ ポイント ${point.id}: 画像座標(${point.imageX}, ${point.imageY}) → GPS座標(${gpsCoords[0].toFixed(6)}, ${gpsCoords[1].toFixed(6)})`);
+                    created++;
                 } else {
-                    this.logger.warn(`ポイント[${index}]: メタデータ不正 - origin=${meta?.origin}, imageX=${meta?.imageX}, imageY=${meta?.imageY}`);
-                    // 画像座標がない場合はスキップ
+                    this.logger.warn(`ポイント ${point.id}: GPS座標変換失敗`);
                     skipped++;
                 }
-            });
+            }
 
-            if (moved > 0) {
-                this.logger.info(`✅ Firebaseポイントマーカー ${moved}個を移動しました（スキップ: ${skipped}個）`);
+            // 更新されたpointDataでマーカーを再表示
+            if (created > 0) {
+                await this.routeSpotHandler.displayPointsOnMap(this.routeSpotHandler.pointData);
+                this.logger.info(`✅ Firebaseポイント ${created}個のGPS座標を計算し、マーカーを作成しました（スキップ: ${skipped}個）`);
             }
 
         } catch (error) {

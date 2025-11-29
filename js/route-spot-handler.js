@@ -726,20 +726,9 @@ export class RouteSpotHandler {
                                 imageY = waypoint.y;
                                 elevation = waypoint.elevation;
 
-                                // FirebaseにGPS座標が既にある場合はそれを使用
-                                if (typeof waypoint.lat === 'number' && typeof waypoint.lng === 'number') {
-                                    lat = waypoint.lat;
-                                    lng = waypoint.lng;
-                                } else {
-                                    // 画像座標からGPS座標に変換
-                                    const gpsCoords = this.convertImageCoordsToGps(imageX, imageY);
-                                    if (!gpsCoords) {
-                                        this.logger.warn(`画像座標 (${imageX}, ${imageY}) をGPS座標に変換できませんでした`);
-                                        return null;
-                                    }
-                                    lat = gpsCoords.lat;
-                                    lng = gpsCoords.lng;
-                                }
+                                // GPS座標はジオリファレンス後に計算するのでnullに設定
+                                lat = null;
+                                lng = null;
                             }
                             // GPS座標（coordinates配列）の場合（後方互換性）
                             else if (waypoint.coordinates && waypoint.coordinates.length >= 2) {
@@ -796,20 +785,9 @@ export class RouteSpotHandler {
                     imageY = spot.y;
                     elevation = spot.elevation;
 
-                    // FirebaseにGPS座標が既にある場合はそれを使用
-                    if (typeof spot.lat === 'number' && typeof spot.lng === 'number') {
-                        lat = spot.lat;
-                        lng = spot.lng;
-                    } else {
-                        // 画像座標からGPS座標に変換
-                        const gpsCoords = this.convertImageCoordsToGps(imageX, imageY);
-                        if (!gpsCoords) {
-                            this.logger.warn(`画像座標 (${imageX}, ${imageY}) をGPS座標に変換できませんでした`);
-                            continue;
-                        }
-                        lat = gpsCoords.lat;
-                        lng = gpsCoords.lng;
-                    }
+                    // GPS座標はジオリファレンス後に計算するのでnullに設定
+                    lat = null;
+                    lng = null;
                 }
                 // GPS座標（coordinates配列）の場合（後方互換性）
                 else if (spot.coordinates && spot.coordinates.length >= 2) {
@@ -852,34 +830,17 @@ export class RouteSpotHandler {
                 const imageX = point.x;
                 const imageY = point.y;
 
-                let lat, lng;
-
-                // FirebaseにGPS座標がある場合はそれを使用、ない場合は画像座標から変換
-                if (typeof point.lat === 'number' && typeof point.lng === 'number') {
-                    lat = point.lat;
-                    lng = point.lng;
-                    this.logger.info(`ポイント ${point.id}: FirebaseのGPS座標を使用 (${lat}, ${lng})`);
-                } else {
-                    // 画像座標からGPS座標に変換
-                    const gpsCoords = this.convertImageCoordsToGps(imageX, imageY);
-                    if (!gpsCoords) {
-                        this.logger.warn(`ポイント画像座標 (${imageX}, ${imageY}) をGPS座標に変換できませんでした`);
-                        continue;
-                    }
-                    lat = gpsCoords.lat;
-                    lng = gpsCoords.lng;
-                    this.logger.info(`ポイント ${point.id}: 画像座標から変換 (${imageX}, ${imageY}) → (${lat}, ${lng})`);
-                }
-
+                // Firebaseには画像座標のみが保存されているので、GPS座標はジオリファレンス後に計算
                 const processedPoint = {
                     id: point.id || point.firestoreId || 'Point',
                     pointId: point.firestoreId,
-                    lat: lat,
-                    lng: lng,
                     imageX: imageX,
                     imageY: imageY,
                     index: point.index || 0,
-                    isMarker: point.isMarker || false
+                    isMarker: point.isMarker || false,
+                    // GPS座標は未計算（ジオリファレンス後に設定）
+                    lat: null,
+                    lng: null
                 };
 
                 processedPoints.push(processedPoint);
@@ -1025,6 +986,12 @@ export class RouteSpotHandler {
             }
 
             for (const point of points) {
+                // GPS座標がnullの場合はジオリファレンス未実行なのでスキップ
+                if (point.lat === null || point.lng === null) {
+                    this.logger.info(`ポイント ${point.id}: GPS座標未計算（ジオリファレンス後に表示）`);
+                    continue;
+                }
+
                 if (!point.lat || !point.lng) {
                     this.logger.warn('ポイントに座標がありません:', point);
                     continue;
