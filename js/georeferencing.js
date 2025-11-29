@@ -468,6 +468,11 @@ export class Georeferencing {
                 this.syncSpotMarkers();
             }
 
+            // Firebaseポイントマーカーの位置同期
+            if (this.routeSpotHandler.pointMarkers && this.routeSpotHandler.pointMarkers.length > 0) {
+                this.syncFirebasePointMarkers();
+            }
+
 
         } catch (error) {
             this.logger.error('❌ ルート・スポット位置同期エラー', error);
@@ -488,7 +493,8 @@ export class Georeferencing {
                 const meta = marker.__meta;
                 if (marker.setLatLng && typeof marker.setLatLng === 'function') {
                     // 単一のマーカー（ルートの開始/中間/終了点）
-                    if (meta && meta.origin === 'image' && meta.imageX !== undefined && meta.imageY !== undefined) {
+                    // 'image'または'firebase'起源で画像座標を持つマーカーを移動
+                    if (meta && (meta.origin === 'image' || meta.origin === 'firebase') && meta.imageX !== undefined && meta.imageY !== undefined) {
                         const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
                         if (newPos) {
                             const currentPos = marker.getLatLng();
@@ -506,7 +512,8 @@ export class Georeferencing {
                     const metaPoints = (marker.__meta && Array.isArray(marker.__meta.points)) ? marker.__meta.points : [];
                     const newLatLngs = currentLatLngs.map((latlng, i) => {
                         const pMeta = metaPoints[i];
-                        if (pMeta && pMeta.origin === 'image' && pMeta.imageX !== undefined && pMeta.imageY !== undefined) {
+                        // 'image'または'firebase'起源で画像座標を持つポイントを移動
+                        if (pMeta && (pMeta.origin === 'image' || pMeta.origin === 'firebase') && pMeta.imageX !== undefined && pMeta.imageY !== undefined) {
                             const newPos = this.transformImageCoordsToGps(pMeta.imageX, pMeta.imageY, this.currentTransformation);
                             if (newPos) {
                                 movedMarkers++;
@@ -539,7 +546,8 @@ export class Georeferencing {
 
             this.routeSpotHandler.spotMarkers.forEach((marker, index) => {
                 const meta = marker.__meta;
-                if (meta && meta.origin === 'image' && meta.imageX !== undefined && meta.imageY !== undefined) {
+                // 'image'または'firebase'起源で画像座標を持つマーカーを移動
+                if (meta && (meta.origin === 'image' || meta.origin === 'firebase') && meta.imageX !== undefined && meta.imageY !== undefined) {
                     const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
                     if (newPos) {
                         const currentPos = marker.getLatLng();
@@ -557,6 +565,53 @@ export class Georeferencing {
 
         } catch (error) {
             this.logger.error('❌ スポットマーカー同期エラー', error);
+        }
+    }
+
+    syncFirebasePointMarkers() {
+        try {
+            if (!this.routeSpotHandler || !this.routeSpotHandler.pointMarkers) {
+                return;
+            }
+
+            let moved = 0;
+            let skipped = 0;
+
+            this.routeSpotHandler.pointMarkers.forEach((marker, index) => {
+                const meta = marker.__meta;
+                // Firebaseポイントは常にfirebase originを持ち、画像座標を保持
+                if (meta && meta.origin === 'firebase' && meta.imageX !== undefined && meta.imageY !== undefined) {
+                    const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
+                    if (newPos) {
+                        const currentPos = marker.getLatLng();
+                        marker.setLatLng(newPos);
+                        moved++;
+
+                        // ポップアップも更新
+                        const popupContent = `
+                            <div style="font-size: 12px;">
+                                <strong>${meta.id}</strong><br>
+                                緯度: ${newPos[0].toFixed(6)}<br>
+                                経度: ${newPos[1].toFixed(6)}<br>
+                                画像座標: (${Math.round(meta.imageX)}, ${Math.round(meta.imageY)})
+                            </div>
+                        `;
+                        marker.bindPopup(popupContent);
+                    } else {
+                        skipped++;
+                    }
+                } else {
+                    // 画像座標がない場合はスキップ
+                    skipped++;
+                }
+            });
+
+            if (moved > 0) {
+                this.logger.info(`✅ Firebaseポイントマーカー ${moved}個を移動しました（スキップ: ${skipped}個）`);
+            }
+
+        } catch (error) {
+            this.logger.error('❌ Firebaseポイントマーカー同期エラー', error);
         }
     }
 

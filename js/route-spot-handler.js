@@ -582,10 +582,12 @@ export class RouteSpotHandler {
                             
                             // マーカーに元座標系メタを付与
                             if (marker) {
+                                // Firebaseから読み込んだデータの場合、imageXとimageYが存在する
+                                const hasImageCoords = point.imageX !== undefined && point.imageY !== undefined;
                                 marker.__meta = {
-                                    origin: point.__origin || 'gps',
-                                    imageX: point.__imageX,
-                                    imageY: point.__imageY,
+                                    origin: hasImageCoords ? 'firebase' : (point.__origin || 'gps'),
+                                    imageX: point.imageX || point.__imageX,
+                                    imageY: point.imageY || point.__imageY,
                                     routeId: item.name || item.routeId,
                                     label: label
                                 };
@@ -629,7 +631,18 @@ export class RouteSpotHandler {
                         marker.bindPopup(spotInfo);
                         
                         // スポットにも元座標系メタを付与
-                        const origin = (item.imageX !== undefined && item.imageY !== undefined) ? 'image' : 'gps';
+                        // Firebaseから読み込んだデータかどうかを判定
+                        const isFirebase = item.fileName === 'firebase';
+                        const hasImageCoords = item.imageX !== undefined && item.imageY !== undefined;
+                        let origin;
+                        if (isFirebase && hasImageCoords) {
+                            origin = 'firebase';
+                        } else if (hasImageCoords) {
+                            origin = 'image';
+                        } else {
+                            origin = 'gps';
+                        }
+
                         marker.__meta = {
                             origin: origin,
                             imageX: item.imageX,
