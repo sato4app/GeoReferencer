@@ -459,19 +459,26 @@ export class Georeferencing {
                 return;
             }
 
+            this.logger.info(`🔄 ルート・スポット・ポイント同期開始`);
+            this.logger.info(`  ルートマーカー: ${this.routeSpotHandler.routeMarkers?.length || 0}個`);
+            this.logger.info(`  スポットマーカー: ${this.routeSpotHandler.spotMarkers?.length || 0}個`);
+            this.logger.info(`  ポイントデータ: ${this.routeSpotHandler.pointData?.length || 0}個`);
 
             // ルートマーカーの位置同期
             if (this.routeSpotHandler.routeMarkers && this.routeSpotHandler.routeMarkers.length > 0) {
+                this.logger.info('🔄 ルートマーカー同期中...');
                 this.syncRouteMarkers();
             }
 
             // スポットマーカーの位置同期
             if (this.routeSpotHandler.spotMarkers && this.routeSpotHandler.spotMarkers.length > 0) {
+                this.logger.info('🔄 スポットマーカー同期中...');
                 this.syncSpotMarkers();
             }
 
             // Firebaseポイントマーカーの位置同期
             if (this.routeSpotHandler.pointData && this.routeSpotHandler.pointData.length > 0) {
+                this.logger.info('🔄 Firebaseポイントマーカー同期中...');
                 await this.syncFirebasePointMarkers();
             }
 
@@ -487,6 +494,7 @@ export class Georeferencing {
                 return;
             }
 
+            this.logger.info(`🔍 ルートマーカー同期: ${this.routeSpotHandler.routeMarkers.length}個のマーカーを処理`);
 
             let movedMarkers = 0;
             let skippedMarkers = 0;
@@ -500,12 +508,17 @@ export class Georeferencing {
                         const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
                         if (newPos) {
                             const currentPos = marker.getLatLng();
+                            this.logger.info(`  📍 ルートマーカー[${index}]: origin=${meta.origin}, (${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}) → (${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)})`);
                             marker.setLatLng(newPos);
                             movedMarkers++;
                         } else {
+                            this.logger.warn(`  ⚠️ ルートマーカー[${index}]: 変換失敗`);
                         }
                     } else {
                         // GPS由来は移動しない
+                        if (index < 3) {  // 最初の3個だけログ出力
+                            this.logger.info(`  ⏭️ ルートマーカー[${index}]: スキップ (origin=${meta?.origin}, imageX=${meta?.imageX}, imageY=${meta?.imageY})`);
+                        }
                         skippedMarkers++;
                     }
                 } else if (marker.getLatLngs && typeof marker.getLatLngs === 'function') {
@@ -530,6 +543,7 @@ export class Georeferencing {
                 }
             });
 
+            this.logger.info(`✅ ルートマーカー同期完了: 移動=${movedMarkers}個, スキップ=${skippedMarkers}個`);
 
         } catch (error) {
             this.logger.error('❌ ルートマーカー同期エラー', error);
@@ -542,6 +556,7 @@ export class Georeferencing {
                 return;
             }
 
+            this.logger.info(`🔍 スポットマーカー同期: ${this.routeSpotHandler.spotMarkers.length}個のマーカーを処理`);
 
             let moved = 0;
             let skipped = 0;
@@ -553,17 +568,25 @@ export class Georeferencing {
                     const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
                     if (newPos) {
                         const currentPos = marker.getLatLng();
+                        if (index < 3) {  // 最初の3個だけログ出力
+                            this.logger.info(`  📍 スポットマーカー[${index}]: origin=${meta.origin}, (${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}) → (${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)})`);
+                        }
                         marker.setLatLng(newPos);
                         moved++;
                     } else {
+                        this.logger.warn(`  ⚠️ スポットマーカー[${index}]: 変換失敗`);
                         skipped++;
                     }
                 } else {
                     // GPS由来は移動しない
+                    if (index < 3) {  // 最初の3個だけログ出力
+                        this.logger.info(`  ⏭️ スポットマーカー[${index}]: スキップ (origin=${meta?.origin}, imageX=${meta?.imageX}, imageY=${meta?.imageY})`);
+                    }
                     skipped++;
                 }
             });
 
+            this.logger.info(`✅ スポットマーカー同期完了: 移動=${moved}個, スキップ=${skipped}個`);
 
         } catch (error) {
             this.logger.error('❌ スポットマーカー同期エラー', error);
