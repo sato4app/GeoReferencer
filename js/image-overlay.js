@@ -232,9 +232,10 @@ export class ImageOverlay {
 
     // アフィン変換結果による画像位置・スケール設定
     setTransformedPosition(centerLat, centerLng, scale) {
+        this.logger.warn(`⚠️ setTransformedPosition呼び出し: (${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}), スケール=${scale.toFixed(6)}`);
+        this.logger.warn(`📍 呼び出しスタック:`, new Error().stack);
         this.transformedCenter = { lat: centerLat, lng: centerLng };
         this.setCurrentScale(scale);
-        this.logger.info(`📍 変換後の画像中心: (${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}), スケール=${scale.toFixed(6)}`);
         
         // アフィン変換結果の場合は、直接境界を設定
         if (this.imageOverlay && this.currentImage.src) {
