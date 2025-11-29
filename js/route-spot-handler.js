@@ -697,20 +697,41 @@ export class RouteSpotHandler {
                         endPoint: route.endPoint || ''
                     },
                     points: (route.waypoints || [])
-                        .filter(waypoint => {
-                            const isValid = waypoint && waypoint.coordinates && waypoint.coordinates.length >= 2;
-                            if (!isValid) {
-                                this.logger.warn('無効なwaypoint:', waypoint);
-                            }
-                            return isValid;
-                        })
                         .map((waypoint, index) => {
-                            const [lng, lat, elevation] = waypoint.coordinates;
+                            // Firebaseのデータは画像座標（x, y）の形式
+                            if (!waypoint || (typeof waypoint.x !== 'number' && !waypoint.coordinates)) {
+                                this.logger.warn('無効なwaypoint:', waypoint);
+                                return null;
+                            }
 
-                            // 画像座標からGPS座標に変換
-                            let imageCoords = null;
-                            if (this.imageOverlay && this.imageOverlay.imageOverlay) {
-                                imageCoords = this.convertGpsToImageCoords(lat, lng);
+                            let lat, lng, elevation, imageX, imageY;
+
+                            // 画像座標（x, y）の場合
+                            if (typeof waypoint.x === 'number' && typeof waypoint.y === 'number') {
+                                imageX = waypoint.x;
+                                imageY = waypoint.y;
+
+                                // 画像座標からGPS座標に変換
+                                const gpsCoords = this.convertImageCoordsToGps(imageX, imageY);
+                                if (!gpsCoords) {
+                                    this.logger.warn(`画像座標 (${imageX}, ${imageY}) をGPS座標に変換できませんでした`);
+                                    return null;
+                                }
+                                lat = gpsCoords.lat;
+                                lng = gpsCoords.lng;
+                                elevation = waypoint.elevation;
+                            }
+                            // GPS座標（coordinates配列）の場合（後方互換性）
+                            else if (waypoint.coordinates && waypoint.coordinates.length >= 2) {
+                                [lng, lat, elevation] = waypoint.coordinates;
+
+                                // GPS座標から画像座標に変換
+                                const imgCoords = this.convertGpsToImageCoords(lat, lng);
+                                imageX = imgCoords ? imgCoords.x : undefined;
+                                imageY = imgCoords ? imgCoords.y : undefined;
+                            } else {
+                                this.logger.warn('waypointに座標データがありません:', waypoint);
+                                return null;
                             }
 
                             return {
@@ -719,10 +740,11 @@ export class RouteSpotHandler {
                                 elevation: elevation,
                                 name: waypoint.name || `Waypoint-${index + 1}`,
                                 type: 'waypoint',
-                                imageX: imageCoords ? imageCoords.x : undefined,
-                                imageY: imageCoords ? imageCoords.y : undefined
+                                imageX: imageX,
+                                imageY: imageY
                             };
                         })
+                        .filter(point => point !== null)
                 };
 
                 this.logger.info(`フィルタリング後のポイント数: ${processedRoute.points.length}`);
@@ -741,17 +763,36 @@ export class RouteSpotHandler {
 
             for (const spot of (spots || [])) {
                 // 座標が有効かチェック
-                if (!spot || !spot.coordinates || spot.coordinates.length < 2) {
+                if (!spot || (typeof spot.x !== 'number' && (!spot.coordinates || spot.coordinates.length < 2))) {
                     this.logger.warn('無効なスポット:', spot);
                     continue; // 無効なスポットはスキップ
                 }
 
-                const [lng, lat, elevation] = spot.coordinates;
+                let lat, lng, elevation, imageX, imageY;
 
-                // 画像座標からGPS座標に変換
-                let imageCoords = null;
-                if (this.imageOverlay && this.imageOverlay.imageOverlay) {
-                    imageCoords = this.convertGpsToImageCoords(lat, lng);
+                // 画像座標（x, y）の場合
+                if (typeof spot.x === 'number' && typeof spot.y === 'number') {
+                    imageX = spot.x;
+                    imageY = spot.y;
+
+                    // 画像座標からGPS座標に変換
+                    const gpsCoords = this.convertImageCoordsToGps(imageX, imageY);
+                    if (!gpsCoords) {
+                        this.logger.warn(`画像座標 (${imageX}, ${imageY}) をGPS座標に変換できませんでした`);
+                        continue;
+                    }
+                    lat = gpsCoords.lat;
+                    lng = gpsCoords.lng;
+                    elevation = spot.elevation;
+                }
+                // GPS座標（coordinates配列）の場合（後方互換性）
+                else if (spot.coordinates && spot.coordinates.length >= 2) {
+                    [lng, lat, elevation] = spot.coordinates;
+
+                    // GPS座標から画像座標に変換
+                    const imgCoords = this.convertGpsToImageCoords(lat, lng);
+                    imageX = imgCoords ? imgCoords.x : undefined;
+                    imageY = imgCoords ? imgCoords.y : undefined;
                 }
 
                 const processedSpot = {
@@ -764,8 +805,8 @@ export class RouteSpotHandler {
                         lng: lng
                     },
                     elevation: elevation,
-                    imageX: imageCoords ? imageCoords.x : undefined,
-                    imageY: imageCoords ? imageCoords.y : undefined
+                    imageX: imageX,
+                    imageY: imageY
                 };
 
                 processedSpots.push(processedSpot);
@@ -818,6 +859,37 @@ export class RouteSpotHandler {
 
         } catch (error) {
             this.logger.error('GPS→画像座標変換エラー', error);
+            return null;
+        }
+    }
+
+    /**
+     * 画像座標からGPS座標に変換
+     * @param {number} imageX - 画像X座標
+     * @param {number} imageY - 画像Y座標
+     * @returns {Object|null} {lat, lng} GPS座標またはnull
+     */
+    convertImageCoordsToGps(imageX, imageY) {
+        try {
+            if (!this.imageOverlay || !this.imageOverlay.imageOverlay) {
+                this.logger.warn('ImageOverlayが初期化されていません');
+                return null;
+            }
+
+            const imageBounds = this.imageOverlay.imageOverlay.getBounds();
+            const imageWidth = this.imageOverlay.currentImage.naturalWidth || this.imageOverlay.currentImage.width;
+            const imageHeight = this.imageOverlay.currentImage.naturalHeight || this.imageOverlay.currentImage.height;
+
+            if (!imageBounds || !imageWidth || !imageHeight) {
+                this.logger.warn('画像境界または画像サイズが不正です');
+                return null;
+            }
+
+            const result = mathUtils.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
+            return result ? { lat: result[0], lng: result[1] } : null;
+
+        } catch (error) {
+            this.logger.error('画像座標→GPS座標変換エラー', error);
             return null;
         }
     }
