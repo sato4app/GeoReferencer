@@ -942,7 +942,14 @@ export class RouteSpotHandler {
                 return null;
             }
 
+            const sw = imageBounds.getSouthWest();
+            const ne = imageBounds.getNorthEast();
+            this.logger.info(`🗺️ 画像境界: SW=(${sw.lat.toFixed(6)}, ${sw.lng.toFixed(6)}), NE=(${ne.lat.toFixed(6)}, ${ne.lng.toFixed(6)}), サイズ=${imageWidth}x${imageHeight}`);
+
             const result = mathUtils.convertImageCoordsToGps(imageX, imageY, imageBounds, imageWidth, imageHeight);
+            if (result) {
+                this.logger.info(`📍 画像座標(${imageX}, ${imageY}) → GPS座標(${result[0].toFixed(6)}, ${result[1].toFixed(6)})`);
+            }
             return result ? { lat: result[0], lng: result[1] } : null;
 
         } catch (error) {
