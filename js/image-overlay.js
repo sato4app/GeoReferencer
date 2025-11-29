@@ -70,17 +70,21 @@ export class ImageOverlay {
             return;
         }
 
+        // ジオリファレンス未実行の場合は、境界を更新しない
+        // (getInitialBounds()で設定した初期境界を維持)
+        if (!this.transformedCenter) {
+            this.logger.info(`⏭️ updateImageDisplay: ジオリファレンス未実行のためスキップ`);
+            return;
+        }
+
         // 内部管理のscale値を使用
         const scale = this.getCurrentScale();
 
-        // 画像の中心位置：アフィン変換結果があればそれを使用、なければ地図中心を使用
-        const centerPos = this.transformedCenter || this.map.getCenter();
+        // 画像の中心位置：アフィン変換結果を使用
+        const centerPos = this.transformedCenter;
 
-        if (this.transformedCenter) {
-            this.logger.info(`📍 画像表示: ジオリファレンス済み位置を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)})`);
-        } else {
-            this.logger.info(`📍 画像表示: 地図中心を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)})`);
-        }
+        this.logger.info(`📍 画像表示: ジオリファレンス済み位置を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)})`);
+
         
         // naturalWidth/naturalHeightを使用して正確なピクセル数を取得
         const imageWidth = this.currentImage.naturalWidth || this.currentImage.width;
