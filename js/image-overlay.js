@@ -1,8 +1,10 @@
 // 画像オーバーレイ機能を管理するモジュール
 import { DEFAULTS } from './constants.js';
+import { Logger } from './utils.js';
 
 export class ImageOverlay {
     constructor(mapCore) {
+        this.logger = new Logger('ImageOverlay');
         this.map = mapCore.getMap();
         this.mapCore = mapCore;
         this.imageOverlay = null;
@@ -12,7 +14,7 @@ export class ImageOverlay {
         this.isMovingImage = false;
         this.imageUpdateCallbacks = [];
         this.transformedCenter = null; // アフィン変換結果の中心位置
-        
+
         // 内部scale管理（初期値はconstantsから取得）
         this.currentScale = this.getDefaultScale();
         
