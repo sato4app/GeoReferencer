@@ -598,6 +598,7 @@ export class Georeferencing {
                     // pointDataにGPS座標を保存
                     point.lat = gpsCoords[0];
                     point.lng = gpsCoords[1];
+                    point.isGeoreferenced = true;  // ジオリファレンス済みフラグ
 
                     this.logger.info(`✅ ポイント ${point.id}: 画像座標(${point.imageX}, ${point.imageY}) → GPS座標(${gpsCoords[0].toFixed(6)}, ${gpsCoords[1].toFixed(6)})`);
                     created++;
