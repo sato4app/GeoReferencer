@@ -582,8 +582,9 @@ export class Georeferencing {
                 // Firebaseポイントは常にfirebase originを持ち、画像座標を保持
                 if (meta && meta.origin === 'firebase' && meta.imageX !== undefined && meta.imageY !== undefined) {
                     const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
-                    if (newPos) {
+                    if (newPos && newPos.length === 2 && isFinite(newPos[0]) && isFinite(newPos[1])) {
                         const currentPos = marker.getLatLng();
+                        this.logger.info(`ポイント ${meta.id}: (${currentPos.lat.toFixed(6)}, ${currentPos.lng.toFixed(6)}) → (${newPos[0].toFixed(6)}, ${newPos[1].toFixed(6)})`);
                         marker.setLatLng(newPos);
                         moved++;
 
@@ -598,9 +599,11 @@ export class Georeferencing {
                         `;
                         marker.bindPopup(popupContent);
                     } else {
+                        this.logger.warn(`ポイント ${meta.id}: 変換失敗 - newPos=${newPos}`);
                         skipped++;
                     }
                 } else {
+                    this.logger.warn(`ポイント[${index}]: メタデータ不正 - origin=${meta?.origin}, imageX=${meta?.imageX}, imageY=${meta?.imageY}`);
                     // 画像座標がない場合はスキップ
                     skipped++;
                 }
