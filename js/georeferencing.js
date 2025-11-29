@@ -272,17 +272,23 @@ export class Georeferencing {
             const unmatchedPointJsonIds = [];
             let totalPointJsons = 0;
 
-            if (!this.pointJsonData) {
-                this.logger.warn('ポイントJSONデータが存在しません');
+            // Firebaseのポイントデータを優先的に使用
+            let pointJsonArray = [];
+            if (this.routeSpotHandler && this.routeSpotHandler.pointData && this.routeSpotHandler.pointData.length > 0) {
+                this.logger.info(`Firebaseポイントデータを使用: ${this.routeSpotHandler.pointData.length}件`);
+                pointJsonArray = this.routeSpotHandler.pointData;
+            } else if (this.pointJsonData) {
+                this.logger.info('ポイントJSONデータを使用（旧形式）');
+                pointJsonArray = Array.isArray(this.pointJsonData) ? this.pointJsonData :
+                    (this.pointJsonData.points ? this.pointJsonData.points : [this.pointJsonData]);
+            } else {
+                this.logger.warn('ポイントデータが存在しません（FirebaseポイントもポイントJSONも見つかりませんでした）');
                 return {
                     matchedPairs: [],
                     unmatchedPointJsonIds: [],
                     totalPointJsons: 0
                 };
             }
-
-            const pointJsonArray = Array.isArray(this.pointJsonData) ? this.pointJsonData : 
-                (this.pointJsonData.points ? this.pointJsonData.points : [this.pointJsonData]);
 
             totalPointJsons = pointJsonArray.length;
 
@@ -293,13 +299,30 @@ export class Georeferencing {
 
             pointJsonArray.forEach((pointJson, index) => {
                 const pointJsonId = pointJson.Id || pointJson.id || pointJson.name;
-                
+
                 if (!pointJsonId) {
-                    this.logger.warn(`ポイントJSON[${index}]にIdが見つかりません:`, pointJson);
+                    this.logger.warn(`ポイント[${index}]にIdが見つかりません:`, pointJson);
                     unmatchedPointJsonIds.push(`[${index}] (IDなし)`);
                     return;
                 }
 
+                // Firebaseポイントの場合、既にGPS座標を持っているので自己参照
+                if (pointJson.lat !== undefined && pointJson.lng !== undefined && pointJson.imageX !== undefined && pointJson.imageY !== undefined) {
+                    this.logger.info(`Firebaseポイント使用: ${pointJsonId}`);
+                    const pair = {
+                        pointJsonId: pointJsonId,
+                        pointJson: pointJson,
+                        gpsPoint: {
+                            pointId: pointJsonId,
+                            lat: pointJson.lat,
+                            lng: pointJson.lng
+                        }
+                    };
+                    matchedPairs.push(pair);
+                    return;
+                }
+
+                // 従来のポイントJSON形式の場合、GPSデータとマッチング
                 const matchingGpsPoint = gpsPointMap.get(pointJsonId);
 
                 if (matchingGpsPoint) {
