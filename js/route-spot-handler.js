@@ -683,7 +683,7 @@ export class RouteSpotHandler {
 
             // ルートデータを処理
             const processedRoutes = [];
-            for (const route of routes) {
+            for (const route of (routes || [])) {
                 const processedRoute = {
                     name: route.name || route.id || 'Route',
                     routeId: route.id || route.firestoreId,
@@ -692,7 +692,7 @@ export class RouteSpotHandler {
                         startPoint: route.startPoint || '',
                         endPoint: route.endPoint || ''
                     },
-                    points: route.waypoints.map((waypoint, index) => {
+                    points: (route.waypoints || []).map((waypoint, index) => {
                         const [lng, lat, elevation] = waypoint.coordinates;
 
                         // 画像座標からGPS座標に変換
@@ -718,7 +718,7 @@ export class RouteSpotHandler {
 
             // スポットデータを処理
             const processedSpots = [];
-            for (const spot of spots) {
+            for (const spot of (spots || [])) {
                 const [lng, lat, elevation] = spot.coordinates;
 
                 // 画像座標からGPS座標に変換
@@ -758,7 +758,7 @@ export class RouteSpotHandler {
                 await this.displayRouteSpotOnMap(processedSpots, 'spot');
             }
 
-            this.logger.info(`Firebase読み込み完了: ポイント ${points.length}件、ルート ${processedRoutes.length}本、スポット ${processedSpots.length}個`);
+            this.logger.info(`Firebase読み込み完了: ポイント ${(points || []).length}件、ルート ${processedRoutes.length}本、スポット ${processedSpots.length}個`);
 
         } catch (error) {
             this.logger.error('Firebaseデータ表示エラー', error);
