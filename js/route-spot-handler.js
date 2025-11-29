@@ -14,6 +14,7 @@ export class RouteSpotHandler {
         this.spotData = [];
         this.routeMarkers = [];
         this.spotMarkers = [];
+        this.pointMarkers = [];
     }
 
     async handleRouteSpotJsonLoad(files, selectedRouteSpotType) {
@@ -812,8 +813,43 @@ export class RouteSpotHandler {
                 processedSpots.push(processedSpot);
             }
 
+            // ポイントデータを処理
+            const processedPoints = [];
+            this.logger.info(`処理するポイント数: ${(points || []).length}`);
+
+            for (const point of (points || [])) {
+                // 座標が有効かチェック
+                if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
+                    this.logger.warn('無効なポイント:', point);
+                    continue;
+                }
+
+                const imageX = point.x;
+                const imageY = point.y;
+
+                // 画像座標からGPS座標に変換
+                const gpsCoords = this.convertImageCoordsToGps(imageX, imageY);
+                if (!gpsCoords) {
+                    this.logger.warn(`ポイント画像座標 (${imageX}, ${imageY}) をGPS座標に変換できませんでした`);
+                    continue;
+                }
+
+                const processedPoint = {
+                    id: point.id || point.firestoreId || 'Point',
+                    pointId: point.firestoreId,
+                    lat: gpsCoords.lat,
+                    lng: gpsCoords.lng,
+                    imageX: imageX,
+                    imageY: imageY,
+                    index: point.index || 0,
+                    isMarker: point.isMarker || false
+                };
+
+                processedPoints.push(processedPoint);
+            }
+
             // データを保存
-            this.pointData = points;
+            this.pointData = processedPoints;
             this.routeData = processedRoutes;
             this.spotData = processedSpots;
 
@@ -826,7 +862,11 @@ export class RouteSpotHandler {
                 await this.displayRouteSpotOnMap(processedSpots, 'spot');
             }
 
-            this.logger.info(`Firebase読み込み完了: ポイント ${(points || []).length}件、ルート ${processedRoutes.length}本、スポット ${processedSpots.length}個`);
+            if (processedPoints.length > 0) {
+                await this.displayPointsOnMap(processedPoints);
+            }
+
+            this.logger.info(`Firebase読み込み完了: ポイント ${processedPoints.length}件、ルート ${processedRoutes.length}本、スポット ${processedSpots.length}個`);
 
         } catch (error) {
             this.logger.error('Firebaseデータ表示エラー', error);
@@ -916,6 +956,80 @@ export class RouteSpotHandler {
                 }
             });
             this.spotMarkers = [];
+        }
+
+        // ポイントマーカーをクリア
+        if (this.pointMarkers && Array.isArray(this.pointMarkers)) {
+            this.pointMarkers.forEach(marker => {
+                if (marker && this.mapCore && this.mapCore.getMap()) {
+                    this.mapCore.getMap().removeLayer(marker);
+                }
+            });
+            this.pointMarkers = [];
+        }
+    }
+
+    /**
+     * Firebaseポイントを地図に表示（赤いマーカー）
+     * @param {Array} points - ポイントデータ配列
+     */
+    async displayPointsOnMap(points) {
+        try {
+            if (!points || points.length === 0) {
+                this.logger.info('表示するポイントがありません');
+                return;
+            }
+
+            this.logger.info(`${points.length}個のポイントを地図に表示します`);
+
+            // ポイントマーカー配列を初期化
+            if (!this.pointMarkers) {
+                this.pointMarkers = [];
+            }
+
+            for (const point of points) {
+                if (!point.lat || !point.lng) {
+                    this.logger.warn('ポイントに座標がありません:', point);
+                    continue;
+                }
+
+                // 赤い円形マーカーを作成（pointJSONタイプ）
+                const marker = mathUtils.createCustomMarker(
+                    [point.lat, point.lng],
+                    'pointJSON',
+                    this.mapCore
+                ).addTo(this.mapCore.getMap());
+
+                // マーカーにメタ情報を付与
+                if (marker) {
+                    marker.__meta = {
+                        origin: 'firebase',
+                        imageX: point.imageX,
+                        imageY: point.imageY,
+                        pointId: point.pointId,
+                        id: point.id
+                    };
+
+                    // ポップアップを追加
+                    const popupContent = `
+                        <div style="font-size: 12px;">
+                            <strong>${point.id}</strong><br>
+                            緯度: ${point.lat.toFixed(6)}<br>
+                            経度: ${point.lng.toFixed(6)}<br>
+                            画像座標: (${Math.round(point.imageX)}, ${Math.round(point.imageY)})
+                        </div>
+                    `;
+                    marker.bindPopup(popupContent);
+
+                    this.pointMarkers.push(marker);
+                }
+            }
+
+            this.logger.info(`${this.pointMarkers.length}個のポイントマーカーを表示しました`);
+
+        } catch (error) {
+            this.logger.error('ポイント地図表示エラー', error);
+            throw error;
         }
     }
 }
