@@ -199,7 +199,9 @@ export class ImageOverlay {
 
                     // 画像レイヤーが完全に読み込まれるまで少し待つ
                     setTimeout(() => {
-                        this.updateImageDisplay();
+                        // 初期読み込み時はupdateImageDisplay()を呼ばない
+                        // getInitialBounds()で設定した境界をそのまま使用
+                        this.logger.info(`📍 初期画像配置完了: getInitialBounds()の境界を使用`);
                         resolve();
                     }, 100);
                 };
