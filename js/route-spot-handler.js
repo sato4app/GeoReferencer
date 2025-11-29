@@ -683,9 +683,13 @@ export class RouteSpotHandler {
 
             // ルートデータを処理
             const processedRoutes = [];
+            this.logger.info(`処理するルート数: ${(routes || []).length}`);
+
             for (const route of (routes || [])) {
+                this.logger.info(`ルート処理中: ${route.routeName || route.name || 'Unnamed'}, waypoints数: ${(route.waypoints || []).length}`);
+
                 const processedRoute = {
-                    name: route.name || route.id || 'Route',
+                    name: route.routeName || route.name || route.id || 'Route',
                     routeId: route.id || route.firestoreId,
                     fileName: 'firebase',
                     routeInfo: {
@@ -693,7 +697,13 @@ export class RouteSpotHandler {
                         endPoint: route.endPoint || ''
                     },
                     points: (route.waypoints || [])
-                        .filter(waypoint => waypoint && waypoint.coordinates && waypoint.coordinates.length >= 2)
+                        .filter(waypoint => {
+                            const isValid = waypoint && waypoint.coordinates && waypoint.coordinates.length >= 2;
+                            if (!isValid) {
+                                this.logger.warn('無効なwaypoint:', waypoint);
+                            }
+                            return isValid;
+                        })
                         .map((waypoint, index) => {
                             const [lng, lat, elevation] = waypoint.coordinates;
 
@@ -715,14 +725,24 @@ export class RouteSpotHandler {
                         })
                 };
 
-                processedRoutes.push(processedRoute);
+                this.logger.info(`フィルタリング後のポイント数: ${processedRoute.points.length}`);
+
+                // ポイントが1つ以上ある場合のみ追加
+                if (processedRoute.points.length > 0) {
+                    processedRoutes.push(processedRoute);
+                } else {
+                    this.logger.warn(`ルート "${processedRoute.name}" はポイントがないためスキップされました`);
+                }
             }
 
             // スポットデータを処理
             const processedSpots = [];
+            this.logger.info(`処理するスポット数: ${(spots || []).length}`);
+
             for (const spot of (spots || [])) {
                 // 座標が有効かチェック
                 if (!spot || !spot.coordinates || spot.coordinates.length < 2) {
+                    this.logger.warn('無効なスポット:', spot);
                     continue; // 無効なスポットはスキップ
                 }
 
