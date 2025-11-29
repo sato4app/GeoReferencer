@@ -692,25 +692,27 @@ export class RouteSpotHandler {
                         startPoint: route.startPoint || '',
                         endPoint: route.endPoint || ''
                     },
-                    points: (route.waypoints || []).map((waypoint, index) => {
-                        const [lng, lat, elevation] = waypoint.coordinates || [];
+                    points: (route.waypoints || [])
+                        .filter(waypoint => waypoint && waypoint.coordinates && waypoint.coordinates.length >= 2)
+                        .map((waypoint, index) => {
+                            const [lng, lat, elevation] = waypoint.coordinates;
 
-                        // 画像座標からGPS座標に変換
-                        let imageCoords = null;
-                        if (this.imageOverlay && this.imageOverlay.imageOverlay) {
-                            imageCoords = this.convertGpsToImageCoords(lat, lng);
-                        }
+                            // 画像座標からGPS座標に変換
+                            let imageCoords = null;
+                            if (this.imageOverlay && this.imageOverlay.imageOverlay) {
+                                imageCoords = this.convertGpsToImageCoords(lat, lng);
+                            }
 
-                        return {
-                            lat: lat,
-                            lng: lng,
-                            elevation: elevation,
-                            name: waypoint.name || `Waypoint-${index + 1}`,
-                            type: 'waypoint',
-                            imageX: imageCoords ? imageCoords.x : undefined,
-                            imageY: imageCoords ? imageCoords.y : undefined
-                        };
-                    })
+                            return {
+                                lat: lat,
+                                lng: lng,
+                                elevation: elevation,
+                                name: waypoint.name || `Waypoint-${index + 1}`,
+                                type: 'waypoint',
+                                imageX: imageCoords ? imageCoords.x : undefined,
+                                imageY: imageCoords ? imageCoords.y : undefined
+                            };
+                        })
                 };
 
                 processedRoutes.push(processedRoute);
@@ -719,7 +721,12 @@ export class RouteSpotHandler {
             // スポットデータを処理
             const processedSpots = [];
             for (const spot of (spots || [])) {
-                const [lng, lat, elevation] = spot.coordinates || [];
+                // 座標が有効かチェック
+                if (!spot || !spot.coordinates || spot.coordinates.length < 2) {
+                    continue; // 無効なスポットはスキップ
+                }
+
+                const [lng, lat, elevation] = spot.coordinates;
 
                 // 画像座標からGPS座標に変換
                 let imageCoords = null;
