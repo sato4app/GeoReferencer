@@ -403,17 +403,19 @@ export class Georeferencing {
 
     transformImageCoordsToGps(imageX, imageY, transformation) {
         try {
-            
+
             if (transformation.type === 'precise') {
+                this.logger.info(`変換前: 画像座標=(${imageX}, ${imageY}), 変換パラメータ=`, transformation.transformation);
                 const result = mathUtils.applyAffineTransform(imageX, imageY, transformation);
                 if (result) {
+                    this.logger.info(`変換後: GPS座標=(${result[0]}, ${result[1]})`);
                 }
                 return result;
             } else {
                 this.logger.error('精密版以外の変換はサポートされていません');
                 return null;
             }
-            
+
         } catch (error) {
             this.logger.error('座標変換エラー', error);
             return null;
