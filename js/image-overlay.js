@@ -135,7 +135,9 @@ export class ImageOverlay {
         }
         
         const bounds = L.latLngBounds(southWest, northEast);
-        
+
+        this.logger.info(`🖼️ 画像境界計算: SW=(${southWest[0].toFixed(6)}, ${southWest[1].toFixed(6)}), NE=(${northEast[0].toFixed(6)}, ${northEast[1].toFixed(6)}), scale=${scale.toFixed(6)}, サイズ=${imageWidth}x${imageHeight}`);
+
         // 画像レイヤーの境界を更新
         this.imageOverlay.setBounds(bounds);
         
@@ -227,7 +229,8 @@ export class ImageOverlay {
     // ジオリファレンス状態をリセット（画像読み込み時に呼ぶ）
     resetTransformation() {
         this.transformedCenter = null;
-        this.logger.info('🔄 ジオリファレンス状態をリセットしました');
+        this.currentScale = this.getDefaultScale();
+        this.logger.info(`🔄 ジオリファレンス状態をリセットしました (scale=${this.currentScale.toFixed(6)})`);
     }
 
     // アフィン変換結果による画像位置・スケール設定
@@ -326,9 +329,13 @@ export class ImageOverlay {
         const centerLat = center.lat - offsetLat;
         const centerLng = center.lng - offsetLng;
 
-        return L.latLngBounds(
+        const bounds = L.latLngBounds(
             [centerLat - imageOffset, centerLng - imageOffset],
             [centerLat + imageOffset, centerLng + imageOffset]
         );
+
+        this.logger.info(`🎯 getInitialBounds呼び出し: 地図中心=(${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}), 画像境界=SW(${(centerLat - imageOffset).toFixed(6)}, ${(centerLng - imageOffset).toFixed(6)}), NE(${(centerLat + imageOffset).toFixed(6)}, ${(centerLng + imageOffset).toFixed(6)})`);
+
+        return bounds;
     }
 }
