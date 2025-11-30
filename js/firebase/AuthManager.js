@@ -36,7 +36,6 @@ export class AuthManager {
         try {
             const result = await this.auth.signInWithEmailAndPassword(email, password);
             this.currentUser = result.user;
-            console.log('メールログイン成功:', this.currentUser.uid);
             return this.currentUser;
         } catch (error) {
             console.error('メールログイン失敗:', error);
@@ -54,7 +53,6 @@ export class AuthManager {
         try {
             const result = await this.auth.createUserWithEmailAndPassword(email, password);
             this.currentUser = result.user;
-            console.log('新規登録成功:', this.currentUser.uid);
             return this.currentUser;
         } catch (error) {
             console.error('新規登録失敗:', error);
@@ -70,7 +68,6 @@ export class AuthManager {
         try {
             await this.auth.signOut();
             this.currentUser = null;
-            console.log('ログアウト成功');
         } catch (error) {
             console.error('ログアウト失敗:', error);
             throw new Error('ログアウトに失敗しました: ' + error.message);
@@ -85,11 +82,6 @@ export class AuthManager {
     onAuthStateChanged(callback) {
         return this.auth.onAuthStateChanged((user) => {
             this.currentUser = user;
-            if (user) {
-                console.log('ユーザーがログインしています:', user.uid);
-            } else {
-                console.log('ユーザーがログアウトしています');
-            }
             callback(user);
         });
     }

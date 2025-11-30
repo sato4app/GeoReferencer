@@ -7,7 +7,7 @@ import { RouteSpotHandler } from './route-spot-handler.js';
 import { CoordinateDisplay } from './coordinate-display.js';
 import { UIHandlers } from './ui-handlers.js';
 import { FileHandler } from './file-handler.js';
-import { CONFIG, EVENTS, DEFAULTS } from './constants.js';
+import { CONFIG, DEFAULTS } from './constants.js';
 import { Logger, errorHandler } from './utils.js';
 
 // Firebase関連
@@ -678,7 +678,7 @@ class GeoReferencerApp {
 
         if (field) {
             const remaining = total - current;
-            field.value = `${remaining}/${total}`;
+            field.value = `${remaining}`;
         }
     }
 
@@ -750,7 +750,7 @@ class GeoReferencerApp {
             
             // ファイルとして保存
             const geoJsonFileName = this.getGeoJsonFileName();
-            const result = await this.fileHandler.saveGeoJsonWithUserChoice(geoJsonData, geoJsonFileName);
+            const result = await this.fileHandler.saveDataWithUserChoice(geoJsonData, geoJsonFileName);
             
             if (result.success) {
                 this.logger.info(`GeoJSON保存成功: ${result.filename}`);
@@ -1061,7 +1061,7 @@ class GeoReferencerApp {
             return `${this.currentPngFileName}-GPS`;
         }
         // PNG画像が読み込まれていない場合はデフォルト名を使用
-        return this.fileHandler.getDefaultGeoJsonFileName();
+        return this.fileHandler.getDefaultDataFileName();
     }
 
     /**

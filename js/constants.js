@@ -76,24 +76,12 @@ export const DEFAULTS = {
     ANIMATION_DURATION: 200
 };
 
-// イベント名
-export const EVENTS = {
-    DOM_CONTENT_LOADED: 'DOMContentLoaded',
-    FILE_CHANGE: 'change',
-    BUTTON_CLICK: 'click',
-    MAP_READY: 'mapready',
-    DATA_LOADED: 'dataloaded'
-};
-
 // CSS クラス名
 export const CSS_CLASSES = {
-    EDITOR_PANEL: 'editor-panel',
-    OVERLAY_CONTROLS: 'overlay-controls',
     MESSAGE_BOX: 'message-box',
     ERROR: 'error',
     WARNING: 'warning',
-    SUCCESS: 'success',
-    VISUALLY_HIDDEN: 'visually-hidden'
+    SUCCESS: 'success'
 };
 
 // ログレベル

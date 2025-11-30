@@ -62,7 +62,6 @@ export class FirestoreDataManager {
                     spotCount: 0
                 });
 
-            console.log('プロジェクトメタデータ作成成功:', projectId);
         } catch (error) {
             console.error('プロジェクトメタデータ作成失敗:', error);
             throw new Error('プロジェクトの作成に失敗しました: ' + error.message);
@@ -819,7 +818,6 @@ export class FirestoreDataManager {
      */
     unsubscribeAll() {
         this.listeners.forEach((unsubscribe, key) => {
-            console.log(`リスナー解除: ${key}`);
             unsubscribe();
         });
         this.listeners.clear();
@@ -832,7 +830,6 @@ export class FirestoreDataManager {
     unsubscribe(key) {
         const unsubscribe = this.listeners.get(key);
         if (unsubscribe) {
-            console.log(`リスナー解除: ${key}`);
             unsubscribe();
             this.listeners.delete(key);
         }
@@ -864,7 +861,6 @@ export class FirestoreDataManager {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-            console.log('GPS変換済みポイント追加成功:', docRef.id);
             return docRef.id;
         } catch (error) {
             console.error('GPS変換済みポイント追加失敗:', error);
@@ -917,7 +913,6 @@ export class FirestoreDataManager {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-            console.log('GPS変換済みルート追加成功:', docRef.id);
             return docRef.id;
         } catch (error) {
             console.error('GPS変換済みルート追加失敗:', error);
@@ -969,7 +964,6 @@ export class FirestoreDataManager {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-            console.log('GPS変換済みスポット追加成功:', docRef.id);
             return docRef.id;
         } catch (error) {
             console.error('GPS変換済みスポット追加失敗:', error);
@@ -1034,7 +1028,6 @@ export class FirestoreDataManager {
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            console.log(`ルート中間点の標高更新成功: ${routeId}[${waypointIndex}] = ${elevation}m`);
         } catch (error) {
             console.error('ルート中間点の標高更新失敗:', error);
             throw error;
@@ -1069,7 +1062,6 @@ export class FirestoreDataManager {
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            console.log(`スポットの標高更新成功: ${spotId} = ${elevation}m`);
         } catch (error) {
             console.error('スポットの標高更新失敗:', error);
             throw error;
@@ -1113,7 +1105,6 @@ export class FirestoreDataManager {
             const gpsSpotsDeletePromises = gpsSpotsSnapshot.docs.map(doc => doc.ref.delete());
             await Promise.all(gpsSpotsDeletePromises);
 
-            console.log('GPS変換済みデータ全削除成功:', projectId);
         } catch (error) {
             console.error('GPS変換済みデータ削除失敗:', error);
             throw error;

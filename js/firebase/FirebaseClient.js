@@ -17,7 +17,6 @@ export class FirebaseClient {
      */
     async initialize() {
         if (this.initialized) {
-            console.warn('Firebase is already initialized');
             return;
         }
 
@@ -32,12 +31,8 @@ export class FirebaseClient {
             // 注: enablePersistence()は将来非推奨となる予定だが、Compat版SDKでは
             // 新しいFirestoreSettings.cacheがサポートされていないため、現行のAPIを使用
             this.db.enablePersistence({synchronizeTabs: true})
-                .catch((err) => {
-                    if (err.code === 'failed-precondition') {
-                        console.warn('複数のタブが開いているため、永続化を有効にできません');
-                    } else if (err.code === 'unimplemented') {
-                        console.warn('このブラウザは永続化をサポートしていません');
-                    }
+                .catch(() => {
+                    // エラーは無視（永続化が無効でも動作可能）
                 });
 
             this.initialized = true;
