@@ -1038,8 +1038,6 @@ select:focus {
 .elevation-controls {
     margin-top: var(--spacing-large);
     padding: 12px;
-    border: 2px solid rgba(40, 167, 69, 0.4);
-    border-radius: var(--border-radius);
     background: var(--color-overlay);
 }
 
