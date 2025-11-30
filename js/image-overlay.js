@@ -235,8 +235,8 @@ export class ImageOverlay {
     // ジオリファレンス状態をリセット（画像読み込み時に呼ぶ）
     resetTransformation() {
         this.transformedCenter = null;
-        // 初期読み込み時は小さいスケールを使用（ジオリファレンスの視覚効果を確認しやすくするため）
-        this.currentScale = 0.1;  // デフォルトの0.8ではなく、0.1を使用
+        // 初期読み込み時は大きいスケールを使用（ジオリファレンス後に小さくなる視覚効果）
+        this.currentScale = 1.5;  // 大きく表示（ジオリファレンス後0.089になる）
         this.logger.info(`🔄 ジオリファレンス状態をリセットしました (scale=${this.currentScale.toFixed(6)})`);
     }
 
@@ -328,10 +328,10 @@ export class ImageOverlay {
 
     getInitialBounds() {
         const center = this.map.getCenter();
-        // 画像を地図中心から少しずらして配置（ジオリファレンスの視覚効果を確認しやすくするため）
-        // ジオリファレンス後の正しい位置と違う場所に配置するため、北東方向にずらす
-        const offsetLat = -0.003;  // 約330m北にずらす（マイナス=北方向）
-        const offsetLng = -0.003;  // 約270m東にずらす（マイナス=東方向）
+        // 画像を地図中心に配置
+        // 位置はずらさず、スケールの変化（大→小）で視覚効果を出す
+        const offsetLat = 0;  // ずらさない
+        const offsetLng = 0;  // ずらさない
         const imageOffset = 0.001;  // 画像サイズ
 
         const centerLat = center.lat - offsetLat;
