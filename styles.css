@@ -105,6 +105,7 @@ html, body, #map {
     width: var(--control-panel-width);
     max-height: calc(100vh - 40px);
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 /* レスポンシブ対応 */
