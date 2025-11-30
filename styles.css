@@ -334,6 +334,7 @@ html, body, #map {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+    align-self: center;
 }
 
 /* 標高未取得ラベル */
