@@ -77,9 +77,9 @@ export class ImageOverlay {
         const centerPos = this.transformedCenter || this.map.getCenter();
 
         if (this.transformedCenter) {
-            this.logger.info(`📍 画像表示: ジオリファレンス済み位置を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)})`);
+            this.logger.info(`📍 画像表示: ジオリファレンス済み位置を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)}), scale=${scale.toFixed(6)}, currentScale=${this.currentScale.toFixed(6)}`);
         } else {
-            this.logger.info(`📍 画像表示: 地図中心を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)}), scale=${scale.toFixed(6)}`);
+            this.logger.info(`📍 画像表示: 地図中心を使用 (${centerPos.lat.toFixed(6)}, ${centerPos.lng.toFixed(6)}), scale=${scale.toFixed(6)}, currentScale=${this.currentScale.toFixed(6)}`);
         }
 
         
@@ -240,9 +240,10 @@ export class ImageOverlay {
     // アフィン変換結果による画像位置・スケール設定
     setTransformedPosition(centerLat, centerLng, scale) {
         this.logger.warn(`⚠️ setTransformedPosition呼び出し: (${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}), スケール=${scale.toFixed(6)}`);
-        this.logger.warn(`📍 呼び出しスタック:`, new Error().stack);
+        this.logger.warn(`📍 設定前のcurrentScale: ${this.currentScale.toFixed(6)}`);
         this.transformedCenter = { lat: centerLat, lng: centerLng };
         this.setCurrentScale(scale);
+        this.logger.warn(`📍 設定後のcurrentScale: ${this.currentScale.toFixed(6)}`);
         
         // アフィン変換結果の場合は、直接境界を設定
         if (this.imageOverlay && this.currentImage.src) {
@@ -268,10 +269,11 @@ export class ImageOverlay {
                         const southWest = [centerLat - latOffset, centerLng - lngOffset];
                         const northEast = [centerLat + latOffset, centerLng + lngOffset];
                         
-                        if (isFinite(southWest[0]) && isFinite(southWest[1]) && 
+                        if (isFinite(southWest[0]) && isFinite(southWest[1]) &&
                             isFinite(northEast[0]) && isFinite(northEast[1])) {
-                            
+
                             const bounds = L.latLngBounds(southWest, northEast);
+                            this.logger.info(`🖼️ setTransformedPosition内で境界設定: SW=(${southWest[0].toFixed(6)}, ${southWest[1].toFixed(6)}), NE=(${northEast[0].toFixed(6)}, ${northEast[1].toFixed(6)}), scale=${scale.toFixed(6)}`);
                             this.imageOverlay.setBounds(bounds);
                             
                             // 画像レイヤーが地図に追加されていない場合は再追加
