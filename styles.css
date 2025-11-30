@@ -926,16 +926,18 @@ select:focus {
     box-shadow: 0 2px 4px var(--color-shadow);
 }
 
-/* マッチング概要セクション */
-.matching-summary {
-    margin-bottom: 10px;
+/* 画像の重ね合わせボタンのスタイル（コンテナ内） */
+.matching-results-container button {
+    width: 100%;
+    margin-bottom: 15px;
 }
 
 .matched-count {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-medium);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 15px;
 }
 
 .matched-count label {
@@ -943,6 +945,12 @@ select:focus {
     font-weight: var(--font-weight-bold);
     color: var(--color-dark);
     white-space: nowrap;
+}
+
+.matched-count .count-value-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 /* 不一致ポイントセクション */
