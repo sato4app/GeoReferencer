@@ -55,6 +55,144 @@ export class ElevationFetcher {
     }
 
     /**
+     * メモリ上のルートマーカーに標高を設定
+     * @param {Array} routeMarkers - ルートマーカー配列
+     * @param {Function} onProgress - 進捗コールバック (current, total)
+     * @returns {Promise<Object>} {fetched, failed, total}
+     */
+    async fetchAndSetRouteMarkersElevation(routeMarkers, onProgress) {
+        try {
+            this.logger.info(`ルートマーカーの標高取得開始: ${routeMarkers.length}件`);
+
+            let fetchedCount = 0;
+            let failedCount = 0;
+            let currentIndex = 0;
+            const total = routeMarkers.length;
+
+            for (const marker of routeMarkers) {
+                const latLng = marker.getLatLng();
+                const meta = marker.__meta;
+
+                // 既に標高が設定されている場合はスキップ
+                if (meta && meta.elevation !== undefined && meta.elevation !== null) {
+                    this.logger.info(`標高既設定をスキップ: ${meta.routeId}`);
+                    currentIndex++;
+                    if (onProgress) {
+                        onProgress(currentIndex, total);
+                    }
+                    continue;
+                }
+
+                // 標高を取得
+                const elevation = await this.fetchElevation(latLng.lng, latLng.lat);
+
+                if (elevation !== null) {
+                    // マーカーのメタデータに標高を設定
+                    if (!marker.__meta) {
+                        marker.__meta = {};
+                    }
+                    marker.__meta.elevation = elevation;
+                    fetchedCount++;
+                    this.logger.info(`標高設定成功: routeId=${meta?.routeId}, elevation=${elevation}m`);
+                } else {
+                    failedCount++;
+                    this.logger.warn(`標高取得失敗: routeId=${meta?.routeId}`);
+                }
+
+                // 進捗コールバック呼び出し
+                currentIndex++;
+                if (onProgress) {
+                    onProgress(currentIndex, total);
+                }
+
+                // レート制限: 0.5秒待機
+                await this.delay(this.DELAY_MS);
+            }
+
+            this.logger.info(`ルートマーカーの標高取得完了: 成功=${fetchedCount}, 失敗=${failedCount}, 合計=${total}`);
+
+            return {
+                fetched: fetchedCount,
+                failed: failedCount,
+                total: total
+            };
+
+        } catch (error) {
+            this.logger.error('ルートマーカーの標高取得エラー', error);
+            throw error;
+        }
+    }
+
+    /**
+     * メモリ上のスポットマーカーに標高を設定
+     * @param {Array} spotMarkers - スポットマーカー配列
+     * @param {Function} onProgress - 進捗コールバック (current, total)
+     * @returns {Promise<Object>} {fetched, failed, total}
+     */
+    async fetchAndSetSpotMarkersElevation(spotMarkers, onProgress) {
+        try {
+            this.logger.info(`スポットマーカーの標高取得開始: ${spotMarkers.length}件`);
+
+            let fetchedCount = 0;
+            let failedCount = 0;
+            let currentIndex = 0;
+            const total = spotMarkers.length;
+
+            for (const marker of spotMarkers) {
+                const latLng = marker.getLatLng();
+                const meta = marker.__meta;
+
+                // 既に標高が設定されている場合はスキップ
+                if (meta && meta.elevation !== undefined && meta.elevation !== null) {
+                    this.logger.info(`標高既設定をスキップ: ${meta.spotId}`);
+                    currentIndex++;
+                    if (onProgress) {
+                        onProgress(currentIndex, total);
+                    }
+                    continue;
+                }
+
+                // 標高を取得
+                const elevation = await this.fetchElevation(latLng.lng, latLng.lat);
+
+                if (elevation !== null) {
+                    // マーカーのメタデータに標高を設定
+                    if (!marker.__meta) {
+                        marker.__meta = {};
+                    }
+                    marker.__meta.elevation = elevation;
+                    fetchedCount++;
+                    this.logger.info(`標高設定成功: spotId=${meta?.spotId}, elevation=${elevation}m`);
+                } else {
+                    failedCount++;
+                    this.logger.warn(`標高取得失敗: spotId=${meta?.spotId}`);
+                }
+
+                // 進捗コールバック呼び出し
+                currentIndex++;
+                if (onProgress) {
+                    onProgress(currentIndex, total);
+                }
+
+                // レート制限: 0.5秒待機
+                await this.delay(this.DELAY_MS);
+            }
+
+            this.logger.info(`スポットマーカーの標高取得完了: 成功=${fetchedCount}, 失敗=${failedCount}, 合計=${total}`);
+
+            return {
+                fetched: fetchedCount,
+                failed: failedCount,
+                total: total
+            };
+
+        } catch (error) {
+            this.logger.error('スポットマーカーの標高取得エラー', error);
+            throw error;
+        }
+    }
+
+    /**
      * ルート中間点の標高を取得してFirebaseに更新
      * @param {string} projectId - プロジェクトID
      * @param {Function} onProgress - 進捗コールバック (current, total)

@@ -328,11 +328,19 @@ html, body, #map {
     box-sizing: border-box;
 }
 
-/* 個数表示コンテナ */
-.count-display {
+/* 標高カウント表示のラッパー */
+.elevation-count-wrapper {
     display: flex;
-    align-items: center;
-    gap: 2px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+/* 標高未取得ラベル */
+.elevation-count-label {
+    font-size: 11px;
+    color: var(--text-color);
+    opacity: 0.8;
 }
 
 /* 新しいcount-group用のスタイル */
@@ -402,9 +410,7 @@ html, body, #map {
     flex-shrink: 0 !important;
 }
 
-#saveToFirebaseBtn {
-    width: 200px !important;
-}
+/* #saveToFirebaseBtn の幅は共通設定（width: 100%）を使用 */
 
 #fetchElevationBtn {
     width: 80px !important;
@@ -1039,7 +1045,7 @@ select:focus {
 
 .elevation-controls button {
     width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 30px; /* ボタンとチェックボックスの間に20pxの余白を追加 */
 }
 
 .elevation-checkboxes {

@@ -127,8 +127,9 @@
                             <input type="checkbox" id="elevationRouteCheckbox" checked>
                             ルート中間点
                         </label>
-                        <div class="count-display">
-                            <input type="text" id="elevationRouteCount" readonly value="0/0" class="count-field-wide">
+                        <div class="elevation-count-wrapper">
+                            <label class="elevation-count-label">標高未取得</label>
+                            <input type="text" id="elevationRouteCount" readonly value="0" class="count-field-wide">
                         </div>
                     </div>
                     <div class="elevation-checkbox-item">
@@ -136,9 +137,7 @@
                             <input type="checkbox" id="elevationSpotCheckbox" checked>
                             スポット
                         </label>
-                        <div class="count-display">
-                            <input type="text" id="elevationSpotCount" readonly value="0/0" class="count-field-wide">
-                        </div>
+                        <input type="text" id="elevationSpotCount" readonly value="0" class="count-field-wide">
                     </div>
                 </div>
             </div>

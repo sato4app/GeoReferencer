@@ -512,6 +512,9 @@ class GeoReferencerApp {
             // 成功メッセージを表示
             this.showMessage(`${result.matchedCount}個のポイントにてジオリファレンスを行いました`);
 
+            // 標高未取得件数を更新（ジオリファレンス後のルート中間点とスポットの件数を表示）
+            await this.updateElevationCounts();
+
         } catch (error) {
             this.logger.error('画像重ね合わせエラー', error);
             errorHandler.handle(error, error.message, '画像重ね合わせ');
@@ -615,36 +618,44 @@ class GeoReferencerApp {
             if (fetchRoutes) {
                 this.showMessage('ルート中間点の標高を取得中...');
 
-                const result = await this.elevationFetcher.fetchAndUpdateRouteWaypoints(
-                    this.currentProjectId,
-                    (current, total) => {
-                        // 進捗表示
-                        this.updateElevationProgress('route', current, total);
-                    }
-                );
+                if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+                    const result = await this.elevationFetcher.fetchAndSetRouteMarkersElevation(
+                        this.routeSpotHandler.routeMarkers,
+                        (current, total) => {
+                            // 進捗表示
+                            this.updateElevationProgress('route', current, total);
+                        }
+                    );
 
-                totalFetched += result.fetched;
-                totalFailed += result.failed;
+                    totalFetched += result.fetched;
+                    totalFailed += result.failed;
 
-                this.logger.info('ルート中間点の標高取得完了', result);
+                    this.logger.info('ルート中間点の標高取得完了', result);
+                } else {
+                    this.logger.warn('ルートマーカーが存在しません');
+                }
             }
 
             // スポットの標高取得
             if (fetchSpots) {
                 this.showMessage('スポットの標高を取得中...');
 
-                const result = await this.elevationFetcher.fetchAndUpdateSpots(
-                    this.currentProjectId,
-                    (current, total) => {
-                        // 進捗表示
-                        this.updateElevationProgress('spot', current, total);
-                    }
-                );
+                if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
+                    const result = await this.elevationFetcher.fetchAndSetSpotMarkersElevation(
+                        this.routeSpotHandler.spotMarkers,
+                        (current, total) => {
+                            // 進捗表示
+                            this.updateElevationProgress('spot', current, total);
+                        }
+                    );
 
-                totalFetched += result.fetched;
-                totalFailed += result.failed;
+                    totalFetched += result.fetched;
+                    totalFailed += result.failed;
 
-                this.logger.info('スポットの標高取得完了', result);
+                    this.logger.info('スポットの標高取得完了', result);
+                } else {
+                    this.logger.warn('スポットマーカーが存在しません');
+                }
             }
 
             // 標高カウントを更新
@@ -673,23 +684,45 @@ class GeoReferencerApp {
 
     async updateElevationCounts() {
         try {
-            if (!this.elevationFetcher || !this.currentProjectId) {
-                return;
+            // メモリ上のマーカーから標高統計を計算
+            const stats = {
+                routes: { missing: 0, total: 0 },
+                spots: { missing: 0, total: 0 }
+            };
+
+            // ルートマーカーのカウント
+            if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+                stats.routes.total = this.routeSpotHandler.routeMarkers.length;
+                for (const marker of this.routeSpotHandler.routeMarkers) {
+                    const meta = marker.__meta;
+                    if (!meta || meta.elevation === undefined || meta.elevation === null) {
+                        stats.routes.missing++;
+                    }
+                }
             }
 
-            // Firebaseから標高統計を取得
-            const stats = await this.elevationFetcher.getElevationStats(this.currentProjectId);
+            // スポットマーカーのカウント
+            if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
+                const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
+                stats.spots.total = latestSpots.length;
+                for (const marker of latestSpots) {
+                    const meta = marker.__meta;
+                    if (!meta || meta.elevation === undefined || meta.elevation === null) {
+                        stats.spots.missing++;
+                    }
+                }
+            }
 
-            // ルート中間点のカウント更新
+            // ルート中間点のカウント更新（未取得件数のみ表示）
             const routeCountField = document.getElementById('elevationRouteCount');
             if (routeCountField) {
-                routeCountField.value = `${stats.routes.missing}/${stats.routes.total}`;
+                routeCountField.value = `${stats.routes.missing}`;
             }
 
-            // スポットのカウント更新
+            // スポットのカウント更新（未取得件数のみ表示）
             const spotCountField = document.getElementById('elevationSpotCount');
             if (spotCountField) {
-                spotCountField.value = `${stats.spots.missing}/${stats.spots.total}`;
+                spotCountField.value = `${stats.spots.missing}`;
             }
 
             this.logger.info('標高カウント更新', stats);
@@ -765,11 +798,14 @@ class GeoReferencerApp {
 
             // 2. ルート中間点（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+                this.logger.info(`🔍 ルートマーカー数: ${this.routeSpotHandler.routeMarkers.length}`);
                 const routeGroupMap = new Map();
 
                 for (const marker of this.routeSpotHandler.routeMarkers) {
                     const meta = marker.__meta;
-                    if (meta && meta.origin === 'image') {
+                    this.logger.info(`🔍 ルートマーカー meta.origin: ${meta?.origin}, meta.routeId: ${meta?.routeId}`);
+                    // ジオリファレンス後のマーカーは origin='firebase' または 'image' のどちらもあり得る
+                    if (meta && (meta.origin === 'image' || meta.origin === 'firebase')) {
                         const routeId = meta.routeId || 'unknown_route';
 
                         if (!routeGroupMap.has(routeId)) {
@@ -778,6 +814,7 @@ class GeoReferencerApp {
                         routeGroupMap.get(routeId).push(marker);
                     }
                 }
+                this.logger.info(`🔍 ルートグループ数: ${routeGroupMap.size}`);
 
                 // 各ルートグループごとに処理
                 for (const [routeId, markers] of routeGroupMap) {
@@ -803,11 +840,15 @@ class GeoReferencerApp {
 
                     const waypoints = markers.map(marker => {
                         const latLng = marker.getLatLng();
+                        const meta = marker.__meta;
+                        // マーカーに設定された標高値を取得（標高取得ボタンで設定）
+                        const elevation = (meta && meta.elevation !== undefined) ? meta.elevation : null;
+
                         return {
                             coordinates: [
                                 this.roundCoordinate(latLng.lng),
                                 this.roundCoordinate(latLng.lat),
-                                null // 標高は初期null、Phase 4で取得
+                                elevation
                             ]
                         };
                     });
@@ -824,27 +865,36 @@ class GeoReferencerApp {
 
             // 3. スポット（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
+                this.logger.info(`🔍 スポットマーカー数: ${this.routeSpotHandler.spotMarkers.length}`);
                 const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
+                this.logger.info(`🔍 最新スポット数: ${latestSpots.length}`);
 
                 for (const marker of latestSpots) {
                     const meta = marker.__meta;
-                    if (meta && meta.origin === 'image') {
+                    this.logger.info(`🔍 スポットマーカー meta.origin: ${meta?.origin}, meta.spotId: ${meta?.spotId}`);
+                    // ジオリファレンス後のマーカーは origin='firebase' または 'image' のどちらもあり得る
+                    if (meta && (meta.origin === 'image' || meta.origin === 'firebase')) {
                         const latLng = marker.getLatLng();
                         const spotName = meta.spotId || `spot_${Date.now()}`;
+                        // マーカーに設定された標高値を取得（標高取得ボタンで設定）
+                        const elevation = (meta && meta.elevation !== undefined) ? meta.elevation : null;
 
                         gpsSpots.push({
                             name: spotName,
                             coordinates: [
                                 this.roundCoordinate(latLng.lng),
                                 this.roundCoordinate(latLng.lat),
-                                null // 標高は初期null、Phase 4で取得
+                                elevation
                             ],
                             category: '',
                             description: 'スポット（画像変換）'
                         });
                     }
                 }
+                this.logger.info(`🔍 収集したスポット数: ${gpsSpots.length}`);
             }
+
+            this.logger.info(`📊 収集結果: ポイント=${gpsPoints.length}, ルート=${gpsRoutes.length}, スポット=${gpsSpots.length}`);
 
             return {
                 gpsPoints,
