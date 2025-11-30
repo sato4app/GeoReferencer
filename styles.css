@@ -933,10 +933,11 @@ select:focus {
 }
 
 .matched-count {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-medium);
     margin-bottom: 15px;
 }
 
