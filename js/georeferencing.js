@@ -306,23 +306,8 @@ export class Georeferencing {
                     return;
                 }
 
-                // Firebaseポイントの場合、既にGPS座標を持っているので自己参照
-                if (pointJson.lat !== undefined && pointJson.lng !== undefined && pointJson.imageX !== undefined && pointJson.imageY !== undefined) {
-                    this.logger.info(`Firebaseポイント使用: ${pointJsonId}`);
-                    const pair = {
-                        pointJsonId: pointJsonId,
-                        pointJson: pointJson,
-                        gpsPoint: {
-                            pointId: pointJsonId,
-                            lat: pointJson.lat,
-                            lng: pointJson.lng
-                        }
-                    };
-                    matchedPairs.push(pair);
-                    return;
-                }
-
-                // 従来のポイントJSON形式の場合、GPSデータとマッチング
+                // Firebaseポイントの場合でも、ExcelファイルのGPSデータとマッチングする
+                // （pointJson.lat/lngは画像境界から計算されたもので、初期スケールに依存するため使用しない）
                 const matchingGpsPoint = gpsPointMap.get(pointJsonId);
 
                 if (matchingGpsPoint) {
