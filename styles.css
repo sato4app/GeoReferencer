@@ -918,6 +918,10 @@ select:focus {
 
 /* 統合されたマッチング結果コンテナ */
 .matching-results-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
     margin-bottom: 5px; /* 標高取得セクションとの間隔を詰める */
     padding: 12px;
     border: 2px solid rgba(70, 130, 180, 0.4);
@@ -929,16 +933,14 @@ select:focus {
 /* 画像の重ね合わせボタンのスタイル（コンテナ内） */
 .matching-results-container button {
     width: 100%;
-    margin-bottom: 15px;
 }
 
 .matched-count {
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: var(--spacing-medium);
-    margin-bottom: 15px;
 }
 
 .matched-count label {
@@ -956,11 +958,9 @@ select:focus {
 
 /* 不一致ポイントセクション */
 .unmatched-points {
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-    padding-top: 10px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: var(--spacing-medium);
 }
 
