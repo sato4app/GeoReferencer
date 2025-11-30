@@ -232,11 +232,10 @@ export class ImageOverlay {
     // ジオリファレンス状態をリセット（画像読み込み時に呼ぶ）
     resetTransformation() {
         this.transformedCenter = null;
-        // 初期読み込み時は小さいスケールを使用（ジオリファレンス後に拡大する視覚効果）
-        // Firebaseデータは画像座標から計算されるため、初期スケールが大きいとGPS距離も大きくなり、
-        // ジオリファレンス結果も大きいスケールになってしまう（堂々巡り）
-        // そのため、初期スケールを小さくして、ジオリファレンス後に約1.8倍拡大する
-        this.currentScale = 0.05;  // 非常に小さく表示（ジオリファレンス後0.089に拡大）
+        // 初期読み込み時のスケールを1.0に設定
+        // ジオリファレンス時にはExcelファイルのGPS座標を使用するため、
+        // 初期スケールはジオリファレンス結果に影響しない
+        this.currentScale = 1.0;
         this.logger.info(`🔄 ジオリファレンス状態をリセットしました (scale=${this.currentScale.toFixed(6)})`);
     }
 
