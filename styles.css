@@ -933,9 +933,9 @@ select:focus {
 }
 
 .matched-count {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
     gap: 8px;
     margin-bottom: 15px;
 }
