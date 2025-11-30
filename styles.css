@@ -334,6 +334,7 @@ html, body, #map {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+    width: 40px;
 }
 
 /* 標高未取得ラベル */
@@ -341,6 +342,7 @@ html, body, #map {
     font-size: 11px;
     color: var(--text-color);
     opacity: 0.8;
+    margin-left: -20px;
 }
 
 /* 新しいcount-group用のスタイル */
@@ -1079,6 +1081,7 @@ select:focus {
     gap: var(--spacing-small);
     font-size: var(--font-size-normal);
     cursor: pointer;
+    min-width: 120px;
 }
 
 .elevation-checkbox-item input[type="checkbox"] {
