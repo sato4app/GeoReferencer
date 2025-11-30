@@ -376,7 +376,8 @@ html, body, #map {
 #loadFileBtn,
 #loadRouteSpotBtn,
 #matchPointsBtn,
-#exportGeoJsonBtn {
+#exportGeoJsonBtn,
+#saveToFirebaseBtn {
     padding: 8px;
     cursor: pointer;
     display: block;
