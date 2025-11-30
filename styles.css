@@ -411,6 +411,9 @@ html, body, #map {
 }
 
 /* #saveToFirebaseBtn の幅は共通設定（width: 100%）を使用 */
+#saveToFirebaseBtn {
+    margin-top: -10px; /* ボタンを10px上に配置 */
+}
 
 #fetchElevationBtn {
     width: 80px !important;
@@ -915,7 +918,7 @@ select:focus {
 
 /* 統合されたマッチング結果コンテナ */
 .matching-results-container {
-    margin-bottom: 15px;
+    margin-bottom: 5px; /* 標高取得セクションとの間隔を詰める */
     padding: 12px;
     border: 2px solid rgba(70, 130, 180, 0.4);
     border-radius: var(--border-radius);
@@ -964,7 +967,7 @@ select:focus {
     padding: 6px 8px;
     border: 1px solid #ccc;
     border-radius: var(--border-radius-small);
-    font-size: var(--font-size-small);
+    font-size: var(--font-size-normal); /* ラベルと同じサイズに変更 */
     font-family: monospace;
     background-color: #f9f9f9;
     color: var(--color-dark);
@@ -1036,20 +1039,22 @@ select:focus {
 
 /* 標高取得コントロールのスタイル */
 .elevation-controls {
-    margin-top: var(--spacing-large);
-    padding: 12px;
+    margin-top: 0px; /* マッチング結果との間隔を詰める */
+    padding: 5px 5px 5px 0px; /* 左側のパディングを0にしてボタンを左に寄せる */
     background: var(--color-overlay);
 }
 
 .elevation-controls button {
     width: 100%;
-    margin-bottom: 30px; /* ボタンとチェックボックスの間に20pxの余白を追加 */
+    margin-top: 20px; /* ボタンを30px下に配置 */
+    margin-bottom: 30px; /* ボタンとチェックボックスの間に30pxの余白 */
 }
 
 .elevation-checkboxes {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-medium);
+    padding-left: 30px; /* 標高取得ボタンとの間に横の余白を追加 */
 }
 
 .elevation-checkbox-item {
