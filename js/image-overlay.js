@@ -329,8 +329,8 @@ export class ImageOverlay {
     getInitialBounds() {
         const center = this.map.getCenter();
         // 画像を地図中心から少しずらして配置（ジオリファレンスの視覚効果を確認しやすくするため）
-        const offsetLat = 0.003;  // 約330m南にずらす
-        const offsetLng = 0.003;  // 約270m西にずらす
+        const offsetLat = 0.006;  // 約660m南にずらす（変更: 0.003 → 0.006）
+        const offsetLng = 0.006;  // 約540m西にずらす（変更: 0.003 → 0.006）
         const imageOffset = 0.001;  // 画像サイズ
 
         const centerLat = center.lat - offsetLat;
