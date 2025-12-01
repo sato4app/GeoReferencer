@@ -105,7 +105,7 @@ html, body, #map {
     width: var(--control-panel-width);
     max-height: calc(100vh - 40px);
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto; /* hidden; */
 }
 
 /* レスポンシブ対応 */
@@ -344,6 +344,7 @@ html, body, #map {
     color: var(--text-color);
     opacity: 0.8;
     margin-left: -20px;
+    text-align: right;
 }
 
 /* 新しいcount-group用のスタイル */
