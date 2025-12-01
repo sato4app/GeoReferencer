@@ -572,10 +572,16 @@ class GeoReferencerApp {
             // 結果を表示
             this.uiHandlers.updateMatchResults(result);
 
-            // Firebase保存ボタンを有効化
+            // Firebase保存ボタンと標高取得ボタンを有効化
             const saveToFirebaseBtn = document.getElementById('saveToFirebaseBtn');
             if (saveToFirebaseBtn) {
                 saveToFirebaseBtn.disabled = false;
+            }
+
+            const fetchElevationBtn = document.getElementById('fetchElevationBtn');
+            if (fetchElevationBtn) {
+                fetchElevationBtn.disabled = false;
+                fetchElevationBtn.title = '標高未取得地点の標高を国土地理院APIから取得します';
             }
 
             this.logger.info('画像重ね合わせ処理完了', result);
