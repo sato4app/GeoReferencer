@@ -210,29 +210,52 @@ class GeoReferencerApp {
 
     async handleGpsExcelLoad(event) {
         try {
+            // 既存データがある場合は確認
+            const existingCount = this.gpsData?.getPoints()?.length || 0;
+            if (existingCount > 0) {
+                const shouldClear = window.confirm(
+                    `既存の${existingCount}個のポイントをクリアして、新しく読み込みます。`
+                );
+                if (!shouldClear) {
+                    // ファイル入力をリセット
+                    event.target.value = '';
+                    return;
+                }
+            }
+
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) {
+                // ファイル選択がキャンセルされた場合
+                // 既存データは保持(一時保存不要)
+                return;
+            }
 
             this.logger.info('GPS Excelファイル読み込み開始', file.name);
-            
+
+            // 既存データをクリア
+            if (existingCount > 0) {
+                this.gpsData.gpsPoints = [];
+                this.gpsData.clearMarkersFromMap();
+            }
+
             // GPSDataクラスのExcel読み込み機能を使用
             const rawData = await this.fileHandler.loadExcelFile(file);
-            
+
             // Excel データを検証・変換
             const validatedData = this.fileHandler.validateAndConvertExcelData(rawData);
-            
+
             if (validatedData.length === 0) {
                 throw new Error('有効なGPSポイントデータが見つかりませんでした。');
             }
-            
+
             // GPSDataに変換されたデータを設定
             this.gpsData.setPointsFromExcelData(validatedData);
-            
+
             // 地図上にGPSポイントを表示
             if (this.mapCore && this.mapCore.getMap()) {
                 this.gpsData.displayPointsOnMap(this.mapCore.getMap());
             }
-            
+
             // GPS ポイント数を更新
             this.uiHandlers.updateGpsPointCount(this.gpsData);
 
@@ -240,17 +263,62 @@ class GeoReferencerApp {
 
             // 成功メッセージを表示
             this.showMessage(`${validatedData.length}個のポイントGPSを読み込みました`);
-            
+
         } catch (error) {
             this.logger.error('GPS Excel読み込みエラー', error);
             errorHandler.handle(error, error.message, 'GPS Excel読み込み');
+        } finally {
+            // 同じファイルを再選択できるようにファイル入力をリセット
+            event.target.value = '';
         }
     }
 
     async handlePngLoad(event) {
         try {
+            // 既存データがある場合は確認
+            if (this.currentPngFileName) {
+                const shouldClear = window.confirm(
+                    `既存の画像およびそのデータをクリアして、新しく読み込みます。`
+                );
+                if (!shouldClear) {
+                    // ファイル入力をリセット
+                    event.target.value = '';
+                    return;
+                }
+            }
+
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) {
+                // ファイル選択がキャンセルされた場合
+                return;
+            }
+
+            // 既存データをクリア(画面上のみ、Firebaseは削除しない)
+            if (this.currentPngFileName) {
+                // 画像クリア
+                if (this.imageOverlay) {
+                    // Leaflet ImageOverlayを地図から削除
+                    if (this.imageOverlay.imageOverlay && this.mapCore && this.mapCore.getMap()) {
+                        this.mapCore.getMap().removeLayer(this.imageOverlay.imageOverlay);
+                    }
+                    // ImageOverlayの内部状態をクリア
+                    this.imageOverlay.imageOverlay = null;
+                    this.imageOverlay.currentImage = new Image(); // 新しいImageオブジェクトを作成
+                    this.imageOverlay.currentImageFileName = null;
+                    this.imageOverlay.resetTransformation();
+                }
+
+                // ポイント・ルート・スポットクリア
+                if (this.routeSpotHandler) {
+                    this.routeSpotHandler.pointData = [];
+                    this.routeSpotHandler.routeData = [];
+                    this.routeSpotHandler.spotData = [];
+                    this.routeSpotHandler.clearAllMarkers();
+                }
+
+                this.currentPngFileName = null;
+                this.currentProjectId = null;
+            }
 
             // PNGファイル名を記録（拡張子を除去）
             this.currentPngFileName = file.name.replace(/\.[^/.]+$/, '');
@@ -272,6 +340,9 @@ class GeoReferencerApp {
         } catch (error) {
             this.logger.error('PNG読み込みエラー', error);
             errorHandler.handle(error, 'PNG画像の読み込みに失敗しました。', 'PNG読み込み');
+        } finally {
+            // 同じファイルを再選択できるようにファイル入力をリセット
+            event.target.value = '';
         }
     }
 
@@ -545,6 +616,21 @@ class GeoReferencerApp {
 
             if (gpsData.gpsPoints.length === 0 && gpsData.gpsRoutes.length === 0 && gpsData.gpsSpots.length === 0) {
                 throw new Error('保存対象のデータがありません。');
+            }
+
+            // 標高未取得地点の確認
+            const elevationStats = this.getElevationStats();
+            const missingCount = elevationStats.routes.missing + elevationStats.spots.missing;
+
+            if (missingCount > 0) {
+                // 確認ダイアログを表示
+                const shouldSave = window.confirm(
+                    '標高を未取得の地点がありますが、データベースに格納しますか。'
+                );
+                if (!shouldSave) {
+                    // キャンセルの場合は処理を中断
+                    return;
+                }
             }
 
             // 既存のGPS変換済みデータを削除（上書き保存）
@@ -1099,6 +1185,42 @@ class GeoReferencerApp {
         }
 
         return Array.from(latestSpotsMap.values());
+    }
+
+    /**
+     * 標高統計を取得
+     * @returns {Object} {routes: {missing, total}, spots: {missing, total}}
+     */
+    getElevationStats() {
+        const stats = {
+            routes: { missing: 0, total: 0 },
+            spots: { missing: 0, total: 0 }
+        };
+
+        // ルートマーカーのカウント
+        if (this.routeSpotHandler?.routeMarkers) {
+            stats.routes.total = this.routeSpotHandler.routeMarkers.length;
+            for (const marker of this.routeSpotHandler.routeMarkers) {
+                const meta = marker.__meta;
+                if (!meta || meta.elevation === undefined || meta.elevation === null) {
+                    stats.routes.missing++;
+                }
+            }
+        }
+
+        // スポットマーカーのカウント
+        if (this.routeSpotHandler?.spotMarkers) {
+            const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
+            stats.spots.total = latestSpots.length;
+            for (const marker of latestSpots) {
+                const meta = marker.__meta;
+                if (!meta || meta.elevation === undefined || meta.elevation === null) {
+                    stats.spots.missing++;
+                }
+            }
+        }
+
+        return stats;
     }
 
     /**
