@@ -791,6 +791,62 @@ export class FirestoreDataManager {
     // ユーティリティ
     // ========================================
 
+    // ========================================
+    // エリア管理
+    // ========================================
+
+    /**
+     * すべてのエリアを取得 (areasコレクション)
+     * @param {string} projectId - プロジェクトID
+     * @returns {Promise<Array>}
+     */
+    async getAreas(projectId) {
+        try {
+            const snapshot = await this.db
+                .collection('projects')
+                .doc(projectId)
+                .collection('areas')
+                .orderBy('createdAt', 'asc') // 作成日時順
+                .get();
+
+            return snapshot.docs.map(doc => ({
+                firestoreId: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('エリア取得失敗:', error);
+            // エリアコレクションが存在しない場合などは空配列を返す
+            // 既存コードのパターンに従いエラーを投げる
+            throw error;
+        }
+    }
+
+    /**
+     * エリアの変更を監視
+     * @param {string} projectId - プロジェクトID
+     * @param {Function} callback - コールバック関数
+     * @returns {Function} unsubscribe関数
+     */
+    onAreasSnapshot(projectId, callback) {
+        const unsubscribe = this.db
+            .collection('projects')
+            .doc(projectId)
+            .collection('areas')
+            .orderBy('createdAt', 'asc')
+            .onSnapshot(snapshot => {
+                const areas = snapshot.docs.map(doc => ({
+                    firestoreId: doc.id,
+                    ...doc.data()
+                }));
+                callback(areas);
+            }, error => {
+                console.error('エリア監視エラー:', error);
+            });
+
+        this.listeners.set('areas', unsubscribe);
+        return unsubscribe;
+    }
+
     /**
      * カウンターを増減
      * @param {string} projectId - プロジェクトID

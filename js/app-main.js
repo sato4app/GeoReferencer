@@ -129,11 +129,11 @@ class GeoReferencerApp {
 
             // CoordinateDisplayインスタンスをGeoreferencingに注入
             this.georeferencing.setCoordinateDisplay(this.coordinateDisplay);
-            
+
             // RouteSpotHandlerインスタンスをGeoreferencingに注入
             this.georeferencing.setRouteSpotHandler(this.routeSpotHandler);
 
-            
+
         } catch (error) {
             this.logger.error('モジュール初期化エラー', error);
             throw error;
@@ -382,6 +382,10 @@ class GeoReferencerApp {
             const spots = await this.firestoreManager.getSpots(this.currentProjectId);
             this.logger.info(`Firebaseからスポット読み込み: ${spots.length}件`);
 
+            // areas読み込み
+            const areas = await this.firestoreManager.getAreas(this.currentProjectId);
+            this.logger.info(`Firebaseからエリア読み込み: ${areas.length}件`);
+
             // RouteSpotHandlerにデータをロード
             if (this.routeSpotHandler) {
                 await this.routeSpotHandler.loadFromFirebaseData(points, routes, spots, this.imageOverlay);
@@ -389,6 +393,7 @@ class GeoReferencerApp {
 
             // UI更新
             this.uiHandlers.updateRouteSpotCount(this.routeSpotHandler);
+            this.uiHandlers.updateAreaCount(areas.length); // エリア数を更新
 
             this.logger.info('Firebaseからの画像座標データ読み込み完了');
 
@@ -405,35 +410,35 @@ class GeoReferencerApp {
             if (!file) return;
 
             this.logger.info('ポイント(座標)JSONファイル読み込み開始', file.name);
-            
+
             // JSONファイルを読み込んでポイント座標情報を処理
             const text = await file.text();
             const data = JSON.parse(text);
-            
+
             // ポイントJSONデータを保存
             this.pointJsonData = data;
             this.georeferencing.setPointJsonData(data);
-            
+
             // imageX, imageYを持つポイントを画像上に表示
             if (this.imageOverlay && data) {
                 // 既存のマーカーをクリア
                 this.georeferencing.clearImageCoordinateMarkers('georeference-point');
-                
+
                 this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'points', this.imageCoordinateMarkers);
-                
+
                 // GeoreferencingクラスにもmarkerInfoを渡す
                 this.imageCoordinateMarkers.forEach(markerInfo => {
                     this.georeferencing.addImageCoordinateMarker(markerInfo);
                 });
-                
+
                 this.logger.info(`ポイントマーカー登録完了: ${this.imageCoordinateMarkers.length}個`);
             }
-            
+
             // ポイント座標数を更新
             this.uiHandlers.updatePointCoordCount(this.pointJsonData);
-            
+
             this.logger.info('ポイント(座標)JSON読み込み完了', data);
-            
+
         } catch (error) {
             this.logger.error('ポイント(座標)JSON読み込みエラー', error);
             errorHandler.handle(error, 'ポイント(座標)JSONファイルの読み込みに失敗しました。', 'ポイント(座標)JSON読み込み');
@@ -447,10 +452,10 @@ class GeoReferencerApp {
 
             // RouteSpotHandlerに処理を委譲（自動判定するため、selectedRouteSpotTypeは不要）
             await this.routeSpotHandler.handleRouteSpotJsonLoad(files, null);
-            
+
             // ルート・スポット数を更新
             this.uiHandlers.updateRouteSpotCount(this.routeSpotHandler);
-            
+
         } catch (error) {
             this.logger.error('ルート・スポット(座標)JSON読み込みエラー', error);
             errorHandler.handle(error, 'ルート・スポット(座標)JSONファイルの読み込みに失敗しました。', 'ルート・スポット(座標)JSON読み込み');
@@ -463,30 +468,30 @@ class GeoReferencerApp {
             if (!files.length) return;
 
             this.logger.info(`複数JSONファイル読み込み開始: ${files.length}ファイル`);
-            
+
             let pointsProcessed = 0;
             let routesProcessed = 0;
             let spotsProcessed = 0;
-            
+
             // 最初にポイントデータのマーカーをクリア（一度だけ）
             let shouldClearMarkers = true;
-            
+
             // 各ファイルを処理
             for (const file of files) {
                 try {
                     const text = await file.text();
                     const data = JSON.parse(text);
-                    
+
                     this.logger.info(`JSONファイル処理開始: ${file.name}`);
-                    
+
                     // RouteSpotHandlerの自動判定を使用してファイル内容を判定
                     const detectedType = this.routeSpotHandler.detectJsonType(data);
-                    
+
                     if (detectedType === 'route') {
                         // ルートデータの場合
                         await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
                         routesProcessed++;
-                        
+
                     } else if (detectedType === 'spot') {
                         // スポットデータの場合
                         await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
@@ -495,12 +500,12 @@ class GeoReferencerApp {
                         } else {
                             spotsProcessed++;
                         }
-                        
+
                     } else if (detectedType === 'point') {
                         // ポイントデータの場合
                         this.pointJsonData = data;
                         this.georeferencing.setPointJsonData(data);
-                        
+
                         // 画像上にポイント座標を表示
                         if (this.imageOverlay && data.points) {
                             // 最初のポイントファイル処理時のみマーカーをクリア
@@ -509,29 +514,29 @@ class GeoReferencerApp {
                                 this.imageCoordinateMarkers = []; // マーカー配列もクリア
                                 shouldClearMarkers = false;
                             }
-                            
+
                             this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'points', this.imageCoordinateMarkers);
-                            
+
                             // GeoreferencingクラスにもmarkerInfoを渡す
                             this.imageCoordinateMarkers.forEach(markerInfo => {
                                 this.georeferencing.addImageCoordinateMarker(markerInfo);
                             });
-                            
+
                             this.logger.info(`ポイント: ${this.imageCoordinateMarkers.length}個`);
                         }
-                        
+
                         pointsProcessed++;
-                        
+
                     } else {
                         this.logger.warn(`未知のJSONファイル形式: ${file.name}`);
                     }
-                    
+
                 } catch (fileError) {
                     this.logger.error(`ファイル処理エラー: ${file.name}`, fileError);
                     // 個別ファイルのエラーは警告として処理し、他のファイルの処理を続行
                 }
             }
-            
+
             // UIを更新
             if (this.pointJsonData) {
                 this.uiHandlers.updatePointCoordCount(this.pointJsonData);
@@ -542,7 +547,7 @@ class GeoReferencerApp {
 
             // 成功メッセージを表示
             this.showMessage(`画像内座標（${files.length} ファイル）を読み込みました`);
-            
+
         } catch (error) {
             this.logger.error('複数JSON読み込みエラー', error);
             errorHandler.handle(error, '複数JSONファイルの読み込みに失敗しました。', '複数JSON読み込み');
@@ -552,7 +557,7 @@ class GeoReferencerApp {
     async handleMatchPoints() {
         try {
             this.logger.info('画像重ね合わせ処理開始');
-            
+
             // 1. 画像ファイルの読み込みと準備チェック
             if (!this.imageOverlay || !this.imageOverlay.currentImage || !this.imageOverlay.currentImage.src) {
                 throw new Error('PNG画像が読み込まれていません。');
@@ -563,12 +568,12 @@ class GeoReferencerApp {
             }
 
             // 2. 初期表示境界の設定
-            
+
             // 3-10. Georeferencingクラスに処理を委譲
             await this.georeferencing.executeGeoreferencing();
             this.georeferencing.setupGeoreferencingUI();
             const result = await this.georeferencing.performGeoreferencingCalculations();
-            
+
             // 結果を表示
             this.uiHandlers.updateMatchResults(result);
 
@@ -835,15 +840,15 @@ class GeoReferencerApp {
 
             // ジオリファレンス済みデータを収集
             const geoJsonData = await this.collectGeoreferencedData();
-            
+
             if (!geoJsonData.features || geoJsonData.features.length === 0) {
                 throw new Error('出力対象のデータがありません。ジオリファレンスを実行してください。');
             }
-            
+
             // ファイルとして保存
             const geoJsonFileName = this.getGeoJsonFileName();
             const result = await this.fileHandler.saveDataWithUserChoice(geoJsonData, geoJsonFileName);
-            
+
             if (result.success) {
                 this.logger.info(`GeoJSON保存成功: ${result.filename}`);
 
@@ -854,7 +859,7 @@ class GeoReferencerApp {
             }
 
             this.logger.info(`GeoJSON出力完了: ${geoJsonData.features.length}件`);
-            
+
         } catch (error) {
             this.logger.error('GeoJSON出力エラー', error);
             errorHandler.handle(error, error.message, 'GeoJSON出力');
@@ -922,11 +927,11 @@ class GeoReferencerApp {
 
                         if (routeData) {
                             startPoint = (routeData.startPoint && routeData.startPoint.id) ||
-                                        (routeData.routeInfo && routeData.routeInfo.startPoint) ||
-                                        'unknown_start';
+                                (routeData.routeInfo && routeData.routeInfo.startPoint) ||
+                                'unknown_start';
                             endPoint = (routeData.endPoint && routeData.endPoint.id) ||
-                                      (routeData.routeInfo && routeData.routeInfo.endPoint) ||
-                                      'unknown_end';
+                                (routeData.routeInfo && routeData.routeInfo.endPoint) ||
+                                'unknown_end';
                         }
                     }
 
@@ -1069,11 +1074,11 @@ class GeoReferencerApp {
 
                         if (routeData) {
                             startPoint = (routeData.startPoint && routeData.startPoint.id) ||
-                                        (routeData.routeInfo && routeData.routeInfo.startPoint) ||
-                                        'unknown_start';
+                                (routeData.routeInfo && routeData.routeInfo.startPoint) ||
+                                'unknown_start';
                             endPoint = (routeData.endPoint && routeData.endPoint.id) ||
-                                      (routeData.routeInfo && routeData.routeInfo.endPoint) ||
-                                      'unknown_end';
+                                (routeData.routeInfo && routeData.routeInfo.endPoint) ||
+                                'unknown_end';
                         }
                     }
 
@@ -1290,12 +1295,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const app = new GeoReferencerApp();
         await app.init();
-        
+
         // グローバルスコープでデバッグ用にアクセス可能にする
         window.geoApp = app;
-        
+
     } catch (error) {
-        
+
         // エラーをユーザーにも表示
         document.body.innerHTML = `
             <div style="padding: 20px; color: red; font-family: monospace;">
