@@ -4,6 +4,7 @@ import { ImageOverlay } from './image-overlay.js';
 import { GPSData } from './gps-data.js';
 import { Georeferencing } from './georeferencing.js';
 import { RouteSpotHandler } from './route-spot-handler.js';
+import { AreaHandler } from './area-handler.js';
 import { CoordinateDisplay } from './coordinate-display.js';
 import { UIHandlers } from './ui-handlers.js';
 import { FileHandler } from './file-handler.js';
@@ -27,6 +28,7 @@ class GeoReferencerApp {
         this.gpsData = null;
         this.georeferencing = null;
         this.routeSpotHandler = null;
+        this.areaHandler = null;
         this.coordinateDisplay = null;
         this.uiHandlers = null;
         this.fileHandler = null;
@@ -123,6 +125,7 @@ class GeoReferencerApp {
             this.gpsData = new GPSData();
             this.georeferencing = new Georeferencing(this.mapCore, this.imageOverlay, this.gpsData);
             this.routeSpotHandler = new RouteSpotHandler(this.mapCore, this.imageOverlay);
+            this.areaHandler = new AreaHandler(this.mapCore, this.imageOverlay);
             this.coordinateDisplay = new CoordinateDisplay(this.mapCore, this.imageOverlay);
             this.uiHandlers = new UIHandlers();
             this.fileHandler = new FileHandler();
@@ -132,6 +135,9 @@ class GeoReferencerApp {
 
             // RouteSpotHandlerインスタンスをGeoreferencingに注入
             this.georeferencing.setRouteSpotHandler(this.routeSpotHandler);
+
+            // AreaHandlerインスタンスをGeoreferencingに注入
+            this.georeferencing.setAreaHandler(this.areaHandler);
 
 
         } catch (error) {
@@ -385,6 +391,11 @@ class GeoReferencerApp {
             // areas読み込み
             const areas = await this.firestoreManager.getAreas(this.currentProjectId);
             this.logger.info(`Firebaseからエリア読み込み: ${areas.length}件`);
+
+            // AreaHandlerにデータをロード
+            if (this.areaHandler) {
+                await this.areaHandler.loadFromFirebaseData(areas, this.imageOverlay);
+            }
 
             // RouteSpotHandlerにデータをロード
             if (this.routeSpotHandler) {
