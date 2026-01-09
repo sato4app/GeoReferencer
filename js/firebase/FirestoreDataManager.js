@@ -1125,13 +1125,63 @@ export class FirestoreDataManager {
     }
 
     /**
+     * GPS変換済みエリアを追加
+     * @param {string} projectId - プロジェクトID
+     * @param {Object} gpsArea - GPS変換済みエリアデータ
+     * @returns {Promise<string>} - Firestore document ID
+     */
+    async addGpsArea(projectId, gpsArea) {
+        try {
+            const docRef = await this.db
+                .collection('projects')
+                .doc(projectId)
+                .collection('gpsAreas')
+                .add({
+                    name: gpsArea.name || '',
+                    coordinates: gpsArea.coordinates || [], // [[lng, lat, elev], ...]
+                    description: gpsArea.description || '',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+            return docRef.id;
+        } catch (error) {
+            console.error('GPS変換済みエリア追加失敗:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * すべてのGPS変換済みエリアを取得
+     * @param {string} projectId - プロジェクトID
+     * @returns {Promise<Array>}
+     */
+    async getGpsAreas(projectId) {
+        try {
+            const snapshot = await this.db
+                .collection('projects')
+                .doc(projectId)
+                .collection('gpsAreas')
+                .get();
+
+            return snapshot.docs.map(doc => ({
+                firestoreId: doc.id,
+                ...doc.data()
+            }));
+        } catch (error) {
+            console.error('GPS変換済みエリア取得失敗:', error);
+            throw error;
+        }
+    }
+
+    /**
      * GPS変換済みデータを全削除 (上書き保存用)
      * @param {string} projectId - プロジェクトID
      * @returns {Promise<void>}
      */
     async deleteAllGpsData(projectId) {
         try {
-            // gpsPoints削除
+            // gpsPoints削除 (既存データの混在を防ぐため削除は維持)
             const gpsPointsSnapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
@@ -1160,6 +1210,16 @@ export class FirestoreDataManager {
 
             const gpsSpotsDeletePromises = gpsSpotsSnapshot.docs.map(doc => doc.ref.delete());
             await Promise.all(gpsSpotsDeletePromises);
+
+            // gpsAreas削除 (新規追加)
+            const gpsAreasSnapshot = await this.db
+                .collection('projects')
+                .doc(projectId)
+                .collection('gpsAreas')
+                .get();
+
+            const gpsAreasDeletePromises = gpsAreasSnapshot.docs.map(doc => doc.ref.delete());
+            await Promise.all(gpsAreasDeletePromises);
 
         } catch (error) {
             console.error('GPS変換済みデータ削除失敗:', error);
