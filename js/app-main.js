@@ -891,13 +891,13 @@ class GeoReferencerApp {
                     const latLngs = this.areaHandler.calculateAreaLatLngs(area);
 
                     if (latLngs.length > 0) {
-                        // 座標配列をFirebase保存用に変換 [[lng, lat, elev], ...]
-                        // 標高は現状サポートしていないためnull
-                        const coordinates = latLngs.map(latLng => [
-                            this.roundCoordinate(latLng.lng),
-                            this.roundCoordinate(latLng.lat),
-                            null
-                        ]);
+                        // 座標配列をFirebase保存用に変換 [{lng, lat, elev}, ...]
+                        // Firestoreはネストされた配列をサポートしていないため、オブジェクトの配列にする
+                        const coordinates = latLngs.map(latLng => ({
+                            lng: this.roundCoordinate(latLng.lng),
+                            lat: this.roundCoordinate(latLng.lat),
+                            elev: null // 標高は現状サポートしていないためnull
+                        }));
 
                         gpsAreas.push({
                             name: area.name || '名称未設定エリア',
