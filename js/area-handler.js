@@ -204,4 +204,16 @@ export class AreaHandler {
         }
         this.areaPolygons = [];
     }
+
+    // Get total number of vertices in all areas
+    getVertexCount() {
+        if (!this.areaPolygons) return 0;
+        return this.areaPolygons.reduce((total, polygon) => {
+            const meta = polygon.__meta;
+            if (meta && meta.vertices && Array.isArray(meta.vertices)) {
+                return total + meta.vertices.length;
+            }
+            return total;
+        }, 0);
+    }
 }

@@ -833,6 +833,12 @@ class GeoReferencerApp {
                 spotCountField.value = `${stats.spots.missing}`;
             }
 
+            // エリア頂点数の更新（総数）
+            if (this.areaHandler) {
+                const vertexCount = this.areaHandler.getVertexCount();
+                this.uiHandlers.updateAreaVertexCount(vertexCount);
+            }
+
             this.logger.info('標高カウント更新', stats);
 
         } catch (error) {

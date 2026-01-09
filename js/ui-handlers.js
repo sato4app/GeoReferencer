@@ -81,6 +81,17 @@ export class UIHandlers {
         }
     }
 
+    updateAreaVertexCount(count) {
+        try {
+            const areaVertexCountField = document.getElementById('elevationAreaVertexCount');
+            if (areaVertexCountField) {
+                areaVertexCountField.value = count || 0;
+            }
+        } catch (error) {
+            this.logger.error('エリア頂点数更新エラー', error);
+        }
+    }
+
     updateMatchResults(result) {
         try {
             const matchedCountField = document.getElementById('matchedPointCountField');
