@@ -884,26 +884,34 @@ class GeoReferencerApp {
             const gpsSpots = [];
 
             // 1. エリア（ジオリファレンス変換済み）を収集
-            if (this.areaHandler && this.areaHandler.areas) {
-                this.logger.info(`🔍 エリア数: ${this.areaHandler.areas.length}`);
+            if (this.areaHandler) {
+                // 最新のエリア情報を取得（リネーム反映）
+                const areas = this.areaHandler.getUpToDateAreas();
+                this.logger.info(`🔍 エリア数: ${areas.length}`);
 
-                for (const area of this.areaHandler.areas) {
+                for (const area of areas) {
                     const latLngs = this.areaHandler.calculateAreaLatLngs(area);
 
                     if (latLngs.length > 0) {
                         // 座標配列をFirebase保存用に変換 [{lng, lat, elev}, ...]
                         // Firestoreはネストされた配列をサポートしていないため、オブジェクトの配列にする
-                        const coordinates = latLngs.map(latLng => ({
-                            lng: this.roundCoordinate(latLng.lng),
-                            lat: this.roundCoordinate(latLng.lat),
-                            elev: null // 標高は現状サポートしていないためnull
-                        }));
+                        const coordinates = latLngs.map(latLng => {
+                            const lng = this.roundCoordinate(latLng.lng);
+                            const lat = this.roundCoordinate(latLng.lat);
+                            return {
+                                lng: isFinite(lng) ? lng : null,
+                                lat: isFinite(lat) ? lat : null,
+                                elev: null // 標高は現状サポートしていないためnull
+                            };
+                        }).filter(coord => coord.lng !== null && coord.lat !== null); // 有効な座標のみ残す
 
-                        gpsAreas.push({
-                            name: area.name || '名称未設定エリア',
-                            coordinates: coordinates,
-                            description: 'エリア（画像変換）'
-                        });
+                        if (coordinates.length > 0) {
+                            gpsAreas.push({
+                                name: area.name || '名称未設定エリア',
+                                coordinates: coordinates,
+                                description: 'エリア（画像変換）'
+                            });
+                        }
                     }
                 }
                 this.logger.info(`🔍 収集したエリア数: ${gpsAreas.length}`);

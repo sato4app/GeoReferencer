@@ -166,6 +166,34 @@ export class AreaHandler {
         }
     }
 
+    // Get up-to-date areas from map (including renamed areas)
+    getUpToDateAreas() {
+        if (!this.areaPolygons) return [];
+
+        return this.areaPolygons.map((polygon, index) => {
+            const meta = polygon.__meta || {};
+
+            // Get name from popup if available (user might have renamed it)
+            let currentName = meta.name;
+            const popup = polygon.getPopup();
+            if (popup) {
+                const content = popup.getContent();
+                if (content && typeof content === 'string') {
+                    // Extract name from content if it's simple text, otherwise rely on meta
+                    // Assuming simple text for now as set in displayAreasOnMap
+                    currentName = content;
+                }
+            }
+
+            return {
+                id: meta.areaId || `area_${index}`,
+                name: currentName || `Area ${index + 1}`,
+                vertices: meta.vertices || [], // Function relies on original image vertices
+                description: meta.description || ''
+            };
+        });
+    }
+
     clearAreaLayers() {
         if (this.areaPolygons) {
             this.areaPolygons.forEach(p => {
