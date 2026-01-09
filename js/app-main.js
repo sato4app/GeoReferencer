@@ -899,12 +899,13 @@ class GeoReferencerApp {
                             const lng = this.roundCoordinate(latLng.lng);
                             const lat = this.roundCoordinate(latLng.lat);
                             return {
-                                lng: isFinite(lng) ? lng : null,
-                                lat: isFinite(lat) ? lat : null,
+                                lng: isFinite(lng) ? lng : "NaN",
+                                lat: isFinite(lat) ? lat : "NaN",
                                 elev: null // 標高は現状サポートしていないためnull
                             };
-                        }).filter(coord => coord.lng !== null && coord.lat !== null); // 有効な座標のみ残す
+                        }); // 以前の .filter() を削除して、NaNが含まれていても保存する
 
+                        // coordinates配列が空でない場合のみ追加（このチェックは残す）
                         if (coordinates.length > 0) {
                             gpsAreas.push({
                                 name: area.name || '名称未設定エリア',
