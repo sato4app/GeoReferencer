@@ -207,9 +207,9 @@ export class ImageOverlay {
 
                     // 画像レイヤーが完全に読み込まれるまで少し待つ
                     setTimeout(() => {
-                        // 初期読み込み時もupdateImageDisplay()を呼んで、正しいスケールで表示
-                        this.updateImageDisplay();
-                        this.logger.info(`📍 初期画像配置完了: scale=${this.getCurrentScale().toFixed(6)}`);
+                        // 初期読み込み時はupdateImageDisplay()を呼ばない
+                        // calculateInitialBounds()で計算した境界をそのまま使用
+                        this.logger.info(`📍 初期画像配置完了: 画面に収まるサイズで表示`);
                         resolve();
                     }, 100);
                 };
