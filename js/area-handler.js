@@ -8,6 +8,7 @@ export class AreaHandler {
         this.imageOverlay = imageOverlay;
         this.areas = [];
         this.areaPolygons = [];
+        this.vertexMarkers = [];
         this.currentTransformation = null;
     }
 
@@ -59,9 +60,10 @@ export class AreaHandler {
                 const latLngs = this.calculateAreaLatLngs(area);
 
                 if (latLngs.length > 0) {
+                    // エリアポリゴンを作成（濃いピンクの境界線、薄いピンクの塗りつぶし）
                     const polygon = L.polygon(latLngs, {
-                        color: 'pink',
-                        fillColor: 'pink',
+                        color: '#FF69B4',      // 濃いピンク（HotPink）
+                        fillColor: '#FFB6C1',  // 薄いピンク（LightPink）
                         fillOpacity: 0.3,
                         weight: 2
                     }).addTo(this.mapCore.getMap());
@@ -76,6 +78,9 @@ export class AreaHandler {
 
                     polygon.bindPopup(area.name);
                     this.areaPolygons.push(polygon);
+
+                    // 各頂点にピンクの菱形マーカーを追加
+                    this.addVertexMarkers(latLngs, area);
                 }
             });
 
@@ -84,6 +89,37 @@ export class AreaHandler {
         } catch (error) {
             this.logger.error('Error displaying areas', error);
         }
+    }
+
+    // 頂点マーカーを追加
+    addVertexMarkers(latLngs, area) {
+        if (!this.vertexMarkers) {
+            this.vertexMarkers = [];
+        }
+
+        latLngs.forEach((latLng, index) => {
+            // ピンクの菱形マーカーを作成
+            const vertexIcon = L.divIcon({
+                className: 'area-vertex-marker',
+                html: '<div class="diamond" style="width: 4px; height: 4px; background-color: #FF69B4; border: 1px solid #FF1493; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; margin-top: -2px; margin-left: -2px;"></div>',
+                iconSize: [8, 8],
+                iconAnchor: [4, 4]
+            });
+
+            const marker = L.marker(latLng, {
+                icon: vertexIcon,
+                interactive: false
+            }).addTo(this.mapCore.getMap());
+
+            // メタデータを設定
+            marker.__meta = {
+                areaId: area.id,
+                areaName: area.name,
+                vertexIndex: index
+            };
+
+            this.vertexMarkers.push(marker);
+        });
     }
 
     // Calculate LatLngs for an area based on current state (Georeferenced or Image Bounds)
@@ -203,6 +239,16 @@ export class AreaHandler {
             });
         }
         this.areaPolygons = [];
+
+        // 頂点マーカーもクリア
+        if (this.vertexMarkers) {
+            this.vertexMarkers.forEach(m => {
+                if (this.mapCore && this.mapCore.getMap()) {
+                    this.mapCore.getMap().removeLayer(m);
+                }
+            });
+            this.vertexMarkers = [];
+        }
     }
 
     // Get total number of vertices in all areas

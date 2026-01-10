@@ -591,6 +591,12 @@ body,
     font-size: 11pt !important;
 }
 
+/* エリア頂点マーカーのスタイル */
+.area-vertex-marker {
+    background: transparent;
+    border: none;
+}
+
 /* ルート中間点マーカーのスタイル */
 .waypoint-marker-icon {
     width: 12px !important;
