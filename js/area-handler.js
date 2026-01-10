@@ -34,11 +34,11 @@ export class AreaHandler {
                     return null;
                 }
 
-                // エリア名のフォールバック処理
-                let areaName = area.name;
+                // エリア名のフォールバック処理（Firebaseには areaName フィールドで保存されている）
+                let areaName = area.areaName || area.name;
                 if (!areaName || areaName.trim() === '') {
                     // description, firestoreIdなど他のフィールドからエリア名を推測
-                    if (area.description && typeof area.description === 'string') {
+                    if (area.description && typeof area.description === 'string' && area.description.trim() !== '') {
                         areaName = area.description;
                     } else if (area.firestoreId) {
                         areaName = `エリア_${area.firestoreId.substring(0, 6)}`;
@@ -47,12 +47,10 @@ export class AreaHandler {
                     }
                 }
 
-                this.logger.info(`エリア読み込み: index=${index}, name="${areaName}", vertices=${area.vertices.length}`);
-
                 return {
                     ...area,
                     id: area.id || area.firestoreId || `area_${index}`,
-                    name: areaName
+                    name: areaName  // 統一的に name プロパティで扱う
                 };
             }).filter(a => a !== null);
 
