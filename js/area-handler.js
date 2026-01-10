@@ -98,12 +98,12 @@ export class AreaHandler {
         }
 
         latLngs.forEach((latLng, index) => {
-            // ピンクの菱形マーカーを作成
+            // ピンクの菱形マーカーを作成（6px）
             const vertexIcon = L.divIcon({
                 className: 'area-vertex-marker',
-                html: '<div class="diamond" style="width: 4px; height: 4px; background-color: #FF69B4; border: 1px solid #FF1493; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; margin-top: -2px; margin-left: -2px;"></div>',
-                iconSize: [8, 8],
-                iconAnchor: [4, 4]
+                html: '<div class="diamond" style="width: 6px; height: 6px; background-color: #FF69B4; border: 1px solid #FF1493; transform: rotate(45deg); position: absolute; top: 50%; left: 50%; margin-top: -3px; margin-left: -3px;"></div>',
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
             });
 
             const marker = L.marker(latLng, {
@@ -111,11 +111,12 @@ export class AreaHandler {
                 interactive: false
             }).addTo(this.mapCore.getMap());
 
-            // メタデータを設定
+            // メタデータを設定（画像座標も保存）
             marker.__meta = {
                 areaId: area.id,
                 areaName: area.name,
-                vertexIndex: index
+                vertexIndex: index,
+                imageCoords: area.vertices[index] // {x, y} を保存
             };
 
             this.vertexMarkers.push(marker);
@@ -145,6 +146,7 @@ export class AreaHandler {
 
             if (!this.areaPolygons) return;
 
+            // ポリゴンの位置を更新
             this.areaPolygons.forEach(polygon => {
                 const meta = polygon.__meta;
                 if (!meta || !meta.vertices) return;
@@ -162,7 +164,27 @@ export class AreaHandler {
                 }
             });
 
-            this.logger.info(`Synced ${this.areaPolygons.length} areas`);
+            // 頂点マーカーの位置も更新
+            if (this.vertexMarkers && this.vertexMarkers.length > 0) {
+                this.vertexMarkers.forEach(marker => {
+                    const meta = marker.__meta;
+                    if (!meta || !meta.imageCoords) return;
+
+                    // 画像座標からGPS座標に変換
+                    let newLatLng;
+                    if (this.currentTransformation) {
+                        newLatLng = this.transformImageCoordsToGps(meta.imageCoords.x, meta.imageCoords.y);
+                    } else {
+                        newLatLng = this.convertImageCoordsToGps(meta.imageCoords.x, meta.imageCoords.y);
+                    }
+
+                    if (newLatLng) {
+                        marker.setLatLng(newLatLng);
+                    }
+                });
+            }
+
+            this.logger.info(`Synced ${this.areaPolygons.length} areas and ${this.vertexMarkers.length} vertex markers`);
 
         } catch (error) {
             this.logger.error('Error syncing area positions', error);
