@@ -33,10 +33,26 @@ export class AreaHandler {
                     this.logger.warn(`Area ${index} has no vertices, skipping.`);
                     return null;
                 }
+
+                // エリア名のフォールバック処理
+                let areaName = area.name;
+                if (!areaName || areaName.trim() === '') {
+                    // description, firestoreIdなど他のフィールドからエリア名を推測
+                    if (area.description && typeof area.description === 'string') {
+                        areaName = area.description;
+                    } else if (area.firestoreId) {
+                        areaName = `エリア_${area.firestoreId.substring(0, 6)}`;
+                    } else {
+                        areaName = `エリア ${index + 1}`;
+                    }
+                }
+
+                this.logger.info(`エリア読み込み: index=${index}, name="${areaName}", vertices=${area.vertices.length}`);
+
                 return {
                     ...area,
                     id: area.id || area.firestoreId || `area_${index}`,
-                    name: area.name || `Area ${index + 1}`
+                    name: areaName
                 };
             }).filter(a => a !== null);
 
@@ -76,7 +92,9 @@ export class AreaHandler {
                         name: area.name
                     };
 
-                    polygon.bindPopup(area.name);
+                    // ポップアップにエリア名を表示（確実に表示されるようにフォールバック）
+                    const displayName = area.name || area.id || `エリア ${index + 1}`;
+                    polygon.bindPopup(displayName);
                     this.areaPolygons.push(polygon);
 
                     // 各頂点にピンクの菱形マーカーを追加
