@@ -416,7 +416,7 @@ html, body, #map {
 
 /* #saveToFirebaseBtn の幅は共通設定（width: 100%）を使用 */
 #saveToFirebaseBtn {
-    margin-top: -10px; /* ボタンを10px上に配置 */
+    margin-top: 20px; /* ボタンの上に20pxの余白を追加 */
 }
 
 #fetchElevationBtn {
