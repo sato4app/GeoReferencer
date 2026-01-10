@@ -933,13 +933,21 @@ class GeoReferencerApp {
                     if (latLngs.length > 0) {
                         // 座標配列をFirebase保存用に変換 [{lng, lat, elev}, ...]
                         // Firestoreはネストされた配列をサポートしていないため、オブジェクトの配列にする
-                        const coordinates = latLngs.map(latLng => {
-                            const lng = this.roundCoordinate(latLng.lng);
-                            const lat = this.roundCoordinate(latLng.lat);
+                        const coordinates = latLngs.map((latLng, index) => {
+                            // latLngは[lat, lng]の配列形式
+                            const lat = Array.isArray(latLng) ? latLng[0] : latLng.lat;
+                            const lng = Array.isArray(latLng) ? latLng[1] : latLng.lng;
+
+                            // 頂点の標高データを取得（area.vertices[index].elevation）
+                            const elevation = area.vertices && area.vertices[index] ? area.vertices[index].elevation : null;
+
+                            const roundedLng = this.roundCoordinate(lng);
+                            const roundedLat = this.roundCoordinate(lat);
+
                             return {
-                                lng: isFinite(lng) ? lng : "NaN",
-                                lat: isFinite(lat) ? lat : "NaN",
-                                elev: null // 標高は現状サポートしていないためnull
+                                lng: isFinite(roundedLng) ? roundedLng : "NaN",
+                                lat: isFinite(roundedLat) ? roundedLat : "NaN",
+                                elev: elevation !== null && elevation !== undefined ? this.roundCoordinate(elevation) : null
                             };
                         }); // 以前の .filter() を削除して、NaNが含まれていても保存する
 
