@@ -312,11 +312,15 @@ export class AreaHandler {
                 }
 
                 if (latLng) {
+                    // latLngは[lat, lng]の配列形式
+                    const lat = Array.isArray(latLng) ? latLng[0] : latLng.lat;
+                    const lng = Array.isArray(latLng) ? latLng[1] : latLng.lng;
+
                     vertices.push({
                         areaName: areaName,
                         vertexIndex: index,
-                        lat: latLng.lat,
-                        lng: latLng.lng,
+                        lat: lat,
+                        lng: lng,
                         elevation: vertex.elevation || null
                     });
                 }
