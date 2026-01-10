@@ -710,11 +710,13 @@ class GeoReferencerApp {
             // チェックボックスの状態を確認
             const routeCheckbox = document.getElementById('elevationRouteCheckbox');
             const spotCheckbox = document.getElementById('elevationSpotCheckbox');
+            const areaVertexCheckbox = document.getElementById('elevationAreaVertexCheckbox');
 
             const fetchRoutes = routeCheckbox && routeCheckbox.checked;
             const fetchSpots = spotCheckbox && spotCheckbox.checked;
+            const fetchAreaVertices = areaVertexCheckbox && areaVertexCheckbox.checked;
 
-            if (!fetchRoutes && !fetchSpots) {
+            if (!fetchRoutes && !fetchSpots && !fetchAreaVertices) {
                 this.showMessage('標高取得対象を選択してください');
                 return;
             }
@@ -766,6 +768,28 @@ class GeoReferencerApp {
                 }
             }
 
+            // エリア頂点の標高取得
+            if (fetchAreaVertices) {
+                this.showMessage('エリア頂点の標高を取得中...');
+
+                if (this.areaHandler) {
+                    const result = await this.elevationFetcher.fetchAndSetAreaVerticesElevation(
+                        this.areaHandler,
+                        (current, total) => {
+                            // 進捗表示
+                            this.updateElevationProgress('areaVertex', current, total);
+                        }
+                    );
+
+                    totalFetched += result.fetched;
+                    totalFailed += result.failed;
+
+                    this.logger.info('エリア頂点の標高取得完了', result);
+                } else {
+                    this.logger.warn('エリアハンドラーが存在しません');
+                }
+            }
+
             // 標高カウントを更新
             await this.updateElevationCounts();
 
@@ -781,7 +805,15 @@ class GeoReferencerApp {
     }
 
     updateElevationProgress(type, current, total) {
-        const fieldId = type === 'route' ? 'elevationRouteCount' : 'elevationSpotCount';
+        let fieldId;
+        if (type === 'route') {
+            fieldId = 'elevationRouteCount';
+        } else if (type === 'spot') {
+            fieldId = 'elevationSpotCount';
+        } else if (type === 'areaVertex') {
+            fieldId = 'elevationAreaVertexCount';
+        }
+
         const field = document.getElementById(fieldId);
 
         if (field) {

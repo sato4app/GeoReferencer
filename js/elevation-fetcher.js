@@ -193,6 +193,71 @@ export class ElevationFetcher {
     }
 
     /**
+     * メモリ上のエリア頂点に標高を設定
+     * @param {Object} areaHandler - AreaHandlerインスタンス
+     * @param {Function} onProgress - 進捗コールバック (current, total)
+     * @returns {Promise<Object>} {fetched, failed, total}
+     */
+    async fetchAndSetAreaVerticesElevation(areaHandler, onProgress) {
+        try {
+            // エリアの全頂点を取得
+            const vertices = areaHandler.getAllVertices();
+            this.logger.info(`エリア頂点の標高取得開始: ${vertices.length}件`);
+
+            let fetchedCount = 0;
+            let failedCount = 0;
+            let currentIndex = 0;
+            const total = vertices.length;
+
+            for (const vertex of vertices) {
+                // 既に標高が設定されている場合はスキップ
+                if (vertex.elevation !== undefined && vertex.elevation !== null) {
+                    this.logger.info(`標高既設定をスキップ: area=${vertex.areaName}, index=${vertex.vertexIndex}`);
+                    currentIndex++;
+                    if (onProgress) {
+                        onProgress(currentIndex, total);
+                    }
+                    continue;
+                }
+
+                // 標高を取得
+                const elevation = await this.fetchElevation(vertex.lng, vertex.lat);
+
+                if (elevation !== null) {
+                    // AreaHandlerに標高を設定
+                    areaHandler.setVertexElevation(vertex.areaName, vertex.vertexIndex, elevation);
+                    fetchedCount++;
+                    this.logger.info(`標高設定成功: area=${vertex.areaName}, index=${vertex.vertexIndex}, elevation=${elevation}m`);
+                } else {
+                    failedCount++;
+                    this.logger.warn(`標高取得失敗: area=${vertex.areaName}, index=${vertex.vertexIndex}`);
+                }
+
+                // 進捗コールバック呼び出し
+                currentIndex++;
+                if (onProgress) {
+                    onProgress(currentIndex, total);
+                }
+
+                // レート制限: 0.5秒待機
+                await this.delay(this.DELAY_MS);
+            }
+
+            this.logger.info(`エリア頂点の標高取得完了: 成功=${fetchedCount}, 失敗=${failedCount}, 合計=${total}`);
+
+            return {
+                fetched: fetchedCount,
+                failed: failedCount,
+                total: total
+            };
+
+        } catch (error) {
+            this.logger.error('エリア頂点の標高取得エラー', error);
+            throw error;
+        }
+    }
+
+    /**
      * ルート中間点の標高を取得してFirebaseに更新
      * @param {string} projectId - プロジェクトID
      * @param {Function} onProgress - 進捗コールバック (current, total)

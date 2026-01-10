@@ -216,4 +216,80 @@ export class AreaHandler {
             return total;
         }, 0);
     }
+
+    /**
+     * エリアの全頂点を取得（標高取得用）
+     * @returns {Array} 頂点配列 [{areaName, vertexIndex, lat, lng, elevation}, ...]
+     */
+    getAllVertices() {
+        const vertices = [];
+
+        this.areaPolygons.forEach((polygon) => {
+            const meta = polygon.__meta;
+            if (!meta || !meta.vertices || !Array.isArray(meta.vertices)) {
+                return;
+            }
+
+            const areaName = meta.name || meta.areaId || 'Unknown';
+
+            // 各頂点をGPS座標に変換
+            meta.vertices.forEach((vertex, index) => {
+                let latLng;
+                if (this.currentTransformation) {
+                    // アフィン変換を使用
+                    latLng = this.transformImageCoordsToGps(vertex.x, vertex.y);
+                } else {
+                    // 画像境界を使用
+                    latLng = this.convertImageCoordsToGps(vertex.x, vertex.y);
+                }
+
+                if (latLng) {
+                    vertices.push({
+                        areaName: areaName,
+                        vertexIndex: index,
+                        lat: latLng.lat,
+                        lng: latLng.lng,
+                        elevation: vertex.elevation || null
+                    });
+                }
+            });
+        });
+
+        return vertices;
+    }
+
+    /**
+     * エリア頂点に標高を設定
+     * @param {string} areaName - エリア名
+     * @param {number} vertexIndex - 頂点インデックス
+     * @param {number} elevation - 標高値
+     */
+    setVertexElevation(areaName, vertexIndex, elevation) {
+        // 対象のポリゴンを検索
+        const polygon = this.areaPolygons.find(p => {
+            const meta = p.__meta;
+            return meta && (meta.name === areaName || meta.areaId === areaName);
+        });
+
+        if (!polygon) {
+            this.logger.warn(`エリアが見つかりません: ${areaName}`);
+            return;
+        }
+
+        const meta = polygon.__meta;
+        if (!meta.vertices || !meta.vertices[vertexIndex]) {
+            this.logger.warn(`頂点が見つかりません: area=${areaName}, index=${vertexIndex}`);
+            return;
+        }
+
+        // 標高を設定
+        meta.vertices[vertexIndex].elevation = elevation;
+        this.logger.info(`標高設定: area=${areaName}, index=${vertexIndex}, elevation=${elevation}m`);
+
+        // areasにも反映（loadFromFirebaseDataで読み込まれたデータ）
+        const area = this.areas.find(a => a.name === areaName || a.id === areaName);
+        if (area && area.vertices && area.vertices[vertexIndex]) {
+            area.vertices[vertexIndex].elevation = elevation;
+        }
+    }
 }
