@@ -714,21 +714,45 @@ class GeoReferencerApp {
             }
 
             // チェックボックスの状態を確認
+            const pointCheckbox = document.getElementById('elevationPointCheckbox');
             const routeCheckbox = document.getElementById('elevationRouteCheckbox');
             const spotCheckbox = document.getElementById('elevationSpotCheckbox');
             const areaVertexCheckbox = document.getElementById('elevationAreaVertexCheckbox');
 
+            const fetchPoints = pointCheckbox && pointCheckbox.checked;
             const fetchRoutes = routeCheckbox && routeCheckbox.checked;
             const fetchSpots = spotCheckbox && spotCheckbox.checked;
             const fetchAreaVertices = areaVertexCheckbox && areaVertexCheckbox.checked;
 
-            if (!fetchRoutes && !fetchSpots && !fetchAreaVertices) {
+            if (!fetchPoints && !fetchRoutes && !fetchSpots && !fetchAreaVertices) {
                 this.showMessage('標高取得対象を選択してください');
                 return;
             }
 
             let totalFetched = 0;
             let totalFailed = 0;
+
+            // ポイントの標高取得
+            if (fetchPoints) {
+                this.showMessage('ポイントの標高を取得中...');
+
+                if (this.gpsData && this.georeferencing && this.georeferencing.currentTransformation) {
+                    const result = await this.elevationFetcher.fetchAndSetPointsElevation(
+                        this.gpsData,
+                        this.georeferencing,
+                        (current, total) => {
+                            this.updateElevationProgress('point', current, total);
+                        }
+                    );
+
+                    totalFetched += result.fetched;
+                    totalFailed += result.failed;
+
+                    this.logger.info('ポイントの標高取得完了', result);
+                } else {
+                    this.logger.warn('ポイントデータまたはジオリファレンスが存在しません');
+                }
+            }
 
             // ルート中間点の標高取得
             if (fetchRoutes) {
@@ -812,7 +836,9 @@ class GeoReferencerApp {
 
     updateElevationProgress(type, current, total) {
         let fieldId;
-        if (type === 'route') {
+        if (type === 'point') {
+            fieldId = 'elevationPointCount';
+        } else if (type === 'route') {
             fieldId = 'elevationRouteCount';
         } else if (type === 'spot') {
             fieldId = 'elevationSpotCount';
@@ -947,25 +973,37 @@ class GeoReferencerApp {
             const gpsRoutes = [];
             const gpsSpots = [];
 
-            // 1. ポイント（GPS Excelデータ）を収集
-            if (this.gpsData && this.georeferencing) {
+            // 1. ポイント（画像座標をジオリファレンス変換）を収集
+            if (this.gpsData && this.georeferencing && this.georeferencing.currentTransformation) {
                 const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
                 this.logger.info(`🔍 マッチしたポイント数: ${matchResult.matchedPairs.length}`);
 
                 for (const pair of matchResult.matchedPairs) {
+                    const pointJson = pair.pointJson;
                     const gpsPoint = pair.gpsPoint;
-                    const elevation = gpsPoint.elevation;
+                    const pointId = pointJson.Id || pointJson.id || pointJson.name;
 
-                    gpsPoints.push({
-                        pointId: gpsPoint.pointId,
-                        name: gpsPoint.name || gpsPoint.location || '名称未設定',
-                        coordinates: {
-                            lng: this.roundCoordinate(gpsPoint.lng),
-                            lat: this.roundCoordinate(gpsPoint.lat),
-                            elev: elevation !== null && elevation !== undefined ? this.roundCoordinate(elevation) : null
-                        },
-                        description: 'ポイント（画像変換）'
-                    });
+                    // 画像座標をアフィン変換でGPS座標に変換
+                    const transformedLatLng = this.georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y);
+
+                    if (transformedLatLng) {
+                        const lat = Array.isArray(transformedLatLng) ? transformedLatLng[0] : transformedLatLng.lat;
+                        const lng = Array.isArray(transformedLatLng) ? transformedLatLng[1] : transformedLatLng.lng;
+
+                        // 標高はgpsPoint（標高取得で設定済み）から取得
+                        const elevation = gpsPoint.elevation;
+
+                        gpsPoints.push({
+                            pointId: pointId,
+                            name: pointJson.name || pointJson.location || '名称未設定',
+                            coordinates: {
+                                lng: this.roundCoordinate(lng),
+                                lat: this.roundCoordinate(lat),
+                                elev: elevation !== null && elevation !== undefined ? this.roundCoordinate(elevation) : null
+                            },
+                            description: 'ポイント（画像変換）'
+                        });
+                    }
                 }
                 this.logger.info(`🔍 収集したポイント数: ${gpsPoints.length}`);
             }

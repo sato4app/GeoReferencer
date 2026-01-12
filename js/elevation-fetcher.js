@@ -455,4 +455,84 @@ export class ElevationFetcher {
             throw error;
         }
     }
+
+    /**
+     * ポイント（画像変換）の標高を取得してGPSDataに設定
+     * @param {Object} gpsData - GPSDataインスタンス
+     * @param {Object} georeferencing - Georeferencingインスタンス
+     * @param {Function} onProgress - 進捗コールバック (current, total)
+     * @returns {Promise<Object>} {fetched, failed, total}
+     */
+    async fetchAndSetPointsElevation(gpsData, georeferencing, onProgress) {
+        try {
+            const matchResult = georeferencing.matchPointJsonWithGPS(gpsData.getPoints());
+            const points = matchResult.matchedPairs;
+            this.logger.info(`ポイントの標高取得開始: ${points.length}件`);
+
+            let fetchedCount = 0;
+            let failedCount = 0;
+            let currentIndex = 0;
+            const total = points.length;
+
+            for (const pair of points) {
+                const pointJson = pair.pointJson;
+                const gpsPoint = pair.gpsPoint;
+
+                // 既に標高が設定されている場合はスキップ
+                if (gpsPoint.elevation !== undefined && gpsPoint.elevation !== null) {
+                    this.logger.info(`標高既設定をスキップ: pointId=${gpsPoint.pointId}`);
+                    currentIndex++;
+                    if (onProgress) {
+                        onProgress(currentIndex, total);
+                    }
+                    continue;
+                }
+
+                // 画像座標をアフィン変換でGPS座標に変換
+                const transformedLatLng = georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y);
+
+                if (transformedLatLng) {
+                    const lat = Array.isArray(transformedLatLng) ? transformedLatLng[0] : transformedLatLng.lat;
+                    const lng = Array.isArray(transformedLatLng) ? transformedLatLng[1] : transformedLatLng.lng;
+
+                    // 標高を取得
+                    const elevation = await this.fetchElevation(lng, lat);
+
+                    if (elevation !== null) {
+                        // GPSDataに標高を設定
+                        gpsPoint.elevation = elevation;
+                        fetchedCount++;
+                        this.logger.info(`標高設定成功: pointId=${gpsPoint.pointId}, elevation=${elevation}m`);
+                    } else {
+                        failedCount++;
+                        this.logger.warn(`標高取得失敗: pointId=${gpsPoint.pointId}`);
+                    }
+                } else {
+                    failedCount++;
+                    this.logger.warn(`座標変換失敗: pointId=${gpsPoint.pointId}`);
+                }
+
+                // 進捗コールバック呼び出し
+                currentIndex++;
+                if (onProgress) {
+                    onProgress(currentIndex, total);
+                }
+
+                // レート制限: 0.5秒待機
+                await this.delay(this.DELAY_MS);
+            }
+
+            this.logger.info(`ポイントの標高取得完了: 成功=${fetchedCount}, 失敗=${failedCount}, 合計=${total}`);
+
+            return {
+                fetched: fetchedCount,
+                failed: failedCount,
+                total: total
+            };
+
+        } catch (error) {
+            this.logger.error('ポイントの標高取得エラー', error);
+            throw error;
+        }
+    }
 }
