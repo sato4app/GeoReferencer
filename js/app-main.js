@@ -1012,7 +1012,8 @@ class GeoReferencerApp {
                         this.logger.info(`🔍 抽出した座標: lat=${lat}, lng=${lng}`);
 
                         const gpsPointData = {
-                            pointId: pointId,
+                            id: pointId,  // FirestoreDataManagerが期待するフィールド名
+                            pointId: pointId,  // 互換性のため維持
                             coordinates: {
                                 lng: this.roundCoordinate(lng),
                                 lat: this.roundCoordinate(lat),
