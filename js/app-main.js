@@ -945,7 +945,7 @@ class GeoReferencerApp {
                             lat: this.roundCoordinate(gpsPoint.lat),
                             elev: elevation !== null && elevation !== undefined ? this.roundCoordinate(elevation) : null
                         },
-                        description: '緊急ポイント（Excel管理GPS値）'
+                        description: 'ポイント（画像変換）'
                     });
                 }
                 this.logger.info(`🔍 収集したポイント数: ${gpsPoints.length}`);
