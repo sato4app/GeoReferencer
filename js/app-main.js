@@ -916,10 +916,16 @@ class GeoReferencerApp {
                 spotCountField.value = `${stats.spots.missing}`;
             }
 
-            // エリア頂点数の更新（総数）
+            // エリア頂点数の更新（標高未取得件数のみ表示）
             if (this.areaHandler) {
-                const vertexCount = this.areaHandler.getVertexCount();
-                this.uiHandlers.updateAreaVertexCount(vertexCount);
+                const allVertices = this.areaHandler.getAllVertices();
+                let missingCount = 0;
+                for (const vertex of allVertices) {
+                    if (vertex.elevation === undefined || vertex.elevation === null) {
+                        missingCount++;
+                    }
+                }
+                this.uiHandlers.updateAreaVertexCount(missingCount);
             }
 
             this.logger.info('標高カウント更新', stats);
@@ -988,7 +994,7 @@ class GeoReferencerApp {
                     this.logger.info(`🔍 ポイント処理: pointId=${pointId}, x=${pointJson.x}, y=${pointJson.y}`);
 
                     // 画像座標をアフィン変換でGPS座標に変換
-                    const transformedLatLng = this.georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y);
+                    const transformedLatLng = this.georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y, this.georeferencing.currentTransformation);
 
                     if (transformedLatLng) {
                         const lat = Array.isArray(transformedLatLng) ? transformedLatLng[0] : transformedLatLng.lat;

@@ -489,7 +489,7 @@ export class ElevationFetcher {
                 }
 
                 // 画像座標をアフィン変換でGPS座標に変換
-                const transformedLatLng = georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y);
+                const transformedLatLng = georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y, georeferencing.currentTransformation);
 
                 if (transformedLatLng) {
                     const lat = Array.isArray(transformedLatLng) ? transformedLatLng[0] : transformedLatLng.lat;
