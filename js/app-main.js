@@ -636,7 +636,7 @@ class GeoReferencerApp {
             // GPS変換済みデータを収集
             const gpsData = await this.collectGpsDataForFirebase();
 
-            if (gpsData.gpsAreas.length === 0 && gpsData.gpsRoutes.length === 0 && gpsData.gpsSpots.length === 0) {
+            if (gpsData.gpsPoints.length === 0 && gpsData.gpsAreas.length === 0 && gpsData.gpsRoutes.length === 0 && gpsData.gpsSpots.length === 0) {
                 throw new Error('保存対象のデータがありません。');
             }
 
@@ -658,6 +658,11 @@ class GeoReferencerApp {
             // 既存のGPS変換済みデータを削除（上書き保存）
             await this.firestoreManager.deleteAllGpsData(this.currentProjectId);
 
+            // gpsPointsを保存
+            for (const gpsPoint of gpsData.gpsPoints) {
+                await this.firestoreManager.addGpsPoint(this.currentProjectId, gpsPoint);
+            }
+
             // gpsAreasを保存
             for (const gpsArea of gpsData.gpsAreas) {
                 await this.firestoreManager.addGpsArea(this.currentProjectId, gpsArea);
@@ -677,11 +682,12 @@ class GeoReferencerApp {
             await this.updateElevationCounts();
 
             // 成功メッセージ表示
-            const totalCount = gpsData.gpsAreas.length + gpsData.gpsRoutes.length + gpsData.gpsSpots.length;
-            this.showMessage(`GPS変換済みデータをFirebaseに保存しました:\nエリア: ${gpsData.gpsAreas.length}件\nルート: ${gpsData.gpsRoutes.length}件\nスポット: ${gpsData.gpsSpots.length}件`);
+            const totalCount = gpsData.gpsPoints.length + gpsData.gpsAreas.length + gpsData.gpsRoutes.length + gpsData.gpsSpots.length;
+            this.showMessage(`GPS変換済みデータをFirebaseに保存しました:\nポイント: ${gpsData.gpsPoints.length}件\nエリア: ${gpsData.gpsAreas.length}件\nルート: ${gpsData.gpsRoutes.length}件\nスポット: ${gpsData.gpsSpots.length}件`);
 
             this.logger.info('Firebase保存完了', {
                 projectId: this.currentProjectId,
+                gpsPoints: gpsData.gpsPoints.length,
                 gpsAreas: gpsData.gpsAreas.length,
                 gpsRoutes: gpsData.gpsRoutes.length,
                 gpsSpots: gpsData.gpsSpots.length
@@ -917,11 +923,35 @@ class GeoReferencerApp {
 
     async collectGpsDataForFirebase() {
         try {
+            const gpsPoints = [];
             const gpsAreas = [];
             const gpsRoutes = [];
             const gpsSpots = [];
 
-            // 1. エリア（ジオリファレンス変換済み）を収集
+            // 1. ポイント（GPS Excelデータ）を収集
+            if (this.gpsData && this.georeferencing) {
+                const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
+                this.logger.info(`🔍 マッチしたポイント数: ${matchResult.matchedPairs.length}`);
+
+                for (const pair of matchResult.matchedPairs) {
+                    const gpsPoint = pair.gpsPoint;
+                    const elevation = gpsPoint.elevation;
+
+                    gpsPoints.push({
+                        pointId: gpsPoint.pointId,
+                        name: gpsPoint.name || gpsPoint.location || '名称未設定',
+                        coordinates: {
+                            lng: this.roundCoordinate(gpsPoint.lng),
+                            lat: this.roundCoordinate(gpsPoint.lat),
+                            elev: elevation !== null && elevation !== undefined ? this.roundCoordinate(elevation) : null
+                        },
+                        description: '緊急ポイント（Excel管理GPS値）'
+                    });
+                }
+                this.logger.info(`🔍 収集したポイント数: ${gpsPoints.length}`);
+            }
+
+            // 2. エリア（ジオリファレンス変換済み）を収集
             if (this.areaHandler) {
                 // 最新のエリア情報を取得（リネーム反映）
                 const areas = this.areaHandler.getUpToDateAreas();
@@ -1063,6 +1093,7 @@ class GeoReferencerApp {
             }
 
             return {
+                gpsPoints,
                 gpsAreas,
                 gpsRoutes,
                 gpsSpots
