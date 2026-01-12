@@ -974,6 +974,8 @@ class GeoReferencerApp {
             const gpsSpots = [];
 
             // 1. ポイント（画像座標をジオリファレンス変換）を収集
+            this.logger.info(`🔍 ポイント収集条件チェック: gpsData=${!!this.gpsData}, georeferencing=${!!this.georeferencing}, currentTransformation=${!!this.georeferencing?.currentTransformation}`);
+
             if (this.gpsData && this.georeferencing && this.georeferencing.currentTransformation) {
                 const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
                 this.logger.info(`🔍 マッチしたポイント数: ${matchResult.matchedPairs.length}`);
@@ -982,6 +984,8 @@ class GeoReferencerApp {
                     const pointJson = pair.pointJson;
                     const gpsPoint = pair.gpsPoint;
                     const pointId = pointJson.Id || pointJson.id || pointJson.name;
+
+                    this.logger.info(`🔍 ポイント処理: pointId=${pointId}, x=${pointJson.x}, y=${pointJson.y}`);
 
                     // 画像座標をアフィン変換でGPS座標に変換
                     const transformedLatLng = this.georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y);
@@ -1003,9 +1007,13 @@ class GeoReferencerApp {
                             },
                             description: 'ポイント（画像変換）'
                         });
+                    } else {
+                        this.logger.warn(`🔍 座標変換失敗: pointId=${pointId}`);
                     }
                 }
                 this.logger.info(`🔍 収集したポイント数: ${gpsPoints.length}`);
+            } else {
+                this.logger.warn('🔍 ポイント収集条件を満たしていません');
             }
 
             // 2. エリア（ジオリファレンス変換済み）を収集
