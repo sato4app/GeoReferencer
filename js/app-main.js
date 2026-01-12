@@ -991,19 +991,24 @@ class GeoReferencerApp {
                     const gpsPoint = pair.gpsPoint;
                     const pointId = pointJson.Id || pointJson.id || pointJson.name;
 
-                    this.logger.info(`🔍 ポイント処理: pointId=${pointId}, x=${pointJson.x}, y=${pointJson.y}`);
+                    this.logger.info(`🔍 ポイント処理: pointId=${pointId}, x=${pointJson.x}, y=${pointJson.y}, name=${pointJson.name}`);
+                    this.logger.info(`🔍 pointJsonの全プロパティ:`, pointJson);
 
                     // 画像座標をアフィン変換でGPS座標に変換
                     const transformedLatLng = this.georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y, this.georeferencing.currentTransformation);
+
+                    this.logger.info(`🔍 変換結果: transformedLatLng=`, transformedLatLng);
 
                     if (transformedLatLng) {
                         const lat = Array.isArray(transformedLatLng) ? transformedLatLng[0] : transformedLatLng.lat;
                         const lng = Array.isArray(transformedLatLng) ? transformedLatLng[1] : transformedLatLng.lng;
 
+                        this.logger.info(`🔍 抽出した座標: lat=${lat}, lng=${lng}`);
+
                         // 標高はgpsPoint（標高取得で設定済み）から取得
                         const elevation = gpsPoint.elevation;
 
-                        gpsPoints.push({
+                        const gpsPointData = {
                             pointId: pointId,
                             name: pointJson.name || pointJson.location || '名称未設定',
                             coordinates: {
@@ -1012,9 +1017,12 @@ class GeoReferencerApp {
                                 elev: elevation !== null && elevation !== undefined ? this.roundCoordinate(elevation) : null
                             },
                             description: 'ポイント（画像変換）'
-                        });
+                        };
+
+                        this.logger.info(`🔍 Firebase保存データ:`, gpsPointData);
+                        gpsPoints.push(gpsPointData);
                     } else {
-                        this.logger.warn(`🔍 座標変換失敗: pointId=${pointId}`);
+                        this.logger.warn(`🔍 座標変換失敗: pointId=${pointId}, x=${pointJson.x}, y=${pointJson.y}`);
                     }
                 }
                 this.logger.info(`🔍 収集したポイント数: ${gpsPoints.length}`);

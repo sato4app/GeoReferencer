@@ -850,8 +850,13 @@ export class RouteSpotHandler {
                 const tempGpsCoords = this.convertImageCoordsToGps(imageX, imageY);
 
                 const processedPoint = {
+                    Id: point.id || point.firestoreId || 'Point',  // 大文字のIdを使用
                     id: point.id || point.firestoreId || 'Point',
                     pointId: point.firestoreId,
+                    name: point.name || point.location || '',  // nameフィールドを追加
+                    location: point.location || point.name || '',  // locationフィールドも追加
+                    x: imageX,  // xフィールドを追加（ジオリファレンスで使用）
+                    y: imageY,  // yフィールドを追加（ジオリファレンスで使用）
                     imageX: imageX,
                     imageY: imageY,
                     index: point.index || 0,
