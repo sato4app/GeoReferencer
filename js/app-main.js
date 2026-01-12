@@ -832,9 +832,22 @@ class GeoReferencerApp {
         try {
             // メモリ上のマーカーから標高統計を計算
             const stats = {
+                points: { missing: 0, total: 0 },
                 routes: { missing: 0, total: 0 },
                 spots: { missing: 0, total: 0 }
             };
+
+            // ポイントのカウント（GPS Excelデータ）
+            if (this.gpsData && this.georeferencing) {
+                const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
+                stats.points.total = matchResult.matchedPairs.length;
+                for (const pair of matchResult.matchedPairs) {
+                    const elevation = pair.gpsPoint.elevation;
+                    if (elevation === undefined || elevation === null) {
+                        stats.points.missing++;
+                    }
+                }
+            }
 
             // ルートマーカーのカウント
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
@@ -857,6 +870,12 @@ class GeoReferencerApp {
                         stats.spots.missing++;
                     }
                 }
+            }
+
+            // ポイントのカウント更新（未取得件数のみ表示）
+            const pointCountField = document.getElementById('elevationPointCount');
+            if (pointCountField) {
+                pointCountField.value = `${stats.points.missing}`;
             }
 
             // ルート中間点のカウント更新（未取得件数のみ表示）
@@ -1300,13 +1319,26 @@ class GeoReferencerApp {
 
     /**
      * 標高統計を取得
-     * @returns {Object} {routes: {missing, total}, spots: {missing, total}}
+     * @returns {Object} {points: {missing, total}, routes: {missing, total}, spots: {missing, total}}
      */
     getElevationStats() {
         const stats = {
+            points: { missing: 0, total: 0 },
             routes: { missing: 0, total: 0 },
             spots: { missing: 0, total: 0 }
         };
+
+        // ポイントのカウント（GPS Excelデータ）
+        if (this.gpsData && this.georeferencing) {
+            const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
+            stats.points.total = matchResult.matchedPairs.length;
+            for (const pair of matchResult.matchedPairs) {
+                const elevation = pair.gpsPoint.elevation;
+                if (elevation === undefined || elevation === null) {
+                    stats.points.missing++;
+                }
+            }
+        }
 
         // ルートマーカーのカウント
         if (this.routeSpotHandler?.routeMarkers) {
