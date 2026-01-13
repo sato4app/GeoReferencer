@@ -1013,6 +1013,7 @@ class GeoReferencerApp {
 
                         // 標高を取得（pointDataから）
                         const elevation = point.elevation;
+                        console.log(`🔍 point.elevation=${elevation}`);
 
                         const gpsPointData = {
                             id: pointId,  // FirestoreDataManagerが期待するフィールド名
