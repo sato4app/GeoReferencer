@@ -732,13 +732,13 @@ class GeoReferencerApp {
             let totalFetched = 0;
             let totalFailed = 0;
 
-            // ポイントの標高取得
+            // ポイントの標高取得（画像ポイントデータ）
             if (fetchPoints) {
                 this.showMessage('ポイントの標高を取得中...');
 
-                if (this.gpsData && this.georeferencing && this.georeferencing.currentTransformation) {
+                if (this.routeSpotHandler && this.routeSpotHandler.pointData && this.georeferencing && this.georeferencing.currentTransformation) {
                     const result = await this.elevationFetcher.fetchAndSetPointsElevation(
-                        this.gpsData,
+                        this.routeSpotHandler.pointData,
                         this.georeferencing,
                         (current, total) => {
                             this.updateElevationProgress('point', current, total);
@@ -748,9 +748,9 @@ class GeoReferencerApp {
                     totalFetched += result.fetched;
                     totalFailed += result.failed;
 
-                    this.logger.info('ポイントの標高取得完了', result);
+                    this.logger.info('画像ポイントの標高取得完了', result);
                 } else {
-                    this.logger.warn('ポイントデータまたはジオリファレンスが存在しません');
+                    this.logger.warn('画像ポイントデータまたはジオリファレンスが存在しません');
                 }
             }
 
@@ -1011,13 +1011,16 @@ class GeoReferencerApp {
                         console.log(`🔍 抽出した座標: lat=${lat}, lng=${lng}`);
                         this.logger.info(`🔍 抽出した座標: lat=${lat}, lng=${lng}`);
 
+                        // 標高を取得（pointDataから）
+                        const elevation = point.elevation;
+
                         const gpsPointData = {
                             id: pointId,  // FirestoreDataManagerが期待するフィールド名
                             pointId: pointId,  // 互換性のため維持
                             coordinates: {
                                 lng: this.roundCoordinate(lng),
                                 lat: this.roundCoordinate(lat),
-                                elev: null  // 標高は不要
+                                elev: elevation !== null && elevation !== undefined ? this.roundCoordinate(elevation) : null
                             },
                             description: 'ポイント（画像変換）'
                         };
@@ -1395,13 +1398,13 @@ class GeoReferencerApp {
             spots: { missing: 0, total: 0 }
         };
 
-        // ポイントのカウント（GPS Excelデータ）
-        if (this.gpsData && this.georeferencing) {
-            const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
-            stats.points.total = matchResult.matchedPairs.length;
-            for (const pair of matchResult.matchedPairs) {
-                const elevation = pair.gpsPoint.elevation;
-                if (elevation === undefined || elevation === null) {
+        // ポイントのカウント（画像ポイントデータ = gpsPoints）
+        if (this.routeSpotHandler && this.routeSpotHandler.pointData) {
+            const points = this.routeSpotHandler.pointData;
+            stats.points.total = points.length;
+            for (const point of points) {
+                // elevationフィールドがundefinedまたはnullの場合は未取得
+                if (point.elevation === undefined || point.elevation === null) {
                     stats.points.missing++;
                 }
             }

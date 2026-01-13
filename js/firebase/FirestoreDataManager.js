@@ -1125,6 +1125,40 @@ export class FirestoreDataManager {
     }
 
     /**
+     * GPS変換済みポイントの標高を更新
+     * @param {string} projectId - プロジェクトID
+     * @param {string} pointId - FirestoreドキュメントID
+     * @param {number} elevation - 標高値
+     * @returns {Promise<void>}
+     */
+    async updateGpsPointElevation(projectId, pointId, elevation) {
+        try {
+            const docRef = this.db
+                .collection('projects')
+                .doc(projectId)
+                .collection('gpsPoints')
+                .doc(pointId);
+
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                throw new Error(`ポイントが見つかりません: ${pointId}`);
+            }
+
+            const coordinates = doc.data().coordinates || {lng: 0, lat: 0, elev: null};
+            coordinates.elev = elevation;
+
+            await docRef.update({
+                coordinates: coordinates,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+        } catch (error) {
+            console.error('ポイントの標高更新失敗:', error);
+            throw error;
+        }
+    }
+
+    /**
      * GPS変換済みエリアを追加
      * @param {string} projectId - プロジェクトID
      * @param {Object} gpsArea - GPS変換済みエリアデータ

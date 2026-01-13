@@ -457,30 +457,25 @@ export class ElevationFetcher {
     }
 
     /**
-     * ポイント（画像変換）の標高を取得してGPSDataに設定
-     * @param {Object} gpsData - GPSDataインスタンス
+     * ポイント（画像変換）の標高を取得してpointDataに設定
+     * @param {Array} pointData - routeSpotHandler.pointData配列
      * @param {Object} georeferencing - Georeferencingインスタンス
      * @param {Function} onProgress - 進捗コールバック (current, total)
      * @returns {Promise<Object>} {fetched, failed, total}
      */
-    async fetchAndSetPointsElevation(gpsData, georeferencing, onProgress) {
+    async fetchAndSetPointsElevation(pointData, georeferencing, onProgress) {
         try {
-            const matchResult = georeferencing.matchPointJsonWithGPS(gpsData.getPoints());
-            const points = matchResult.matchedPairs;
-            this.logger.info(`ポイントの標高取得開始: ${points.length}件`);
+            this.logger.info(`画像ポイントの標高取得開始: ${pointData.length}件`);
 
             let fetchedCount = 0;
             let failedCount = 0;
             let currentIndex = 0;
-            const total = points.length;
+            const total = pointData.length;
 
-            for (const pair of points) {
-                const pointJson = pair.pointJson;
-                const gpsPoint = pair.gpsPoint;
-
+            for (const point of pointData) {
                 // 既に標高が設定されている場合はスキップ
-                if (gpsPoint.elevation !== undefined && gpsPoint.elevation !== null) {
-                    this.logger.info(`標高既設定をスキップ: pointId=${gpsPoint.pointId}`);
+                if (point.elevation !== undefined && point.elevation !== null) {
+                    this.logger.info(`標高既設定をスキップ: pointId=${point.id || point.pointId}`);
                     currentIndex++;
                     if (onProgress) {
                         onProgress(currentIndex, total);
@@ -489,7 +484,7 @@ export class ElevationFetcher {
                 }
 
                 // 画像座標をアフィン変換でGPS座標に変換
-                const transformedLatLng = georeferencing.transformImageCoordsToGps(pointJson.x, pointJson.y, georeferencing.currentTransformation);
+                const transformedLatLng = georeferencing.transformImageCoordsToGps(point.x, point.y, georeferencing.currentTransformation);
 
                 if (transformedLatLng) {
                     const lat = Array.isArray(transformedLatLng) ? transformedLatLng[0] : transformedLatLng.lat;
@@ -499,17 +494,17 @@ export class ElevationFetcher {
                     const elevation = await this.fetchElevation(lng, lat);
 
                     if (elevation !== null) {
-                        // GPSDataに標高を設定
-                        gpsPoint.elevation = elevation;
+                        // pointDataに標高を設定
+                        point.elevation = elevation;
                         fetchedCount++;
-                        this.logger.info(`標高設定成功: pointId=${gpsPoint.pointId}, elevation=${elevation}m`);
+                        this.logger.info(`標高設定成功: pointId=${point.id || point.pointId}, elevation=${elevation}m`);
                     } else {
                         failedCount++;
-                        this.logger.warn(`標高取得失敗: pointId=${gpsPoint.pointId}`);
+                        this.logger.warn(`標高取得失敗: pointId=${point.id || point.pointId}`);
                     }
                 } else {
                     failedCount++;
-                    this.logger.warn(`座標変換失敗: pointId=${gpsPoint.pointId}`);
+                    this.logger.warn(`座標変換失敗: pointId=${point.id || point.pointId}`);
                 }
 
                 // 進捗コールバック呼び出し
@@ -522,7 +517,7 @@ export class ElevationFetcher {
                 await this.delay(this.DELAY_MS);
             }
 
-            this.logger.info(`ポイントの標高取得完了: 成功=${fetchedCount}, 失敗=${failedCount}, 合計=${total}`);
+            this.logger.info(`画像ポイントの標高取得完了: 成功=${fetchedCount}, 失敗=${failedCount}, 合計=${total}`);
 
             return {
                 fetched: fetchedCount,
@@ -531,7 +526,7 @@ export class ElevationFetcher {
             };
 
         } catch (error) {
-            this.logger.error('ポイントの標高取得エラー', error);
+            this.logger.error('画像ポイントの標高取得エラー', error);
             throw error;
         }
     }
