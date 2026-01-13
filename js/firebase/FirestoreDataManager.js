@@ -912,7 +912,6 @@ export class FirestoreDataManager {
                 .collection('gpsPoints')
                 .add({
                     id: gpsPoint.id || '',
-                    name: gpsPoint.name || '',
                     coordinates: gpsPoint.coordinates || {lng: 0, lat: 0, elev: null}, // {lng, lat, elev}
                     source: gpsPoint.source || 'transformed',
                     description: gpsPoint.description || '',
