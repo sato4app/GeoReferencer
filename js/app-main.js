@@ -863,13 +863,13 @@ class GeoReferencerApp {
                 spots: { missing: 0, total: 0 }
             };
 
-            // ポイントのカウント（GPS Excelデータ）
-            if (this.gpsData && this.georeferencing) {
-                const matchResult = this.georeferencing.matchPointJsonWithGPS(this.gpsData.getPoints());
-                stats.points.total = matchResult.matchedPairs.length;
-                for (const pair of matchResult.matchedPairs) {
-                    const elevation = pair.gpsPoint.elevation;
-                    if (elevation === undefined || elevation === null) {
+            // ポイントのカウント（画像ポイントデータ = gpsPoints）
+            if (this.routeSpotHandler && this.routeSpotHandler.pointData) {
+                const points = this.routeSpotHandler.pointData;
+                stats.points.total = points.length;
+                for (const point of points) {
+                    // elevationフィールドがundefinedまたはnullの場合は未取得
+                    if (point.elevation === undefined || point.elevation === null) {
                         stats.points.missing++;
                     }
                 }
