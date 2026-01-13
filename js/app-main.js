@@ -974,7 +974,6 @@ class GeoReferencerApp {
 
     async collectGpsDataForFirebase() {
         try {
-            console.log('🔍 collectGpsDataForFirebase() 開始');
             const gpsPoints = [];
             const gpsAreas = [];
             const gpsRoutes = [];
@@ -982,38 +981,24 @@ class GeoReferencerApp {
 
             // 1. ポイント（画像座標をジオリファレンス変換）を収集
             // GPS Excelデータは使用せず、画像のポイントデータ（Firebase pointsコレクション）から直接取得
-            console.log(`🔍 ポイント収集条件チェック: routeSpotHandler=${!!this.routeSpotHandler}, pointData=${!!this.routeSpotHandler?.pointData}, georeferencing=${!!this.georeferencing}, currentTransformation=${!!this.georeferencing?.currentTransformation}`);
-            this.logger.info(`🔍 ポイント収集条件チェック: routeSpotHandler=${!!this.routeSpotHandler}, pointData=${!!this.routeSpotHandler?.pointData}, georeferencing=${!!this.georeferencing}, currentTransformation=${!!this.georeferencing?.currentTransformation}`);
+            this.logger.info(`ポイント収集条件チェック: routeSpotHandler=${!!this.routeSpotHandler}, pointData=${!!this.routeSpotHandler?.pointData}, georeferencing=${!!this.georeferencing}, currentTransformation=${!!this.georeferencing?.currentTransformation}`);
 
             if (this.routeSpotHandler && this.routeSpotHandler.pointData && this.georeferencing && this.georeferencing.currentTransformation) {
                 const points = this.routeSpotHandler.pointData;
-                console.log(`🔍 画像ポイント数: ${points.length}`);
-                this.logger.info(`🔍 画像ポイント数: ${points.length}`);
+                this.logger.info(`画像ポイント数: ${points.length}`);
 
                 for (const point of points) {
                     const pointId = point.Id || point.id || point.pointId;
 
-                    console.log(`🔍 ポイント処理: pointId=${pointId}, x=${point.x}, y=${point.y}`);
-                    console.log('🔍 pointの全プロパティ:', point);
-                    this.logger.info(`🔍 ポイント処理: pointId=${pointId}, x=${point.x}, y=${point.y}`);
-                    this.logger.info(`🔍 pointの全プロパティ:`, point);
-
                     // 画像座標をアフィン変換でGPS座標に変換
                     const transformedLatLng = this.georeferencing.transformImageCoordsToGps(point.x, point.y, this.georeferencing.currentTransformation);
-
-                    console.log('🔍 変換結果: transformedLatLng=', transformedLatLng);
-                    this.logger.info(`🔍 変換結果: transformedLatLng=`, transformedLatLng);
 
                     if (transformedLatLng) {
                         const lat = Array.isArray(transformedLatLng) ? transformedLatLng[0] : transformedLatLng.lat;
                         const lng = Array.isArray(transformedLatLng) ? transformedLatLng[1] : transformedLatLng.lng;
 
-                        console.log(`🔍 抽出した座標: lat=${lat}, lng=${lng}`);
-                        this.logger.info(`🔍 抽出した座標: lat=${lat}, lng=${lng}`);
-
                         // 標高を取得（pointDataから）
                         const elevation = point.elevation;
-                        console.log(`🔍 point.elevation=${elevation}`);
 
                         const gpsPointData = {
                             id: pointId,  // FirestoreDataManagerが期待するフィールド名
@@ -1026,19 +1011,14 @@ class GeoReferencerApp {
                             description: 'ポイント（画像変換）'
                         };
 
-                        console.log('🔍 Firebase保存データ:', gpsPointData);
-                        this.logger.info(`🔍 Firebase保存データ:`, gpsPointData);
                         gpsPoints.push(gpsPointData);
                     } else {
-                        console.warn(`🔍 座標変換失敗: pointId=${pointId}, x=${point.x}, y=${point.y}`);
-                        this.logger.warn(`🔍 座標変換失敗: pointId=${pointId}, x=${point.x}, y=${point.y}`);
+                        this.logger.warn(`座標変換失敗: pointId=${pointId}, x=${point.x}, y=${point.y}`);
                     }
                 }
-                console.log(`🔍 収集したポイント数: ${gpsPoints.length}`);
-                this.logger.info(`🔍 収集したポイント数: ${gpsPoints.length}`);
+                this.logger.info(`収集したポイント数: ${gpsPoints.length}`);
             } else {
-                console.log('🔍 ポイント収集条件を満たしていません（画像ポイントデータまたはジオリファレンスが未設定）');
-                this.logger.warn('🔍 ポイント収集条件を満たしていません（画像ポイントデータまたはジオリファレンスが未設定）');
+                this.logger.warn('ポイント収集条件を満たしていません（画像ポイントデータまたはジオリファレンスが未設定）');
             }
 
             // 2. エリア（ジオリファレンス変換済み）を収集

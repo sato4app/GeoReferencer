@@ -837,12 +837,6 @@ export class RouteSpotHandler {
             this.logger.info(`処理するポイント数: ${(points || []).length}`);
 
             for (const point of (points || [])) {
-                // Firebaseから読み込んだポイントの全プロパティをログ出力
-                console.log('🔍 Firebase読み込みポイント:', point);
-                console.log(`🔍 point.id=${point.id}, point.firestoreId=${point.firestoreId}`);
-                this.logger.info('🔍 Firebase読み込みポイント:', point);
-                this.logger.info(`🔍 point.id=${point.id}, point.firestoreId=${point.firestoreId}`);
-
                 // 座標が有効かチェック
                 if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
                     this.logger.warn('無効なポイント:', point);
@@ -871,8 +865,6 @@ export class RouteSpotHandler {
                     isGeoreferenced: false  // ジオリファレンス済みフラグ
                 };
 
-                console.log('🔍 processedPoint:', processedPoint);
-                this.logger.info('🔍 processedPoint:', processedPoint);
                 processedPoints.push(processedPoint);
             }
 

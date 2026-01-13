@@ -903,9 +903,6 @@ export class FirestoreDataManager {
      */
     async addGpsPoint(projectId, gpsPoint) {
         try {
-            console.log('🔍 Firestore保存前のgpsPoint:', gpsPoint);
-            console.log('🔍 gpsPoint.coordinates:', gpsPoint.coordinates);
-
             const docRef = await this.db
                 .collection('projects')
                 .doc(projectId)
@@ -919,7 +916,6 @@ export class FirestoreDataManager {
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-            console.log('🔍 Firestore保存完了: docId=', docRef.id);
             return docRef.id;
         } catch (error) {
             console.error('GPS変換済みポイント追加失敗:', error);
