@@ -1136,6 +1136,6 @@ select:focus {
 /* 仕切り線 */
 .separator-line {
     border-top: 3px solid #666;
-    margin: 5px 0;
-    width: 80%;
+    /* margin: 15px 0; */
+    width: 100%;
 }
