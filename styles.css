@@ -1132,3 +1132,10 @@ select:focus {
     background-color: #f9f9f9;
     color: #333;
 }
+
+/* 仕切り線 */
+.separator-line {
+    border-top: 3px solid #666;
+    margin: 15px 0;
+    width: 100%;
+}

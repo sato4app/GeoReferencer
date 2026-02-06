@@ -906,10 +906,10 @@ export class FirestoreDataManager {
             const docRef = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsPoints')
+                .collection('geoPoints')
                 .add({
                     id: gpsPoint.id || '',
-                    coordinates: gpsPoint.coordinates || {lng: 0, lat: 0, elev: null}, // {lng, lat, elev}
+                    coordinates: gpsPoint.coordinates || { lng: 0, lat: 0, elev: null }, // {lng, lat, elev}
                     source: gpsPoint.source || 'transformed',
                     description: gpsPoint.description || '',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -933,7 +933,7 @@ export class FirestoreDataManager {
             const snapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsPoints')
+                .collection('geoPoints')
                 .get();
 
             return snapshot.docs.map(doc => ({
@@ -957,7 +957,7 @@ export class FirestoreDataManager {
             const docRef = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsRoutes')
+                .collection('geoRoutes')
                 .add({
                     routeName: gpsRoute.routeName || '',
                     startPoint: gpsRoute.startPoint || '',
@@ -985,7 +985,7 @@ export class FirestoreDataManager {
             const snapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsRoutes')
+                .collection('geoRoutes')
                 .get();
 
             return snapshot.docs.map(doc => ({
@@ -1009,7 +1009,7 @@ export class FirestoreDataManager {
             const docRef = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsSpots')
+                .collection('geoSpots')
                 .add({
                     name: gpsSpot.name || '',
                     coordinates: gpsSpot.coordinates || [0, 0, null], // [lng, lat, elev]
@@ -1036,7 +1036,7 @@ export class FirestoreDataManager {
             const snapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsSpots')
+                .collection('geoSpots')
                 .get();
 
             return snapshot.docs.map(doc => ({
@@ -1062,7 +1062,7 @@ export class FirestoreDataManager {
             const docRef = this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsRoutes')
+                .collection('geoRoutes')
                 .doc(routeId);
 
             const doc = await docRef.get();
@@ -1101,7 +1101,7 @@ export class FirestoreDataManager {
             const docRef = this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsSpots')
+                .collection('geoSpots')
                 .doc(spotId);
 
             const doc = await docRef.get();
@@ -1135,7 +1135,7 @@ export class FirestoreDataManager {
             const docRef = this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsPoints')
+                .collection('geoPoints')
                 .doc(pointId);
 
             const doc = await docRef.get();
@@ -1143,7 +1143,7 @@ export class FirestoreDataManager {
                 throw new Error(`ポイントが見つかりません: ${pointId}`);
             }
 
-            const coordinates = doc.data().coordinates || {lng: 0, lat: 0, elev: null};
+            const coordinates = doc.data().coordinates || { lng: 0, lat: 0, elev: null };
             coordinates.elev = elevation;
 
             await docRef.update({
@@ -1168,7 +1168,7 @@ export class FirestoreDataManager {
             const docRef = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsAreas')
+                .collection('geoAreas')
                 .add({
                     name: gpsArea.name || '',
                     coordinates: gpsArea.coordinates || [], // [{lng, lat, elev}, ...]
@@ -1194,7 +1194,7 @@ export class FirestoreDataManager {
             const snapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsAreas')
+                .collection('geoAreas')
                 .get();
 
             return snapshot.docs.map(doc => ({
@@ -1218,7 +1218,7 @@ export class FirestoreDataManager {
             const gpsPointsSnapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsPoints')
+                .collection('geoPoints')
                 .get();
 
             const gpsPointsDeletePromises = gpsPointsSnapshot.docs.map(doc => doc.ref.delete());
@@ -1228,7 +1228,7 @@ export class FirestoreDataManager {
             const gpsRoutesSnapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsRoutes')
+                .collection('geoRoutes')
                 .get();
 
             const gpsRoutesDeletePromises = gpsRoutesSnapshot.docs.map(doc => doc.ref.delete());
@@ -1238,7 +1238,7 @@ export class FirestoreDataManager {
             const gpsSpotsSnapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsSpots')
+                .collection('geoSpots')
                 .get();
 
             const gpsSpotsDeletePromises = gpsSpotsSnapshot.docs.map(doc => doc.ref.delete());
@@ -1248,7 +1248,7 @@ export class FirestoreDataManager {
             const gpsAreasSnapshot = await this.db
                 .collection('projects')
                 .doc(projectId)
-                .collection('gpsAreas')
+                .collection('geoAreas')
                 .get();
 
             const gpsAreasDeletePromises = gpsAreasSnapshot.docs.map(doc => doc.ref.delete());
