@@ -79,6 +79,40 @@
                                 JSONファイル
                             </label>
                         </div>
+
+                        <!-- データ件数表示 -->
+                        <div class="json-data-counts">
+                            <div class="count-fields-inline">
+                                <div class="count-item-inline">
+                                    <label>ポイント</label>
+                                    <div class="count-value-group">
+                                        <input type="text" id="pointCount" readonly value="0" class="count-field">
+                                        <span class="unit-label">個</span>
+                                    </div>
+                                </div>
+                                <div class="count-item-inline">
+                                    <label>ルート</label>
+                                    <div class="count-value-group">
+                                        <input type="text" id="routeCount" readonly value="0" class="count-field">
+                                        <span class="unit-label">本</span>
+                                    </div>
+                                </div>
+                                <div class="count-item-inline">
+                                    <label>スポット</label>
+                                    <div class="count-value-group">
+                                        <input type="text" id="spotCount" readonly value="0" class="count-field">
+                                        <span class="unit-label">個</span>
+                                    </div>
+                                </div>
+                                <div class="count-item-inline">
+                                    <label>エリア</label>
+                                    <div class="count-value-group">
+                                        <input type="text" id="areaCount" readonly value="0" class="count-field">
+                                        <span class="unit-label">個</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -88,39 +122,7 @@
             <input type="file" id="imageInput" accept="image/png" style="display: none;">
             <input type="file" id="jsonInput" accept=".json" multiple style="display: none;">
 
-            <!-- データ件数表示 (旧PNG画像詳細) -->
-            <div class="json-data-counts">
-                <div class="count-fields-inline">
-                    <div class="count-item-inline">
-                        <label>ポイント</label>
-                        <div class="count-value-group">
-                            <input type="text" id="pointCount" readonly value="0" class="count-field">
-                            <span class="unit-label">個</span>
-                        </div>
-                    </div>
-                    <div class="count-item-inline">
-                        <label>ルート</label>
-                        <div class="count-value-group">
-                            <input type="text" id="routeCount" readonly value="0" class="count-field">
-                            <span class="unit-label">本</span>
-                        </div>
-                    </div>
-                    <div class="count-item-inline">
-                        <label>スポット</label>
-                        <div class="count-value-group">
-                            <input type="text" id="spotCount" readonly value="0" class="count-field">
-                            <span class="unit-label">個</span>
-                        </div>
-                    </div>
-                    <div class="count-item-inline">
-                        <label>エリア</label>
-                        <div class="count-value-group">
-                            <input type="text" id="areaCount" readonly value="0" class="count-field">
-                            <span class="unit-label">個</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
 
             <!-- ポイントマッチング結果表示 -->
             <div class="matching-results-container">
