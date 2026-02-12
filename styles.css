@@ -267,7 +267,7 @@ body,
     gap: 4px;
     margin-top: 6px;
     margin-bottom: 10px;
-    margin-left: -40px;
+    margin-left: -60px;
     margin-right: 10px;
     padding: 6px;
     background: rgba(240, 240, 240, 0.9);
@@ -1044,6 +1044,22 @@ select:focus {
     font-size: var(--font-size-normal);
     cursor: pointer;
     min-width: 120px;
+}
+
+#matchedPointCountField {
+    width: 40px;
+    text-align: right;
+}
+
+/* 標高取得フィールドの設定 */
+.elevation-checkbox-item .count-field {
+    width: 40px !important;
+    text-align: right;
+}
+
+/* 右端から10px左に移動（margin-rightを追加） */
+.elevation-checkbox-item>*:last-child {
+    margin-right: 10px;
 }
 
 .elevation-checkbox-item input[type="checkbox"] {
