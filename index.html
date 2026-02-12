@@ -49,54 +49,74 @@
         <section id="geoReferencerPanel" class="editor-panel" aria-labelledby="geo-ref-title">
             <h2 id="geo-ref-title" class="visually-hidden">画像重ね合わせツール</h2>
 
-            <!-- ポイントGPS読み込み -->
-            <div class="load-file-container">
-                <button id="loadFileBtn" title="GPS座標データ（Excel形式）を読み込みます"
-                    class="leaflet-bar leaflet-control">ポイントGPSの読み込み</button>
-                <div class="count-display">
-                    <input type="text" id="gpsPointCount" readonly value="0" class="count-field">
-                    <span class="unit-label">個</span>
+            <!-- 読み込みコントロール -->
+            <div class="load-control-container">
+                <div class="load-button-area">
+                    <button id="loadFileBtn" title="選択した形式のファイルを読み込みます"
+                        class="leaflet-bar leaflet-control">読み込み</button>
+
+                    <div class="load-type-radios">
+                        <div class="radio-row">
+                            <label>
+                                <input type="radio" name="loadType" value="gps" checked>
+                                ポイントGPS
+                            </label>
+                            <div class="count-display-inline">
+                                <input type="text" id="gpsPointCount" readonly value="0" class="count-field">
+                                <span class="unit-label">個</span>
+                            </div>
+                        </div>
+                        <div class="radio-row">
+                            <label>
+                                <input type="radio" name="loadType" value="png">
+                                PNG画像
+                            </label>
+                            <input type="text" id="pngFileName" readonly placeholder="ファイル名" class="filename-field">
+                        </div>
+                        <div class="radio-row">
+                            <label>
+                                <input type="radio" name="loadType" value="json">
+                                JSONファイル
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="separator-line"></div>
 
             <!-- ファイル入力 -->
             <input type="file" id="gpsExcelInput" accept=".xlsx" style="display: none;">
             <input type="file" id="imageInput" accept="image/png" style="display: none;">
+            <input type="file" id="jsonInput" accept=".json" multiple style="display: none;">
 
-            <!-- PNG画像読み込み -->
+            <!-- データ件数表示 (旧PNG画像詳細) -->
             <div class="json-data-counts">
-                <div class="json-load-row">
-                    <button id="loadPngBtn" class="load-json-button leaflet-bar leaflet-control"
-                        title="PNG画像を読み込み、Firebaseから画像座標データを自動取得します">PNG画像の読み込み</button>
-                    <div class="count-fields-inline">
-                        <div class="count-item-inline">
-                            <label>ポイント</label>
-                            <div class="count-value-group">
-                                <input type="text" id="pointCount" readonly value="0" class="count-field">
-                                <span class="unit-label">個</span>
-                            </div>
+                <div class="count-fields-inline">
+                    <div class="count-item-inline">
+                        <label>ポイント</label>
+                        <div class="count-value-group">
+                            <input type="text" id="pointCount" readonly value="0" class="count-field">
+                            <span class="unit-label">個</span>
                         </div>
-                        <div class="count-item-inline">
-                            <label>ルート</label>
-                            <div class="count-value-group">
-                                <input type="text" id="routeCount" readonly value="0" class="count-field">
-                                <span class="unit-label">本</span>
-                            </div>
+                    </div>
+                    <div class="count-item-inline">
+                        <label>ルート</label>
+                        <div class="count-value-group">
+                            <input type="text" id="routeCount" readonly value="0" class="count-field">
+                            <span class="unit-label">本</span>
                         </div>
-                        <div class="count-item-inline">
-                            <label>スポット</label>
-                            <div class="count-value-group">
-                                <input type="text" id="spotCount" readonly value="0" class="count-field">
-                                <span class="unit-label">個</span>
-                            </div>
+                    </div>
+                    <div class="count-item-inline">
+                        <label>スポット</label>
+                        <div class="count-value-group">
+                            <input type="text" id="spotCount" readonly value="0" class="count-field">
+                            <span class="unit-label">個</span>
                         </div>
-                        <div class="count-item-inline">
-                            <label>エリア</label>
-                            <div class="count-value-group">
-                                <input type="text" id="areaCount" readonly value="0" class="count-field">
-                                <span class="unit-label">個</span>
-                            </div>
+                    </div>
+                    <div class="count-item-inline">
+                        <label>エリア</label>
+                        <div class="count-value-group">
+                            <input type="text" id="areaCount" readonly value="0" class="count-field">
+                            <span class="unit-label">個</span>
                         </div>
                     </div>
                 </div>
@@ -161,8 +181,8 @@
             </div>
 
             <!-- GPS値保存 -->
-            <button id="saveToFirebaseBtn" class="leaflet-bar leaflet-control" disabled
-                title="ジオリファレンス後のGPS変換済みデータをFirebaseに保存します">変換後のGPS値をデータベースに格納</button>
+            <button id="saveGeoJsonBtn" class="leaflet-bar leaflet-control" disabled
+                title="ジオリファレンス後のGPS変換済みデータをGeoJSONファイルに保存します">変換後のGPS値をGeoJSONファイルに保存</button>
 
         </section>
     </aside>
