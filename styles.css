@@ -280,8 +280,8 @@ body,
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
     grid-auto-flow: column;
-    gap: 4px 10px;
-    /* 行間4px, 列間10px */
+    gap: 4px 20px;
+    /* 行間4px, 列間20px */
     width: 100%;
 }
 
@@ -1057,9 +1057,9 @@ select:focus {
     text-align: right;
 }
 
-/* 右端から25px左に移動（margin-rightを追加） */
+/* 右端から40px左に移動（margin-rightを追加） */
 .elevation-checkbox-item>*:last-child {
-    margin-right: 25px;
+    margin-right: 40px;
 }
 
 .elevation-checkbox-item input[type="checkbox"] {
