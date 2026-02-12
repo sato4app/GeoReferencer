@@ -185,7 +185,7 @@ body,
 /* 読み込みボタン */
 #loadFileBtn {
     width: 70px !important;
-    height: 60px !important;
+    height: 40px !important;
     /* 3行分に合わせて高さを確保 */
     line-height: 1.2;
     padding: 0 4px !important;
@@ -274,12 +274,12 @@ body,
 
 /* インライン件数表示フィールド */
 .count-fields-inline {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    grid-auto-flow: column;
+    gap: 4px 8px;
+    /* 行間4px, 列間8px */
     width: 100%;
 }
 
@@ -289,10 +289,7 @@ body,
     justify-content: space-between;
     gap: 4px;
     font-size: 11px;
-    font-size: 11px;
     width: 100%;
-    flex: none;
-    /* 2列表示 */
 }
 
 .count-item-inline label {
