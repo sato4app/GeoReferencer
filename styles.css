@@ -1057,9 +1057,11 @@ select:focus {
     text-align: right;
 }
 
-/* 右端から40px左に移動（margin-rightを追加） */
+/* 右端から10px左に移動（margin-right）し、さらに位置指定で15px左へ */
 .elevation-checkbox-item>*:last-child {
-    margin-right: 40px;
+    margin-right: 10px;
+    position: relative;
+    right: 15px;
 }
 
 .elevation-checkbox-item input[type="checkbox"] {
