@@ -793,11 +793,17 @@ class GeoReferencerApp {
      * @returns {string} GeoJSONファイル名
      */
     getGeoJsonFileName() {
-        if (this.currentPngFileName) {
-            return `${this.currentPngFileName}-GPS`;
-        }
-        // PNG画像が読み込まれていない場合はデフォルト名を使用
-        return this.fileHandler.getDefaultDataFileName();
+        // 日付フォーマット YYYYMMDD
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}${mm}${dd}`;
+
+        // PNG画像が読み込まれている前提（ボタン有効化条件により）
+        // 区切り文字（-, _, space, .）で分割して先頭部分を取得
+        const abbreviation = this.currentPngFileName.split(/[-_\s.]/)[0];
+        return `${abbreviation}-GPS-${dateStr}`;
     }
 
     /**
