@@ -98,6 +98,22 @@ export class CoordinateDisplay {
                         }
                     });
                 }
+
+                if (data.spots && Array.isArray(data.spots)) {
+                    data.spots.forEach(spot => {
+                        if (spot.imageX !== undefined && spot.imageY !== undefined) {
+                            coordinates.push({
+                                imageX: spot.imageX,
+                                imageY: spot.imageY,
+                                name: spot.name || spot.id,
+                                description: spot.description || '',
+                                type: 'spot',
+                                id: spot.id,
+                                index: spot.index
+                            });
+                        }
+                    });
+                }
             }
         } catch (error) {
             this.logger.error('座標抽出エラー', error);

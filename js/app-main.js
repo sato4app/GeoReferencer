@@ -429,13 +429,35 @@ class GeoReferencerApp {
                     const detectedType = this.routeSpotHandler.detectJsonType(data);
 
                     if (detectedType === 'route') {
-                        // ルートデータの場合
-                        await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
+                        // ルートデータの場合 (画像座標として表示)
+                        // データをrouteSpotHandlerに格納（カウント・エクスポート用）
+                        const routes = this.routeSpotHandler.processRouteData(data, file.name);
+                        this.routeSpotHandler.routeData = this.routeSpotHandler.mergeAndDeduplicate(
+                            this.routeSpotHandler.routeData, routes, 'route'
+                        );
+                        // 画像上にルート中間点を表示
+                        if (shouldClearMarkers) {
+                            this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                            this.imageCoordinateMarkers = [];
+                            shouldClearMarkers = false;
+                        }
+                        this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'route', this.imageCoordinateMarkers);
                         routesProcessed++;
 
                     } else if (detectedType === 'spot') {
-                        // スポットデータの場合
-                        await this.routeSpotHandler.handleRouteSpotJsonLoad([file], null);
+                        // スポットデータの場合 (画像座標として表示)
+                        // データをrouteSpotHandlerに格納（カウント・エクスポート用）
+                        const spots = this.routeSpotHandler.processSpotData(data, file.name);
+                        this.routeSpotHandler.spotData = this.routeSpotHandler.mergeAndDeduplicate(
+                            this.routeSpotHandler.spotData, spots, 'spot'
+                        );
+                        // 画像上にスポットを表示
+                        if (shouldClearMarkers) {
+                            this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                            this.imageCoordinateMarkers = [];
+                            shouldClearMarkers = false;
+                        }
+                        this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'spot', this.imageCoordinateMarkers);
                         if (data.spots && Array.isArray(data.spots)) {
                             spotsProcessed += data.spots.length;
                         } else {
