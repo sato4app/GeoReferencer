@@ -760,40 +760,7 @@ class GeoReferencerApp {
                 }
             };
 
-            // 1. ルートマーカー（中間点含む）
-            if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
-                this.logger.info('ルートマーカーの標高取得開始');
-                const result = await this.elevationFetcher.fetchAndSetRouteMarkersElevation(
-                    this.routeSpotHandler.routeMarkers,
-                    (c, t) => { updateProgress(c, t, 'ルート'); this.updateElevationCounts(); }
-                );
-                totalFetched += result.fetched;
-                totalFailed += result.failed;
-            }
-
-            // 2. スポットマーカー
-            if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
-                this.logger.info('スポットマーカーの標高取得開始');
-                const result = await this.elevationFetcher.fetchAndSetSpotMarkersElevation(
-                    this.routeSpotHandler.spotMarkers,
-                    (c, t) => { updateProgress(c, t, 'スポット'); this.updateElevationCounts(); }
-                );
-                totalFetched += result.fetched;
-                totalFailed += result.failed;
-            }
-
-            // 3. エリア頂点
-            if (this.areaHandler) {
-                this.logger.info('エリア頂点の標高取得開始');
-                const result = await this.elevationFetcher.fetchAndSetAreaVerticesElevation(
-                    this.areaHandler,
-                    (c, t) => { updateProgress(c, t, 'エリア'); this.updateElevationCounts(); }
-                );
-                totalFetched += result.fetched;
-                totalFailed += result.failed;
-            }
-
-            // 4. ポイント（画像上のポイント）
+            // 1. ポイント（画像上のポイント）
             if (this.routeSpotHandler && this.routeSpotHandler.pointData && this.georeferencing) {
                 this.logger.info('ポイントの標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetPointsElevation(
@@ -805,13 +772,71 @@ class GeoReferencerApp {
                 totalFailed += result.failed;
             }
 
+            // 2. ルートマーカー（中間点含む）
+            if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+                this.logger.info('ルートマーカーの標高取得開始');
+                const result = await this.elevationFetcher.fetchAndSetRouteMarkersElevation(
+                    this.routeSpotHandler.routeMarkers,
+                    (c, t) => { updateProgress(c, t, 'ルート中間点'); this.updateElevationCounts(); }
+                );
+                totalFetched += result.fetched;
+                totalFailed += result.failed;
+            }
+
+            // 3. スポットマーカー
+            if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
+                this.logger.info('スポットマーカーの標高取得開始');
+                const result = await this.elevationFetcher.fetchAndSetSpotMarkersElevation(
+                    this.routeSpotHandler.spotMarkers,
+                    (c, t) => { updateProgress(c, t, 'スポット'); this.updateElevationCounts(); }
+                );
+                totalFetched += result.fetched;
+                totalFailed += result.failed;
+            }
+
+            // 4. エリア頂点
+            if (this.areaHandler) {
+                this.logger.info('エリア頂点の標高取得開始');
+                const result = await this.elevationFetcher.fetchAndSetAreaVerticesElevation(
+                    this.areaHandler,
+                    (c, t) => { updateProgress(c, t, 'エリア'); this.updateElevationCounts(); }
+                );
+                totalFetched += result.fetched;
+                totalFailed += result.failed;
+            }
+
             // 5. Combined JSON形式の座標マーカー（imageCoordinateMarkersにwaypoint/spot/pointJSONが入っている場合）
             if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
                 const waypointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'waypoint');
                 const spotInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'spot');
                 const pointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'pointJSON');
 
-                // 5a. ルート中間点
+                // 5a. ポイント（pointJSON型）
+                if (pointInfos.length > 0 && this.routeSpotHandler.pointData.length === 0) {
+                    this.logger.info(`Combined ポイントの標高取得開始: ${pointInfos.length}件`);
+                    let cnt = 0;
+                    for (const markerInfo of pointInfos) {
+                        if (markerInfo.data.elevation !== undefined && markerInfo.data.elevation !== null) {
+                            cnt++;
+                            updateProgress(cnt, pointInfos.length, 'ポイント');
+                            continue;
+                        }
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = await this.elevationFetcher.fetchElevation(latLng.lng, latLng.lat);
+                        if (elevation !== null) {
+                            markerInfo.data.elevation = elevation;
+                            totalFetched++;
+                        } else {
+                            totalFailed++;
+                        }
+                        cnt++;
+                        updateProgress(cnt, pointInfos.length, 'ポイント');
+                        this.updateElevationCounts();
+                        await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
+                    }
+                }
+
+                // 5b. ルート中間点
                 if (waypointInfos.length > 0 && this.routeSpotHandler.routeMarkers.length === 0) {
                     this.logger.info(`Combined ルート中間点の標高取得開始: ${waypointInfos.length}件`);
                     let cnt = 0;
@@ -836,7 +861,7 @@ class GeoReferencerApp {
                     }
                 }
 
-                // 5b. スポット
+                // 5c. スポット
                 if (spotInfos.length > 0 && this.routeSpotHandler.spotMarkers.length === 0) {
                     this.logger.info(`Combined スポットの標高取得開始: ${spotInfos.length}件`);
                     let cnt = 0;
@@ -856,31 +881,6 @@ class GeoReferencerApp {
                         }
                         cnt++;
                         updateProgress(cnt, spotInfos.length, 'スポット');
-                        this.updateElevationCounts();
-                        await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
-                    }
-                }
-
-                // 5c. ポイント（pointJSON型）
-                if (pointInfos.length > 0 && this.routeSpotHandler.pointData.length === 0) {
-                    this.logger.info(`Combined ポイントの標高取得開始: ${pointInfos.length}件`);
-                    let cnt = 0;
-                    for (const markerInfo of pointInfos) {
-                        if (markerInfo.data.elevation !== undefined && markerInfo.data.elevation !== null) {
-                            cnt++;
-                            updateProgress(cnt, pointInfos.length, 'ポイント');
-                            continue;
-                        }
-                        const latLng = markerInfo.marker.getLatLng();
-                        const elevation = await this.elevationFetcher.fetchElevation(latLng.lng, latLng.lat);
-                        if (elevation !== null) {
-                            markerInfo.data.elevation = elevation;
-                            totalFetched++;
-                        } else {
-                            totalFailed++;
-                        }
-                        cnt++;
-                        updateProgress(cnt, pointInfos.length, 'ポイント');
                         this.updateElevationCounts();
                         await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
                     }
@@ -1150,9 +1150,20 @@ class GeoReferencerApp {
             const spotCountField = document.getElementById('elevationSpotCount');
             if (spotCountField) spotCountField.value = stats.spots.missing;
 
-            const areaVertexCount = this.areaHandler ? this.areaHandler.getVertexCount() : 0;
+            let areaVertexMissing = 0;
+            if (this.areaHandler && this.areaHandler.areas) {
+                for (const area of this.areaHandler.areas) {
+                    if (area.vertices && Array.isArray(area.vertices)) {
+                        for (const vertex of area.vertices) {
+                            if (vertex.elevation === undefined || vertex.elevation === null) {
+                                areaVertexMissing++;
+                            }
+                        }
+                    }
+                }
+            }
             const areaVertexCountField = document.getElementById('elevationAreaVertexCount');
-            if (areaVertexCountField) areaVertexCountField.value = areaVertexCount;
+            if (areaVertexCountField) areaVertexCountField.value = areaVertexMissing;
         } catch (error) {
             this.logger.error('標高未取得件数更新エラー', error);
         }
