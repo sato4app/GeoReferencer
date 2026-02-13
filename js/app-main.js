@@ -386,6 +386,7 @@ class GeoReferencerApp {
             let pointsProcessed = 0;
             let routesProcessed = 0;
             let spotsProcessed = 0;
+            let areasProcessed = 0;
             let geoJsonProcessed = 0;
 
             // 最初にポイントデータのマーカーをクリア（一度だけ）
@@ -490,6 +491,70 @@ class GeoReferencerApp {
 
                         pointsProcessed++;
 
+                    } else if (detectedType === 'area') {
+                        // エリアデータの場合 (画像座標として表示)
+                        if (data.areas && Array.isArray(data.areas)) {
+                            await this.areaHandler.loadFromFirebaseData(data.areas, this.imageOverlay);
+                            areasProcessed += data.areas.length;
+                        }
+
+                    } else if (detectedType === 'combined') {
+                        // 複合形式の場合 (points/routes/spots/areasが1ファイルに格納)
+                        const combinedData = data.data;
+
+                        if (shouldClearMarkers) {
+                            this.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                            this.imageCoordinateMarkers = [];
+                            shouldClearMarkers = false;
+                        }
+
+                        // 画像上に全座標を表示（points, routes waypoints, spots）
+                        this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'combined', this.imageCoordinateMarkers);
+
+                        // ポイントデータを格納（ジオリファレンス用）
+                        if (combinedData.points && Array.isArray(combinedData.points)) {
+                            const pointData = {
+                                points: combinedData.points.map(p => ({
+                                    ...p,
+                                    imageX: p.imageX !== undefined ? p.imageX : p.x,
+                                    imageY: p.imageY !== undefined ? p.imageY : p.y
+                                }))
+                            };
+                            this.pointJsonData = pointData;
+                            this.georeferencing.setPointJsonData(pointData);
+                            pointsProcessed += combinedData.points.length;
+                        }
+
+                        // ルートデータを格納（カウント用）
+                        if (combinedData.routes && Array.isArray(combinedData.routes)) {
+                            combinedData.routes.forEach(route => {
+                                this.routeSpotHandler.routeData.push({
+                                    ...route,
+                                    fileName: file.name,
+                                    routeId: route.routeName || file.name
+                                });
+                            });
+                            routesProcessed += combinedData.routes.length;
+                        }
+
+                        // スポットデータを格納（カウント用）
+                        if (combinedData.spots && Array.isArray(combinedData.spots)) {
+                            combinedData.spots.forEach(spot => {
+                                this.routeSpotHandler.spotData.push({
+                                    ...spot,
+                                    fileName: file.name,
+                                    spotId: spot.name || `${file.name}_spot`
+                                });
+                            });
+                            spotsProcessed += combinedData.spots.length;
+                        }
+
+                        // エリアデータを処理・表示
+                        if (combinedData.areas && Array.isArray(combinedData.areas)) {
+                            await this.areaHandler.loadFromFirebaseData(combinedData.areas, this.imageOverlay);
+                            areasProcessed += combinedData.areas.length;
+                        }
+
                     } else {
                         this.logger.warn(`未知のJSONファイル形式: ${file.name}`);
                     }
@@ -534,8 +599,9 @@ class GeoReferencerApp {
                 this.uiHandlers.updatePointCoordCount(this.pointJsonData);
             }
             this.uiHandlers.updateRouteSpotCount(this.routeSpotHandler);
+            this.uiHandlers.updateAreaCount(this.areaHandler.areas ? this.areaHandler.areas.length : 0);
 
-            this.logger.info(`読み込み完了 - GeoJSON: ${geoJsonProcessed}, ポイント: ${pointsProcessed}, ルート: ${routesProcessed}, スポット: ${spotsProcessed}`);
+            this.logger.info(`読み込み完了 - GeoJSON: ${geoJsonProcessed}, ポイント: ${pointsProcessed}, ルート: ${routesProcessed}, スポット: ${spotsProcessed}, エリア: ${areasProcessed}`);
 
             // 成功メッセージを表示
             this.showMessage(`ファイルを読み込みました (GeoJSON: ${geoJsonProcessed}, その他: ${files.length - geoJsonProcessed})`);

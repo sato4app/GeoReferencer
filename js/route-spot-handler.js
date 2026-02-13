@@ -94,6 +94,18 @@ export class RouteSpotHandler {
 
     detectJsonType(data) {
         try {
+            // 複合形式の判定（data.dataラッパー: points/routes/spots/areasが1ファイルに入っている形式）
+            // 例: { version, imageReference, imageInfo, data: { points[], routes[], spots[], areas[] } }
+            if (data.data && typeof data.data === 'object') {
+                const d = data.data;
+                if ((d.points && Array.isArray(d.points)) ||
+                    (d.routes && Array.isArray(d.routes)) ||
+                    (d.spots && Array.isArray(d.spots)) ||
+                    (d.areas && Array.isArray(d.areas))) {
+                    return 'combined';
+                }
+            }
+
             // ルートの判定基準
             // - routeInfoオブジェクトがある
             // - routeInfoは、startPoint, endPoint属性を持つ
@@ -143,17 +155,30 @@ export class RouteSpotHandler {
             // ポイントの判定基準
             // - points配列が存在し、typeが"waypoint"でない要素がある
             if (data.points && Array.isArray(data.points)) {
-                const hasNonWaypoints = data.points.some(point => 
-                    point.type !== 'waypoint' && 
+                const hasNonWaypoints = data.points.some(point =>
+                    point.type !== 'waypoint' &&
                     (point.id || point.name) &&
                     (point.imageX !== undefined && point.imageY !== undefined)
                 );
-                
+
                 if (hasNonWaypoints) {
                     return 'point';
                 }
             }
-            
+
+            // エリアの判定基準
+            // - areas配列が存在する
+            // - areasの要素にvertices配列があり、{x, y}形式の画像座標を持つ
+            if (data.areas && Array.isArray(data.areas)) {
+                const hasValidAreas = data.areas.some(area =>
+                    area.vertices && Array.isArray(area.vertices) && area.vertices.length > 0 &&
+                    area.vertices.some(v => v.x !== undefined && v.y !== undefined)
+                );
+                if (hasValidAreas) {
+                    return 'area';
+                }
+            }
+
             this.logger.warn('判定不可能なファイルがありました。処理をスキップします。');
             return null;
             
