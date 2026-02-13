@@ -765,7 +765,7 @@ class GeoReferencerApp {
                 this.logger.info('ルートマーカーの標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetRouteMarkersElevation(
                     this.routeSpotHandler.routeMarkers,
-                    (c, t) => updateProgress(c, t, 'ルート')
+                    (c, t) => { updateProgress(c, t, 'ルート'); this.updateElevationCounts(); }
                 );
                 totalFetched += result.fetched;
                 totalFailed += result.failed;
@@ -776,7 +776,7 @@ class GeoReferencerApp {
                 this.logger.info('スポットマーカーの標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetSpotMarkersElevation(
                     this.routeSpotHandler.spotMarkers,
-                    (c, t) => updateProgress(c, t, 'スポット')
+                    (c, t) => { updateProgress(c, t, 'スポット'); this.updateElevationCounts(); }
                 );
                 totalFetched += result.fetched;
                 totalFailed += result.failed;
@@ -787,7 +787,7 @@ class GeoReferencerApp {
                 this.logger.info('エリア頂点の標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetAreaVerticesElevation(
                     this.areaHandler,
-                    (c, t) => updateProgress(c, t, 'エリア')
+                    (c, t) => { updateProgress(c, t, 'エリア'); this.updateElevationCounts(); }
                 );
                 totalFetched += result.fetched;
                 totalFailed += result.failed;
@@ -799,7 +799,7 @@ class GeoReferencerApp {
                 const result = await this.elevationFetcher.fetchAndSetPointsElevation(
                     this.routeSpotHandler.pointData,
                     this.georeferencing,
-                    (c, t) => updateProgress(c, t, 'ポイント')
+                    (c, t) => { updateProgress(c, t, 'ポイント'); this.updateElevationCounts(); }
                 );
                 totalFetched += result.fetched;
                 totalFailed += result.failed;
