@@ -140,7 +140,7 @@ class GeoReferencerApp {
             // JSONファイル入力 (New)
             if (jsonInput) {
                 jsonInput.addEventListener('change', (event) => {
-                    this.handleMultiJsonLoad(event); // 既存の汎用JSON読み込みを使用
+                    this.handleJsonLoad(event); // 既存の汎用JSON読み込みを使用
                     // ファイル名は特に表示しない? 必要なら追加
                     this.recordFileDirectory(event.target.files[0]);
                 });
