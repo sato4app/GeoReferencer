@@ -1124,20 +1124,23 @@ class GeoReferencerApp {
             spots: { missing: 0, total: 0 }
         };
 
-        // ポイントのカウント（画像ポイントデータ = gpsPoints）
-        if (this.routeSpotHandler && this.routeSpotHandler.pointData) {
+        // ポイントのカウント（GPS Excelデータ）
+        if (this.routeSpotHandler?.pointData?.length > 0) {
             const points = this.routeSpotHandler.pointData;
             stats.points.total = points.length;
             for (const point of points) {
-                // elevationフィールドがundefinedまたはnullの場合は未取得
                 if (point.elevation === undefined || point.elevation === null) {
                     stats.points.missing++;
                 }
             }
+        } else if (this.pointJsonData?.points?.length > 0) {
+            // combined JSON形式のポイント（画像座標のみ、標高なし）
+            stats.points.total = this.pointJsonData.points.length;
+            stats.points.missing = this.pointJsonData.points.length;
         }
 
         // ルートマーカーのカウント
-        if (this.routeSpotHandler?.routeMarkers) {
+        if (this.routeSpotHandler?.routeMarkers?.length > 0) {
             stats.routes.total = this.routeSpotHandler.routeMarkers.length;
             for (const marker of this.routeSpotHandler.routeMarkers) {
                 const meta = marker.__meta;
@@ -1145,10 +1148,20 @@ class GeoReferencerApp {
                     stats.routes.missing++;
                 }
             }
+        } else if (this.routeSpotHandler?.routeData?.length > 0) {
+            // combined JSON形式のルート（waypointsをカウント）
+            let totalWaypoints = 0;
+            for (const route of this.routeSpotHandler.routeData) {
+                if (route.waypoints && Array.isArray(route.waypoints)) {
+                    totalWaypoints += route.waypoints.length;
+                }
+            }
+            stats.routes.total = totalWaypoints;
+            stats.routes.missing = totalWaypoints;
         }
 
         // スポットマーカーのカウント
-        if (this.routeSpotHandler?.spotMarkers) {
+        if (this.routeSpotHandler?.spotMarkers?.length > 0) {
             const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
             stats.spots.total = latestSpots.length;
             for (const marker of latestSpots) {
@@ -1157,6 +1170,10 @@ class GeoReferencerApp {
                     stats.spots.missing++;
                 }
             }
+        } else if (this.routeSpotHandler?.spotData?.length > 0) {
+            // combined JSON形式のスポット
+            stats.spots.total = this.routeSpotHandler.spotData.length;
+            stats.spots.missing = this.routeSpotHandler.spotData.length;
         }
 
         return stats;
