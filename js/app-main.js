@@ -1111,6 +1111,109 @@ class GeoReferencerApp {
                 }
             }
 
+            // 5. Combined JSON形式のデータ（imageCoordinateMarkers）を収集
+            // （routeSpotHandler の個別形式データが空の場合のみ - 重複回避）
+            if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
+                const waypointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'waypoint');
+                const spotInfosCombined = this.imageCoordinateMarkers.filter(m => m.data?.type === 'spot');
+                const pointInfosCombined = this.imageCoordinateMarkers.filter(m => m.data?.type === 'pointJSON');
+
+                // 5a. ポイント（pointJSON型）
+                if (pointInfosCombined.length > 0 && (!this.routeSpotHandler.pointData || this.routeSpotHandler.pointData.length === 0)) {
+                    for (const markerInfo of pointInfosCombined) {
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = markerInfo.data.elevation;
+                        let coords = [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)];
+                        if (elevation !== undefined && elevation !== null) {
+                            coords.push(this.roundCoordinate(elevation));
+                        }
+                        features.push({
+                            type: 'Feature',
+                            properties: {
+                                id: markerInfo.data.id || markerInfo.data.name || 'unknown',
+                                name: markerInfo.data.name || markerInfo.data.id || '名称未設定',
+                                type: 'point',
+                                source: 'image_transformed',
+                                description: '画像ポイント（GPS変換済）'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: coords
+                            }
+                        });
+                    }
+                }
+
+                // 5b. ルート中間点（waypoint型）→ ルート名でグループ化してLineStringとして出力
+                if (waypointInfos.length > 0 && (!this.routeSpotHandler.routeMarkers || this.routeSpotHandler.routeMarkers.length === 0)) {
+                    const routeGroups = new Map();
+                    for (const markerInfo of waypointInfos) {
+                        const routeName = markerInfo.data.name || 'unknown_route';
+                        if (!routeGroups.has(routeName)) {
+                            routeGroups.set(routeName, []);
+                        }
+                        routeGroups.get(routeName).push(markerInfo);
+                    }
+                    for (const [routeName, markerInfos] of routeGroups) {
+                        const lineCoordinates = [];
+                        for (const markerInfo of markerInfos) {
+                            const latLng = markerInfo.marker.getLatLng();
+                            const elevation = markerInfo.data.elevation;
+                            let coords = [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)];
+                            if (elevation !== undefined && elevation !== null) {
+                                coords.push(this.roundCoordinate(elevation));
+                            }
+                            lineCoordinates.push(coords);
+                        }
+                        if (lineCoordinates.length > 0) {
+                            features.push({
+                                type: 'Feature',
+                                properties: {
+                                    id: routeName,
+                                    name: routeName,
+                                    type: 'route',
+                                    source: 'image_transformed',
+                                    description: 'ルート（GPS変換済）'
+                                },
+                                geometry: {
+                                    type: 'LineString',
+                                    coordinates: lineCoordinates
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // 5c. スポット（spot型）
+                if (spotInfosCombined.length > 0 && (!this.routeSpotHandler.spotMarkers || this.routeSpotHandler.spotMarkers.length === 0)) {
+                    let spotCounter = 1;
+                    for (const markerInfo of spotInfosCombined) {
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = markerInfo.data.elevation;
+                        const spotName = markerInfo.data.name || markerInfo.data.id || `spot${String(spotCounter).padStart(2, '0')}`;
+                        let coords = [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)];
+                        if (elevation !== undefined && elevation !== null) {
+                            coords.push(this.roundCoordinate(elevation));
+                        }
+                        features.push({
+                            type: 'Feature',
+                            properties: {
+                                id: spotName,
+                                name: spotName,
+                                type: 'spot',
+                                source: 'image_transformed',
+                                description: 'スポット（GPS変換済）'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: coords
+                            }
+                        });
+                        spotCounter++;
+                    }
+                }
+            }
+
             return {
                 type: 'FeatureCollection',
                 features: features
