@@ -805,6 +805,88 @@ class GeoReferencerApp {
                 totalFailed += result.failed;
             }
 
+            // 5. Combined JSON形式の座標マーカー（imageCoordinateMarkersにwaypoint/spot/pointJSONが入っている場合）
+            if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
+                const waypointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'waypoint');
+                const spotInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'spot');
+                const pointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'pointJSON');
+
+                // 5a. ルート中間点
+                if (waypointInfos.length > 0 && this.routeSpotHandler.routeMarkers.length === 0) {
+                    this.logger.info(`Combined ルート中間点の標高取得開始: ${waypointInfos.length}件`);
+                    let cnt = 0;
+                    for (const markerInfo of waypointInfos) {
+                        if (markerInfo.data.elevation !== undefined && markerInfo.data.elevation !== null) {
+                            cnt++;
+                            updateProgress(cnt, waypointInfos.length, 'ルート中間点');
+                            continue;
+                        }
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = await this.elevationFetcher.fetchElevation(latLng.lng, latLng.lat);
+                        if (elevation !== null) {
+                            markerInfo.data.elevation = elevation;
+                            totalFetched++;
+                        } else {
+                            totalFailed++;
+                        }
+                        cnt++;
+                        updateProgress(cnt, waypointInfos.length, 'ルート中間点');
+                        this.updateElevationCounts();
+                        await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
+                    }
+                }
+
+                // 5b. スポット
+                if (spotInfos.length > 0 && this.routeSpotHandler.spotMarkers.length === 0) {
+                    this.logger.info(`Combined スポットの標高取得開始: ${spotInfos.length}件`);
+                    let cnt = 0;
+                    for (const markerInfo of spotInfos) {
+                        if (markerInfo.data.elevation !== undefined && markerInfo.data.elevation !== null) {
+                            cnt++;
+                            updateProgress(cnt, spotInfos.length, 'スポット');
+                            continue;
+                        }
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = await this.elevationFetcher.fetchElevation(latLng.lng, latLng.lat);
+                        if (elevation !== null) {
+                            markerInfo.data.elevation = elevation;
+                            totalFetched++;
+                        } else {
+                            totalFailed++;
+                        }
+                        cnt++;
+                        updateProgress(cnt, spotInfos.length, 'スポット');
+                        this.updateElevationCounts();
+                        await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
+                    }
+                }
+
+                // 5c. ポイント（pointJSON型）
+                if (pointInfos.length > 0 && this.routeSpotHandler.pointData.length === 0) {
+                    this.logger.info(`Combined ポイントの標高取得開始: ${pointInfos.length}件`);
+                    let cnt = 0;
+                    for (const markerInfo of pointInfos) {
+                        if (markerInfo.data.elevation !== undefined && markerInfo.data.elevation !== null) {
+                            cnt++;
+                            updateProgress(cnt, pointInfos.length, 'ポイント');
+                            continue;
+                        }
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = await this.elevationFetcher.fetchElevation(latLng.lng, latLng.lat);
+                        if (elevation !== null) {
+                            markerInfo.data.elevation = elevation;
+                            totalFetched++;
+                        } else {
+                            totalFailed++;
+                        }
+                        cnt++;
+                        updateProgress(cnt, pointInfos.length, 'ポイント');
+                        this.updateElevationCounts();
+                        await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
+                    }
+                }
+            }
+
             this.logger.info(`標高取得完了: 成功=${totalFetched}, 失敗=${totalFailed}`);
             this.showMessage(`標高データの取得が完了しました (取得: ${totalFetched}, 失敗: ${totalFailed})`);
 
@@ -1133,10 +1215,11 @@ class GeoReferencerApp {
                     stats.points.missing++;
                 }
             }
-        } else if (this.pointJsonData?.points?.length > 0) {
-            // combined JSON形式のポイント（画像座標のみ、標高なし）
-            stats.points.total = this.pointJsonData.points.length;
-            stats.points.missing = this.pointJsonData.points.length;
+        } else if (this.imageCoordinateMarkers?.length > 0) {
+            // combined JSON形式のポイント（imageCoordinateMarkersのpointJSON型）
+            const pointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'pointJSON');
+            stats.points.total = pointInfos.length;
+            stats.points.missing = pointInfos.filter(m => m.data?.elevation === undefined || m.data?.elevation === null).length;
         }
 
         // ルートマーカーのカウント
@@ -1148,16 +1231,11 @@ class GeoReferencerApp {
                     stats.routes.missing++;
                 }
             }
-        } else if (this.routeSpotHandler?.routeData?.length > 0) {
-            // combined JSON形式のルート（waypointsをカウント）
-            let totalWaypoints = 0;
-            for (const route of this.routeSpotHandler.routeData) {
-                if (route.waypoints && Array.isArray(route.waypoints)) {
-                    totalWaypoints += route.waypoints.length;
-                }
-            }
-            stats.routes.total = totalWaypoints;
-            stats.routes.missing = totalWaypoints;
+        } else if (this.imageCoordinateMarkers?.length > 0) {
+            // combined JSON形式のルート中間点（imageCoordinateMarkersのwaypoint型）
+            const waypointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'waypoint');
+            stats.routes.total = waypointInfos.length;
+            stats.routes.missing = waypointInfos.filter(m => m.data?.elevation === undefined || m.data?.elevation === null).length;
         }
 
         // スポットマーカーのカウント
@@ -1170,10 +1248,11 @@ class GeoReferencerApp {
                     stats.spots.missing++;
                 }
             }
-        } else if (this.routeSpotHandler?.spotData?.length > 0) {
-            // combined JSON形式のスポット
-            stats.spots.total = this.routeSpotHandler.spotData.length;
-            stats.spots.missing = this.routeSpotHandler.spotData.length;
+        } else if (this.imageCoordinateMarkers?.length > 0) {
+            // combined JSON形式のスポット（imageCoordinateMarkersのspot型）
+            const spotInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'spot');
+            stats.spots.total = spotInfos.length;
+            stats.spots.missing = spotInfos.filter(m => m.data?.elevation === undefined || m.data?.elevation === null).length;
         }
 
         return stats;
