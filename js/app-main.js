@@ -511,6 +511,11 @@ class GeoReferencerApp {
                         // 画像上に全座標を表示（points, routes waypoints, spots）
                         this.imageCoordinateMarkers = await this.coordinateDisplay.displayImageCoordinates(data, 'combined', this.imageCoordinateMarkers);
 
+                        // GeoreferencingクラスにもmarkerInfoを渡す（重ね合わせ時に位置更新されるよう）
+                        this.imageCoordinateMarkers.forEach(markerInfo => {
+                            this.georeferencing.addImageCoordinateMarker(markerInfo);
+                        });
+
                         // ポイントデータを格納（ジオリファレンス用）
                         if (combinedData.points && Array.isArray(combinedData.points)) {
                             const pointData = {
@@ -663,7 +668,7 @@ class GeoReferencerApp {
             this.showMessage(`${result.matchedCount}個のポイントにてジオリファレンスを行いました`);
 
             // 標高未取得件数を更新（ジオリファレンス後のルート中間点とスポットの件数を表示）
-            await this.updateElevationCounts();
+            this.updateElevationCounts();
 
         } catch (error) {
             this.logger.error('画像重ね合わせエラー', error);
@@ -1045,6 +1050,30 @@ class GeoReferencerApp {
         }
         // PNG画像が読み込まれていない場合はデフォルト名を使用
         return this.fileHandler.getDefaultDataFileName();
+    }
+
+    /**
+     * 標高未取得件数を各UIフィールドに反映する
+     */
+    updateElevationCounts() {
+        try {
+            const stats = this.getElevationStats();
+
+            const pointCountField = document.getElementById('elevationPointCount');
+            if (pointCountField) pointCountField.value = stats.points.missing;
+
+            const routeCountField = document.getElementById('elevationRouteCount');
+            if (routeCountField) routeCountField.value = stats.routes.missing;
+
+            const spotCountField = document.getElementById('elevationSpotCount');
+            if (spotCountField) spotCountField.value = stats.spots.missing;
+
+            const areaVertexCount = this.areaHandler ? this.areaHandler.getVertexCount() : 0;
+            const areaVertexCountField = document.getElementById('elevationAreaVertexCount');
+            if (areaVertexCountField) areaVertexCountField.value = areaVertexCount;
+        } catch (error) {
+            this.logger.error('標高未取得件数更新エラー', error);
+        }
     }
 
     /**
