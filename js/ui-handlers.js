@@ -50,11 +50,6 @@ export class UIHandlers {
             const routeCountField = document.getElementById('routeCount');
             const spotCountField = document.getElementById('spotCount');
 
-            if (pointCountField) {
-                const pointCount = routeSpotHandler.getPointCount ? routeSpotHandler.getPointCount() : 0;
-                pointCountField.value = pointCount;
-            }
-
             if (routeCountField) {
                 const routeCount = routeSpotHandler.getRouteCount();
                 routeCountField.value = routeCount;

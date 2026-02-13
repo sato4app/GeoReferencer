@@ -561,8 +561,24 @@ export class DataImporter {
             this.app.uiHandlers.updateRouteSpotCount(this.app.routeSpotHandler);
             this.app.uiHandlers.updateAreaCount(this.app.areaHandler.areas ? this.app.areaHandler.areas.length : 0);
 
+            // カウントを取得して詳細なメッセージを作成
+            let pCount = 0;
+            if (this.app.pointJsonData) {
+                if (this.app.pointJsonData.points && Array.isArray(this.app.pointJsonData.points)) {
+                    pCount = this.app.pointJsonData.points.filter(p => !p.type || p.type !== 'waypoint').length;
+                } else if (Array.isArray(this.app.pointJsonData)) {
+                    pCount = this.app.pointJsonData.filter(p => !p.type || p.type !== 'waypoint').length;
+                }
+            }
+            const rCount = this.app.routeSpotHandler.getRouteCount();
+            const sCount = this.app.routeSpotHandler.getSpotCount();
+            const aCount = this.app.areaHandler.areas ? this.app.areaHandler.areas.length : 0;
+
             // 成功メッセージを表示
-            this.app.showMessage(`${files.length}件のファイルを処理しました (${mode === 'append' ? '追記' : '新規'})`);
+            this.app.showMessage(
+                `${files.length}件のファイルを処理しました (${mode === 'append' ? '追記' : '新規'})\n` +
+                `ポイント: ${pCount}個, ルート: ${rCount}本, スポット: ${sCount}個, エリア: ${aCount}個`
+            );
 
         } catch (error) {
             this.logger.error('JSON読み込みエラー', error);
