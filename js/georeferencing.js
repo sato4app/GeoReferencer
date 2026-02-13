@@ -272,17 +272,17 @@ export class Georeferencing {
             const unmatchedPointJsonIds = [];
             let totalPointJsons = 0;
 
-            // Firebaseのポイントデータを優先的に使用
+            // 外部読み込みのポイントデータを優先的に使用
             let pointJsonArray = [];
             if (this.routeSpotHandler && this.routeSpotHandler.pointData && this.routeSpotHandler.pointData.length > 0) {
-                this.logger.info(`Firebaseポイントデータを使用: ${this.routeSpotHandler.pointData.length}件`);
+                this.logger.info(`外部ポイントデータを使用: ${this.routeSpotHandler.pointData.length}件`);
                 pointJsonArray = this.routeSpotHandler.pointData;
             } else if (this.pointJsonData) {
                 this.logger.info('ポイントJSONデータを使用（旧形式）');
                 pointJsonArray = Array.isArray(this.pointJsonData) ? this.pointJsonData :
                     (this.pointJsonData.points ? this.pointJsonData.points : [this.pointJsonData]);
             } else {
-                this.logger.warn('ポイントデータが存在しません（FirebaseポイントもポイントJSONも見つかりませんでした）');
+                this.logger.warn('ポイントデータが存在しません（外部ポイントもポイントJSONも見つかりませんでした）');
                 return {
                     matchedPairs: [],
                     unmatchedPointJsonIds: [],
@@ -306,7 +306,7 @@ export class Georeferencing {
                     return;
                 }
 
-                // Firebaseポイントの場合でも、ExcelファイルのGPSデータとマッチングする
+                // 外部ポイントの場合でも、ExcelファイルのGPSデータとマッチングする
                 // （pointJson.lat/lngは画像境界から計算されたもので、初期スケールに依存するため使用しない）
                 const matchingGpsPoint = gpsPointMap.get(pointJsonId);
 
@@ -461,9 +461,9 @@ export class Georeferencing {
                 this.syncSpotMarkers();
             }
 
-            // Firebaseポイントマーカーの位置同期
+            // 外部ポイントマーカーの位置同期
             if (this.routeSpotHandler.pointData && this.routeSpotHandler.pointData.length > 0) {
-                this.logger.info('🔄 Firebaseポイントマーカー同期中...');
+                this.logger.info('🔄 外部ポイントマーカー同期中...');
                 await this.syncFirebasePointMarkers();
             }
 
@@ -495,7 +495,7 @@ export class Georeferencing {
                 if (marker.setLatLng && typeof marker.setLatLng === 'function') {
                     // 単一のマーカー（ルートの開始/中間/終了点）
                     // 'image'または'firebase'起源で画像座標を持つマーカーを移動
-                    if (meta && (meta.origin === 'image' || meta.origin === 'firebase') && meta.imageX !== undefined && meta.imageY !== undefined) {
+                    if (meta && (meta.origin === 'image' || meta.origin === 'json') && meta.imageX !== undefined && meta.imageY !== undefined) {
                         const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
                         if (newPos) {
                             const currentPos = marker.getLatLng();
@@ -519,7 +519,7 @@ export class Georeferencing {
                     const newLatLngs = currentLatLngs.map((latlng, i) => {
                         const pMeta = metaPoints[i];
                         // 'image'または'firebase'起源で画像座標を持つポイントを移動
-                        if (pMeta && (pMeta.origin === 'image' || pMeta.origin === 'firebase') && pMeta.imageX !== undefined && pMeta.imageY !== undefined) {
+                        if (pMeta && (pMeta.origin === 'image' || pMeta.origin === 'json') && pMeta.imageX !== undefined && pMeta.imageY !== undefined) {
                             const newPos = this.transformImageCoordsToGps(pMeta.imageX, pMeta.imageY, this.currentTransformation);
                             if (newPos) {
                                 movedMarkers++;
@@ -555,7 +555,7 @@ export class Georeferencing {
             this.routeSpotHandler.spotMarkers.forEach((marker, index) => {
                 const meta = marker.__meta;
                 // 'image'または'firebase'起源で画像座標を持つマーカーを移動
-                if (meta && (meta.origin === 'image' || meta.origin === 'firebase') && meta.imageX !== undefined && meta.imageY !== undefined) {
+                if (meta && (meta.origin === 'image' || meta.origin === 'json') && meta.imageX !== undefined && meta.imageY !== undefined) {
                     const newPos = this.transformImageCoordsToGps(meta.imageX, meta.imageY, this.currentTransformation);
                     if (newPos) {
                         const currentPos = marker.getLatLng();
@@ -625,11 +625,11 @@ export class Georeferencing {
             // 更新されたpointDataでマーカーを再表示
             if (created > 0) {
                 await this.routeSpotHandler.displayPointsOnMap(this.routeSpotHandler.pointData);
-                this.logger.info(`✅ Firebaseポイント ${created}個のGPS座標を計算し、マーカーを作成しました（スキップ: ${skipped}個）`);
+                this.logger.info(`✅ 外部ポイント ${created}個のGPS座標を計算し、マーカーを作成しました（スキップ: ${skipped}個）`);
             }
 
         } catch (error) {
-            this.logger.error('❌ Firebaseポイントマーカー同期エラー', error);
+            this.logger.error('❌ 外部ポイントマーカー同期エラー', error);
         }
     }
 

@@ -17,14 +17,14 @@ export class AreaHandler {
         this.imageOverlay = imageOverlay;
     }
 
-    // Load areas from Firebase data
-    async loadFromFirebaseData(areas, imageOverlay) {
+    // Load areas from data
+    async importAreas(areas, imageOverlay) {
         try {
             if (imageOverlay) {
                 this.imageOverlay = imageOverlay;
             }
 
-            this.logger.info(`Loading areas from Firebase: ${areas.length} items`);
+            this.logger.info(`Importing areas: ${areas.length} items`);
             this.clearAreaLayers();
 
             this.areas = areas.map((area, index) => {
@@ -34,14 +34,11 @@ export class AreaHandler {
                     return null;
                 }
 
-                // エリア名のフォールバック処理（Firebaseには areaName フィールドで保存されている）
+                // エリア名のフォールバック処理
                 let areaName = area.areaName || area.name;
                 if (!areaName || areaName.trim() === '') {
-                    // description, firestoreIdなど他のフィールドからエリア名を推測
                     if (area.description && typeof area.description === 'string' && area.description.trim() !== '') {
                         areaName = area.description;
-                    } else if (area.firestoreId) {
-                        areaName = `エリア_${area.firestoreId.substring(0, 6)}`;
                     } else {
                         areaName = `エリア ${index + 1}`;
                     }
@@ -49,15 +46,15 @@ export class AreaHandler {
 
                 return {
                     ...area,
-                    id: area.id || area.firestoreId || `area_${index}`,
-                    name: areaName  // 統一的に name プロパティで扱う
+                    id: area.id || `area_${index}`,
+                    name: areaName
                 };
             }).filter(a => a !== null);
 
             await this.displayAreasOnMap();
 
         } catch (error) {
-            this.logger.error('Error loading areas from Firebase', error);
+            this.logger.error('Error importing areas', error);
         }
     }
 
