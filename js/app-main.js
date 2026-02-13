@@ -811,32 +811,7 @@ class GeoReferencerApp {
                 const spotInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'spot');
                 const pointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'pointJSON');
 
-                // 5a. ポイント（pointJSON型）
-                if (pointInfos.length > 0 && this.routeSpotHandler.pointData.length === 0) {
-                    this.logger.info(`Combined ポイントの標高取得開始: ${pointInfos.length}件`);
-                    let cnt = 0;
-                    for (const markerInfo of pointInfos) {
-                        if (markerInfo.data.elevation !== undefined && markerInfo.data.elevation !== null) {
-                            cnt++;
-                            updateProgress(cnt, pointInfos.length, 'ポイント');
-                            continue;
-                        }
-                        const latLng = markerInfo.marker.getLatLng();
-                        const elevation = await this.elevationFetcher.fetchElevation(latLng.lng, latLng.lat);
-                        if (elevation !== null) {
-                            markerInfo.data.elevation = elevation;
-                            totalFetched++;
-                        } else {
-                            totalFailed++;
-                        }
-                        cnt++;
-                        updateProgress(cnt, pointInfos.length, 'ポイント');
-                        this.updateElevationCounts();
-                        await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
-                    }
-                }
-
-                // 5b. ルート中間点
+                // 5a. ルート中間点
                 if (waypointInfos.length > 0 && this.routeSpotHandler.routeMarkers.length === 0) {
                     this.logger.info(`Combined ルート中間点の標高取得開始: ${waypointInfos.length}件`);
                     let cnt = 0;
@@ -861,7 +836,7 @@ class GeoReferencerApp {
                     }
                 }
 
-                // 5c. スポット
+                // 5b. スポット
                 if (spotInfos.length > 0 && this.routeSpotHandler.spotMarkers.length === 0) {
                     this.logger.info(`Combined スポットの標高取得開始: ${spotInfos.length}件`);
                     let cnt = 0;
@@ -881,6 +856,31 @@ class GeoReferencerApp {
                         }
                         cnt++;
                         updateProgress(cnt, spotInfos.length, 'スポット');
+                        this.updateElevationCounts();
+                        await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
+                    }
+                }
+
+                // 5c. ポイント（pointJSON型）
+                if (pointInfos.length > 0 && this.routeSpotHandler.pointData.length === 0) {
+                    this.logger.info(`Combined ポイントの標高取得開始: ${pointInfos.length}件`);
+                    let cnt = 0;
+                    for (const markerInfo of pointInfos) {
+                        if (markerInfo.data.elevation !== undefined && markerInfo.data.elevation !== null) {
+                            cnt++;
+                            updateProgress(cnt, pointInfos.length, 'ポイント');
+                            continue;
+                        }
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = await this.elevationFetcher.fetchElevation(latLng.lng, latLng.lat);
+                        if (elevation !== null) {
+                            markerInfo.data.elevation = elevation;
+                            totalFetched++;
+                        } else {
+                            totalFailed++;
+                        }
+                        cnt++;
+                        updateProgress(cnt, pointInfos.length, 'ポイント');
                         this.updateElevationCounts();
                         await this.elevationFetcher.delay(this.elevationFetcher.DELAY_MS);
                     }
