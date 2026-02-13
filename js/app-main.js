@@ -948,58 +948,7 @@ class GeoReferencerApp {
                 }
             }
 
-            // 2. エリア（ジオリファレンス変換済み）を収集
-            if (this.areaHandler && this.georeferencing && this.georeferencing.currentTransformation) {
-                const areas = this.areaHandler.getUpToDateAreas();
-                for (const area of areas) {
-                    const latLngs = this.areaHandler.calculateAreaLatLngs(area); // 内部で currentTransformation を使用して変換しているはず
-                    // エリアハンドラーの calculateAreaLatLngs は georeferencing を参照しているか？
-                    // 以前のコードでは calculateAreaLatLngs(area) を呼んでいた。
-                    // AreaHandlerの実装を確認する必要があるが、ここでは呼び出して結果を使う。
-
-                    if (latLngs && latLngs.length > 0) {
-                        // GeoJSON Polygon coordinates: [[[lng, lat], [lng, lat], ...]] (closed loop)
-                        // latLngsは [lat, lng] の配列? あるいは {lat, lng} ?
-                        // collectGpsDataForFirebase では [lat, lng] or {lat, lng} だった。
-                        // GeoJSONは [lng, lat]
-
-                        const coordinates = latLngs.map((latLng, index) => {
-                            const lat = Array.isArray(latLng) ? latLng[0] : latLng.lat;
-                            const lng = Array.isArray(latLng) ? latLng[1] : latLng.lng;
-                            // 標高はPolygonでは一般的にサポートされないことが多いが、XYZ対応なら可。
-                            // ここでは2Dにしておくのが無難だが、Pointなどは3D。
-                            // Polygonのcoordinatesは [lng, lat]
-                            return [this.roundCoordinate(lng), this.roundCoordinate(lat)];
-                        });
-
-                        // 閉じる必要がある
-                        if (coordinates.length > 0) {
-                            const first = coordinates[0];
-                            const last = coordinates[coordinates.length - 1];
-                            if (first[0] !== last[0] || first[1] !== last[1]) {
-                                coordinates.push(first);
-                            }
-
-                            features.push({
-                                type: 'Feature',
-                                properties: {
-                                    id: area.id || `area_${Date.now()}`,
-                                    name: area.name || '名称未設定エリア',
-                                    type: 'area',
-                                    source: 'image_transformed',
-                                    description: 'エリア（GPS変換済）'
-                                },
-                                geometry: {
-                                    type: 'Polygon',
-                                    coordinates: [coordinates]
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-
-            // 3. ルート（ジオリファレンス変換済み）を収集
+            // 2. ルート（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
                 // ルートデータから開始・終了ポイント情報を取得
                 const routeGroupMap = new Map();
@@ -1075,7 +1024,7 @@ class GeoReferencerApp {
                 }
             }
 
-            // 4. スポット（ジオリファレンス変換済み）を収集
+            // 3. スポット（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
                 const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
                 let spotCounter = 1;
@@ -1111,14 +1060,14 @@ class GeoReferencerApp {
                 }
             }
 
-            // 5. Combined JSON形式のデータ（imageCoordinateMarkers）を収集
+            // 4. Combined JSON形式のデータ（imageCoordinateMarkers）を収集
             // （routeSpotHandler の個別形式データが空の場合のみ - 重複回避）
             if (this.imageCoordinateMarkers && this.imageCoordinateMarkers.length > 0) {
                 const waypointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'waypoint');
                 const spotInfosCombined = this.imageCoordinateMarkers.filter(m => m.data?.type === 'spot');
                 const pointInfosCombined = this.imageCoordinateMarkers.filter(m => m.data?.type === 'pointJSON');
 
-                // 5a. ポイント（pointJSON型）
+                // 4a. ポイント（pointJSON型）
                 if (pointInfosCombined.length > 0 && (!this.routeSpotHandler.pointData || this.routeSpotHandler.pointData.length === 0)) {
                     for (const markerInfo of pointInfosCombined) {
                         const latLng = markerInfo.marker.getLatLng();
@@ -1144,7 +1093,7 @@ class GeoReferencerApp {
                     }
                 }
 
-                // 5b. ルート中間点（waypoint型）→ ルート名でグループ化してLineStringとして出力
+                // 4b. ルート中間点（waypoint型）→ ルート名でグループ化してLineStringとして出力
                 if (waypointInfos.length > 0 && (!this.routeSpotHandler.routeMarkers || this.routeSpotHandler.routeMarkers.length === 0)) {
                     const routeGroups = new Map();
                     for (const markerInfo of waypointInfos) {
@@ -1184,7 +1133,7 @@ class GeoReferencerApp {
                     }
                 }
 
-                // 5c. スポット（spot型）
+                // 4c. スポット（spot型）
                 if (spotInfosCombined.length > 0 && (!this.routeSpotHandler.spotMarkers || this.routeSpotHandler.spotMarkers.length === 0)) {
                     let spotCounter = 1;
                     for (const markerInfo of spotInfosCombined) {
@@ -1210,6 +1159,52 @@ class GeoReferencerApp {
                             }
                         });
                         spotCounter++;
+                    }
+                }
+            }
+
+            // 5. エリア（ジオリファレンス変換済み）を収集
+            if (this.areaHandler && this.georeferencing && this.georeferencing.currentTransformation) {
+                const areas = this.areaHandler.getUpToDateAreas();
+                for (const area of areas) {
+                    const latLngs = this.areaHandler.calculateAreaLatLngs(area);
+
+                    if (latLngs && latLngs.length > 0) {
+                        const coordinates = latLngs.map((latLng, index) => {
+                            const lat = Array.isArray(latLng) ? latLng[0] : latLng.lat;
+                            const lng = Array.isArray(latLng) ? latLng[1] : latLng.lng;
+                            const vertex = area.vertices && area.vertices[index];
+                            const elevation = vertex ? vertex.elevation : undefined;
+                            let coord = [this.roundCoordinate(lng), this.roundCoordinate(lat)];
+                            if (elevation !== undefined && elevation !== null) {
+                                coord.push(this.roundCoordinate(elevation));
+                            }
+                            return coord;
+                        });
+
+                        // 閉じる必要がある
+                        if (coordinates.length > 0) {
+                            const first = coordinates[0];
+                            const last = coordinates[coordinates.length - 1];
+                            if (first[0] !== last[0] || first[1] !== last[1]) {
+                                coordinates.push([...first]);
+                            }
+
+                            features.push({
+                                type: 'Feature',
+                                properties: {
+                                    id: area.id || `area_${Date.now()}`,
+                                    name: area.name || '名称未設定エリア',
+                                    type: 'area',
+                                    source: 'image_transformed',
+                                    description: 'エリア（GPS変換済）'
+                                },
+                                geometry: {
+                                    type: 'Polygon',
+                                    coordinates: [coordinates]
+                                }
+                            });
+                        }
                     }
                 }
             }
