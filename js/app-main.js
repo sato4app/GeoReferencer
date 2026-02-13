@@ -118,6 +118,10 @@ class GeoReferencerApp {
                     } else if (loadType === 'png' && imageInput) {
                         imageInput.click();
                     } else if (loadType === 'json' && jsonInput) {
+                        if (!this.currentPngFileName) {
+                            alert('対応するPNG画像が読み込まれていません。\nJSONファイルを読み込むには、先に画像を読み込んでください。');
+                            return;
+                        }
                         jsonInput.click();
                     }
                 });
