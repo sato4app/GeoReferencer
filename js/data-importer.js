@@ -272,22 +272,31 @@ export class DataImporter {
             const files = Array.from(event.target.files);
             if (!files.length) return;
 
-            // 既存データがある場合は確認
-            // ポイント(GPS/画像), ルート, スポット, エリア等のいずれかがある場合
-            const hasExistingData = (this.app.gpsData && this.app.gpsData.getPoints().length > 0) ||
-                (this.app.pointJsonData && this.app.pointJsonData.points && this.app.pointJsonData.points.length > 0) ||
-                (this.app.routeSpotHandler.routeData.length > 0) ||
-                (this.app.routeSpotHandler.spotData.length > 0);
+            // 既存データの有無を確認（詳細）
+            // GPSデータ(Excel由来)は「ベースデータ」として扱うため、JSON読み込み時の「既存データ」としては扱わない
+            // const gpsCount = this.app.gpsData ? this.app.gpsData.getPoints().length : 0;
+            const pointJsonCount = (this.app.pointJsonData && this.app.pointJsonData.points) ? this.app.pointJsonData.points.length : 0;
+            const routeCount = this.app.routeSpotHandler ? this.app.routeSpotHandler.routeData.length : 0;
+            const spotCount = this.app.routeSpotHandler ? this.app.routeSpotHandler.spotData.length : 0;
+
+            const hasExistingData = pointJsonCount > 0 || routeCount > 0 || spotCount > 0;
 
             let mode = 'clear';
 
             if (hasExistingData) {
-                const shouldAppend = window.confirm(
-                    `既存のデータがあります。\n` +
-                    `データを追記しますか？\n\n` +
+                // デバッグ用ログ
+                this.logger.info(`既存データ検出: PointJSON=${pointJsonCount}, Route=${routeCount}, Spot=${spotCount}`);
+
+                let message = `既存のデータがあります:\n`;
+                if (pointJsonCount > 0) message += `- ポイント(JSON): ${pointJsonCount}件\n`;
+                if (routeCount > 0) message += `- ルート: ${routeCount}件\n`;
+                if (spotCount > 0) message += `- スポット: ${spotCount}件\n`;
+
+                message += `\nデータを追記しますか？\n` +
                     `[OK] 追記する（重複はスキップ）\n` +
-                    `[キャンセル] 読み込みを中止`
-                );
+                    `[キャンセル] 読み込みを中止`;
+
+                const shouldAppend = window.confirm(message);
 
                 if (!shouldAppend) {
                     event.target.value = '';
@@ -301,10 +310,11 @@ export class DataImporter {
 
             // クリアモードならデータをリセット
             if (mode === 'clear') {
-                if (this.app.gpsData) {
-                    this.app.gpsData.gpsPoints = [];
-                    this.app.gpsData.clearMarkersFromMap();
-                }
+                // GPSデータはクリアしない（Excel由来のデータを保持）
+                // if (this.app.gpsData) {
+                //    this.app.gpsData.gpsPoints = [];
+                //    this.app.gpsData.clearMarkersFromMap();
+                // }
                 this.app.pointJsonData = null;
                 this.app.routeSpotHandler.routeData = [];
                 this.app.routeSpotHandler.spotData = [];
@@ -317,8 +327,8 @@ export class DataImporter {
             }
 
             let geoJsonProcessed = 0;
-            // 既存のGPSポイントがあれば取得（追記用）
-            const allGpsPoints = (mode === 'append' && this.app.gpsData) ? [...this.app.gpsData.getPoints()] : [];
+            // 既存のGPSポイントがあれば取得（常に追記・マージとして扱う）
+            const allGpsPoints = (this.app.gpsData) ? [...this.app.gpsData.getPoints()] : [];
             const otherGeoJsonFeatures = [];
 
             // 各ファイルを処理
