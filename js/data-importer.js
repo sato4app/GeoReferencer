@@ -20,14 +20,20 @@ export class DataImporter {
             let mode = 'clear'; // デフォルトはクリア（初回など）
 
             if (existingCount > 0) {
-                // 追記かクリアかを確認
+                // 追記か中止かを確認
                 const shouldAppend = window.confirm(
                     `既存のGPSポイントデータ(${existingCount}件)があります。\n` +
                     `データを追記しますか？\n\n` +
                     `[OK] 追記する（IDと座標が一致するデータはスキップ）\n` +
-                    `[キャンセル] 既存データをクリアして新規読み込み`
+                    `[キャンセル] 読み込みを中止`
                 );
-                mode = shouldAppend ? 'append' : 'clear';
+
+                if (!shouldAppend) {
+                    // ファイル入力をリセットして中止
+                    event.target.value = '';
+                    return;
+                }
+                mode = 'append';
             }
 
             this.logger.info(`GPS Excelファイル読み込み開始: ${files.length}ファイル, モード: ${mode}`);
@@ -266,19 +272,53 @@ export class DataImporter {
             const files = Array.from(event.target.files);
             if (!files.length) return;
 
-            this.logger.info(`複数JSONファイル読み込み開始: ${files.length}ファイル`);
+            // 既存データがある場合は確認
+            // ポイント(GPS/画像), ルート, スポット, エリア等のいずれかがある場合
+            const hasExistingData = (this.app.gpsData && this.app.gpsData.getPoints().length > 0) ||
+                (this.app.pointJsonData && this.app.pointJsonData.points && this.app.pointJsonData.points.length > 0) ||
+                (this.app.routeSpotHandler.routeData.length > 0) ||
+                (this.app.routeSpotHandler.spotData.length > 0);
+
+            let mode = 'clear';
+
+            if (hasExistingData) {
+                const shouldAppend = window.confirm(
+                    `既存のデータがあります。\n` +
+                    `データを追記しますか？\n\n` +
+                    `[OK] 追記する（重複はスキップ）\n` +
+                    `[キャンセル] 読み込みを中止`
+                );
+
+                if (!shouldAppend) {
+                    event.target.value = '';
+                    return;
+                }
+                mode = 'append';
+            }
+
+            this.logger.info(`複数JSONファイル読み込み開始: ${files.length}ファイル, モード: ${mode}`);
             this.app.showMessage('JSONファイルを読み込んでいます...');
 
-            let pointsProcessed = 0;
-            let routesProcessed = 0;
-            let spotsProcessed = 0;
-            let areasProcessed = 0;
+            // クリアモードならデータをリセット
+            if (mode === 'clear') {
+                if (this.app.gpsData) {
+                    this.app.gpsData.gpsPoints = [];
+                    this.app.gpsData.clearMarkersFromMap();
+                }
+                this.app.pointJsonData = null;
+                this.app.routeSpotHandler.routeData = [];
+                this.app.routeSpotHandler.spotData = [];
+                this.app.imageCoordinateMarkers = [];
+                this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                if (this.app.referenceLayer && this.app.mapCore && this.app.mapCore.map) {
+                    this.app.mapCore.map.removeLayer(this.app.referenceLayer);
+                    this.app.referenceLayer = null;
+                }
+            }
+
             let geoJsonProcessed = 0;
-
-            // 最初にポイントデータのマーカーをクリア（一度だけ）
-            let shouldClearMarkers = true;
-
-            const allGpsPoints = [];
+            // 既存のGPSポイントがあれば取得（追記用）
+            const allGpsPoints = (mode === 'append' && this.app.gpsData) ? [...this.app.gpsData.getPoints()] : [];
             const otherGeoJsonFeatures = [];
 
             // 各ファイルを処理
@@ -291,159 +331,178 @@ export class DataImporter {
 
                     // 1. GeoJSON形式の判定
                     if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
-                        // GeoJSONとして処理
                         for (const feature of data.features) {
                             if (feature.geometry && feature.geometry.type === 'Point' && feature.properties && feature.properties.type !== 'route' && feature.properties.type !== 'spot' && feature.properties.type !== 'area') {
-                                // ポイントデータ (GPS)
-                                allGpsPoints.push({
+                                // ポイントデータ (GPS) - 重複チェック
+                                const newPoint = {
                                     pointId: feature.properties.id || feature.properties.name || `Point_${allGpsPoints.length + 1}`,
                                     lat: feature.geometry.coordinates[1],
                                     lng: feature.geometry.coordinates[0],
                                     elevation: feature.geometry.coordinates[2] || 0,
                                     location: feature.properties.name || feature.properties.location || '',
                                     gpsElevation: feature.properties.gpsElevation || 0
+                                };
+
+                                const isDuplicate = allGpsPoints.some(existing => {
+                                    const EPSILON = 0.0000001;
+                                    return Math.abs(existing.lat - newPoint.lat) < EPSILON &&
+                                        Math.abs(existing.lng - newPoint.lng) < EPSILON;
                                 });
+
+                                if (!isDuplicate) {
+                                    allGpsPoints.push(newPoint);
+                                }
                             } else {
-                                // その他 (参照用)
                                 otherGeoJsonFeatures.push(feature);
                             }
                         }
                         geoJsonProcessed++;
                         continue;
                     }
+                    // ... (その他の形式の処理は続く)
 
                     // 2. 独自形式 (Route/Spot/Point) の判定
                     const detectedType = this.app.routeSpotHandler.detectJsonType(data);
 
                     if (detectedType === 'route') {
-                        // ルートデータの場合 (画像座標として表示)
-                        // データをrouteSpotHandlerに格納（カウント・エクスポート用）
+                        // ルートデータ
                         const routes = this.app.routeSpotHandler.processRouteData(data, file.name);
                         this.app.routeSpotHandler.routeData = this.app.routeSpotHandler.mergeAndDeduplicate(
                             this.app.routeSpotHandler.routeData, routes, 'route'
                         );
-                        // 画像上にルート中間点を表示
-                        if (shouldClearMarkers) {
-                            this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
-                            this.app.imageCoordinateMarkers = [];
-                            shouldClearMarkers = false;
-                        }
+                        // 画像上にルート中間点を表示 (追加描画)
                         this.app.imageCoordinateMarkers = await this.app.coordinateDisplay.displayImageCoordinates(data, 'route', this.app.imageCoordinateMarkers);
-                        routesProcessed++;
 
                     } else if (detectedType === 'spot') {
-                        // スポットデータの場合 (画像座標として表示)
-                        // データをrouteSpotHandlerに格納（カウント・エクスポート用）
+                        // スポットデータ
                         const spots = this.app.routeSpotHandler.processSpotData(data, file.name);
                         this.app.routeSpotHandler.spotData = this.app.routeSpotHandler.mergeAndDeduplicate(
                             this.app.routeSpotHandler.spotData, spots, 'spot'
                         );
-                        // 画像上にスポットを表示
-                        if (shouldClearMarkers) {
-                            this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
-                            this.app.imageCoordinateMarkers = [];
-                            shouldClearMarkers = false;
-                        }
+                        // 画像上にスポットを表示 (追加描画)
                         this.app.imageCoordinateMarkers = await this.app.coordinateDisplay.displayImageCoordinates(data, 'spot', this.app.imageCoordinateMarkers);
-                        if (data.spots && Array.isArray(data.spots)) {
-                            spotsProcessed += data.spots.length;
-                        } else {
-                            spotsProcessed++;
-                        }
 
                     } else if (detectedType === 'point') {
-                        // ポイントデータの場合 (画像処理用)
-                        this.app.pointJsonData = data;
-                        this.app.georeferencing.setPointJsonData(data);
+                        // ポイントデータ (画像処理用)
+                        // 追記モードの場合、ポイントデータの扱いは注意が必要（通常1セットだが、複数ファイルならマージ？）
+                        // ここでは常に上書きせず、既存データがあればマージする方針で
 
-                        // 画像上にポイント座標を表示
-                        if (this.app.imageOverlay && data.points) {
-                            // 最初のポイントファイル処理時のみマーカーをクリア
-                            if (shouldClearMarkers) {
-                                this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
-                                this.app.imageCoordinateMarkers = []; // マーカー配列もクリア
-                                shouldClearMarkers = false;
+                        if (!this.app.pointJsonData || mode === 'clear') {
+                            this.app.pointJsonData = data;
+                        } else {
+                            // マージ処理 (簡易): ID重複チェックを行いつつ追加
+                            if (data.points && Array.isArray(data.points)) {
+                                const currentPoints = this.app.pointJsonData.points || [];
+                                data.points.forEach(p => {
+                                    // 重複チェック (ID & 座標)
+                                    const isDup = currentPoints.some(existing =>
+                                        existing.id === p.id && existing.x === p.x && existing.y === p.y
+                                    );
+                                    if (!isDup) {
+                                        currentPoints.push(p);
+                                    }
+                                });
+                                this.app.pointJsonData.points = currentPoints;
                             }
+                        }
 
+                        this.app.georeferencing.setPointJsonData(this.app.pointJsonData);
+
+                        // 画像上にポイント座標を表示 (追加描画)
+                        if (this.app.imageOverlay && data.points) {
                             this.app.imageCoordinateMarkers = await this.app.coordinateDisplay.displayImageCoordinates(data, 'points', this.app.imageCoordinateMarkers);
 
                             // GeoreferencingクラスにもmarkerInfoを渡す
+                            // マーカーの重複追加を防ぐロジックが必要だが、displayImageCoordinatesが返すのは新規分含めた全体？いや、実装依存。
+                            // displayImageCoordinatesは既存マーカー配列を受け取って追加して返す仕様のようなのでOK。
+
+                            // ただしGeoreferencing側への追加は重複チェックが必要かもしれないが、
+                            // addImageCoordinateMarkerは単純pushなので、再描画時にクリアするか？
+                            // 効率のため、今回は新規追加分だけ...といきたいが、displayImageCoordinatesの実装を見ると
+                            // 既存マーカー配列にpushして返している。
+                            // なので、全マーカー再登録は重複を生む。
+
+                            // 一旦クリアして全再登録が無難
+                            this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
                             this.app.imageCoordinateMarkers.forEach(markerInfo => {
                                 this.app.georeferencing.addImageCoordinateMarker(markerInfo);
                             });
-
-                            this.logger.info(`ポイント: ${this.app.imageCoordinateMarkers.length}個`);
                         }
 
-                        pointsProcessed++;
-
                     } else if (detectedType === 'area') {
-                        // エリアデータの場合 (画像座標として表示)
+                        // エリアデータ
                         if (data.areas && Array.isArray(data.areas)) {
                             await this.app.areaHandler.importAreas(data.areas, this.app.imageOverlay);
-                            areasProcessed += data.areas.length;
                         }
 
                     } else if (detectedType === 'combined') {
-                        // 複合形式の場合 (points/routes/spots/areasが1ファイルに格納)
+                        // 複合形式
                         const combinedData = data.data;
 
-                        if (shouldClearMarkers) {
-                            this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
-                            this.app.imageCoordinateMarkers = [];
-                            shouldClearMarkers = false;
-                        }
-
-                        // 画像上に全座標を表示（points, routes waypoints, spots）
+                        // 画像上に全座標を表示
                         this.app.imageCoordinateMarkers = await this.app.coordinateDisplay.displayImageCoordinates(data, 'combined', this.app.imageCoordinateMarkers);
-
-                        // GeoreferencingクラスにもmarkerInfoを渡す（重ね合わせ時に位置更新されるよう）
+                        this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
                         this.app.imageCoordinateMarkers.forEach(markerInfo => {
                             this.app.georeferencing.addImageCoordinateMarker(markerInfo);
                         });
 
-                        // ポイントデータを格納（ジオリファレンス用）
+                        // ポイントデータを格納
                         if (combinedData.points && Array.isArray(combinedData.points)) {
-                            const pointData = {
-                                points: combinedData.points.map(p => ({
-                                    ...p,
-                                    imageX: p.imageX !== undefined ? p.imageX : p.x,
-                                    imageY: p.imageY !== undefined ? p.imageY : p.y
-                                }))
-                            };
-                            this.app.pointJsonData = pointData;
-                            this.app.georeferencing.setPointJsonData(pointData);
-                            pointsProcessed += combinedData.points.length;
+                            // ポイントデータのマージロジック
+                            if (!this.app.pointJsonData || mode === 'clear') {
+                                this.app.pointJsonData = { points: [] };
+                            }
+                            // combinedDataのpoints形式に注意（imageX/imageY変換など）
+                            const newPoints = combinedData.points.map(p => ({
+                                ...p,
+                                imageX: p.imageX !== undefined ? p.imageX : p.x,
+                                imageY: p.imageY !== undefined ? p.imageY : p.y
+                            }));
+
+                            const currentPoints = this.app.pointJsonData.points || [];
+                            newPoints.forEach(p => {
+                                const isDup = currentPoints.some(existing =>
+                                    existing.id === p.id && existing.x === p.x && existing.y === p.y
+                                );
+                                if (!isDup) currentPoints.push(p);
+                            });
+                            this.app.pointJsonData.points = currentPoints;
+                            this.app.georeferencing.setPointJsonData(this.app.pointJsonData);
                         }
 
-                        // ルートデータを格納（カウント用）
+                        // ルートデータを格納
                         if (combinedData.routes && Array.isArray(combinedData.routes)) {
+                            const routes = [];
                             combinedData.routes.forEach(route => {
-                                this.app.routeSpotHandler.routeData.push({
+                                routes.push({
                                     ...route,
                                     fileName: file.name,
                                     routeId: route.routeName || file.name
                                 });
                             });
-                            routesProcessed += combinedData.routes.length;
+                            this.app.routeSpotHandler.routeData = this.app.routeSpotHandler.mergeAndDeduplicate(
+                                this.app.routeSpotHandler.routeData, routes, 'route'
+                            );
                         }
 
-                        // スポットデータを格納（カウント用）
+                        // スポットデータを格納
                         if (combinedData.spots && Array.isArray(combinedData.spots)) {
+                            const spots = [];
                             combinedData.spots.forEach(spot => {
-                                this.app.routeSpotHandler.spotData.push({
+                                spots.push({
                                     ...spot,
                                     fileName: file.name,
                                     spotId: spot.name || `${file.name}_spot`
                                 });
                             });
-                            spotsProcessed += combinedData.spots.length;
+                            this.app.routeSpotHandler.spotData = this.app.routeSpotHandler.mergeAndDeduplicate(
+                                this.app.routeSpotHandler.spotData, spots, 'spot'
+                            );
                         }
 
                         // エリアデータを処理・表示
                         if (combinedData.areas && Array.isArray(combinedData.areas)) {
                             await this.app.areaHandler.importAreas(combinedData.areas, this.app.imageOverlay);
-                            areasProcessed += combinedData.areas.length;
                         }
 
                     } else {
@@ -492,10 +551,8 @@ export class DataImporter {
             this.app.uiHandlers.updateRouteSpotCount(this.app.routeSpotHandler);
             this.app.uiHandlers.updateAreaCount(this.app.areaHandler.areas ? this.app.areaHandler.areas.length : 0);
 
-            this.logger.info(`読み込み完了 - GeoJSON: ${geoJsonProcessed}, ポイント: ${pointsProcessed}, ルート: ${routesProcessed}, スポット: ${spotsProcessed}, エリア: ${areasProcessed}`);
-
             // 成功メッセージを表示
-            this.app.showMessage(`ファイルを読み込みました (GeoJSON: ${geoJsonProcessed}, その他: ${files.length - geoJsonProcessed})`);
+            this.app.showMessage(`${files.length}件のファイルを処理しました (${mode === 'append' ? '追記' : '新規'})`);
 
         } catch (error) {
             this.logger.error('JSON読み込みエラー', error);
