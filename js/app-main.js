@@ -298,6 +298,13 @@ class GeoReferencerApp {
             const progressBar = document.getElementById('elevationProgressBar');
             const progressText = document.getElementById('elevationProgressText');
 
+            // チェックボックスの状態を取得
+            const isPointChecked = document.getElementById('elevationPointCheckbox')?.checked;
+            const isRouteChecked = document.getElementById('elevationRouteCheckbox')?.checked;
+            const isSpotChecked = document.getElementById('elevationSpotCheckbox')?.checked;
+            const isAreaChecked = document.getElementById('elevationAreaVertexCheckbox')?.checked;
+
+
             if (progressContainer) progressContainer.style.display = 'block';
 
             let totalFetched = 0;
@@ -322,7 +329,7 @@ class GeoReferencerApp {
             };
 
             // 1. ポイント（画像上のポイント）
-            if (this.routeSpotHandler && this.routeSpotHandler.pointData && this.georeferencing) {
+            if (isPointChecked && this.routeSpotHandler && this.routeSpotHandler.pointData && this.georeferencing) {
                 this.logger.info('ポイントの標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetPointsElevation(
                     this.routeSpotHandler.pointData,
@@ -334,7 +341,7 @@ class GeoReferencerApp {
             }
 
             // 2. ルートマーカー（中間点含む）
-            if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+            if (isRouteChecked && this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
                 this.logger.info('ルートマーカーの標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetRouteMarkersElevation(
                     this.routeSpotHandler.routeMarkers,
@@ -345,7 +352,7 @@ class GeoReferencerApp {
             }
 
             // 3. スポットマーカー
-            if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
+            if (isSpotChecked && this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
                 this.logger.info('スポットマーカーの標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetSpotMarkersElevation(
                     this.routeSpotHandler.spotMarkers,
@@ -362,7 +369,7 @@ class GeoReferencerApp {
                 const pointInfos = this.imageCoordinateMarkers.filter(m => m.data?.type === 'pointJSON');
 
                 // 4a. ポイント（pointJSON型）
-                if (pointInfos.length > 0 && this.routeSpotHandler.pointData.length === 0) {
+                if (isPointChecked && pointInfos.length > 0 && this.routeSpotHandler.pointData.length === 0) {
                     this.logger.info(`Combined ポイントの標高取得開始: ${pointInfos.length}件`);
                     let cnt = 0;
                     for (const markerInfo of pointInfos) {
@@ -387,7 +394,7 @@ class GeoReferencerApp {
                 }
 
                 // 4b. ルート中間点
-                if (waypointInfos.length > 0 && this.routeSpotHandler.routeMarkers.length === 0) {
+                if (isRouteChecked && waypointInfos.length > 0 && this.routeSpotHandler.routeMarkers.length === 0) {
                     this.logger.info(`Combined ルート中間点の標高取得開始: ${waypointInfos.length}件`);
                     let cnt = 0;
                     for (const markerInfo of waypointInfos) {
@@ -412,7 +419,7 @@ class GeoReferencerApp {
                 }
 
                 // 4c. スポット
-                if (spotInfos.length > 0 && this.routeSpotHandler.spotMarkers.length === 0) {
+                if (isSpotChecked && spotInfos.length > 0 && this.routeSpotHandler.spotMarkers.length === 0) {
                     this.logger.info(`Combined スポットの標高取得開始: ${spotInfos.length}件`);
                     let cnt = 0;
                     for (const markerInfo of spotInfos) {
@@ -438,7 +445,7 @@ class GeoReferencerApp {
             }
 
             // 5. エリア頂点
-            if (this.areaHandler) {
+            if (isAreaChecked && this.areaHandler) {
                 this.logger.info('エリア頂点の標高取得開始');
                 const result = await this.elevationFetcher.fetchAndSetAreaVerticesElevation(
                     this.areaHandler,
