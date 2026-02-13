@@ -12,48 +12,64 @@ export class DataImporter {
      */
     async handleGpsExcelLoad(event) {
         try {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+
             // 既存データがある場合は確認
             const existingCount = this.app.gpsData?.getPoints()?.length || 0;
+            let mode = 'clear'; // デフォルトはクリア（初回など）
+
             if (existingCount > 0) {
-                const shouldClear = window.confirm(
-                    `既存の${existingCount}個のポイントをクリアして、新しく読み込みます。`
+                // 追記かクリアかを確認
+                const shouldAppend = window.confirm(
+                    `既存のGPSポイントデータ(${existingCount}件)があります。\n` +
+                    `データを追記しますか？\n\n` +
+                    `[OK] 追記する（IDと座標が一致するデータはスキップ）\n` +
+                    `[キャンセル] 既存データをクリアして新規読み込み`
                 );
-                if (!shouldClear) {
-                    // ファイル入力をリセット
-                    event.target.value = '';
-                    return;
-                }
+                mode = shouldAppend ? 'append' : 'clear';
             }
 
-            const file = event.target.files[0];
-            if (!file) {
-                // ファイル選択がキャンセルされた場合
-                // 既存データは保持(一時保存不要)
-                return;
-            }
+            this.logger.info(`GPS Excelファイル読み込み開始: ${files.length}ファイル, モード: ${mode}`);
 
-            this.logger.info('GPS Excelファイル読み込み開始', file.name);
-
-            // 既存データをクリア
-            if (existingCount > 0) {
+            if (mode === 'clear') {
                 this.app.gpsData.gpsPoints = [];
                 this.app.gpsData.clearMarkersFromMap();
             }
 
-            // GPSDataクラスのExcel読み込み機能を使用
-            const rawData = await this.app.fileHandler.loadExcelFile(file);
+            let totalLoaded = 0;
+            let totalAdded = 0;
 
-            // Excel データを検証・変換
-            const validatedData = this.app.fileHandler.validateAndConvertExcelData(rawData);
+            for (const file of files) {
+                try {
+                    this.logger.info(`Processing file: ${file.name}`);
 
-            if (validatedData.length === 0) {
-                throw new Error('有効なGPSポイントデータが見つかりませんでした。');
+                    // GPSDataクラスのExcel読み込み機能を使用
+                    const rawData = await this.app.fileHandler.loadExcelFile(file);
+
+                    // Excel データを検証・変換
+                    const validatedData = this.app.fileHandler.validateAndConvertExcelData(rawData);
+
+                    if (validatedData.length === 0) {
+                        this.logger.warn(`有効なデータがありません: ${file.name}`);
+                        continue;
+                    }
+
+                    totalLoaded += validatedData.length;
+
+                    // マージ（追加）処理
+                    const addedCount = this.app.gpsData.mergePoints(validatedData);
+                    totalAdded += addedCount;
+
+                    this.logger.info(`ファイル完了: ${file.name}, 追加: ${addedCount}`);
+
+                } catch (fileError) {
+                    this.logger.error(`ファイル読み込みエラー: ${file.name}`, fileError);
+                    this.app.showMessage(`エラー(${file.name}): ${fileError.message}`, 'error');
+                }
             }
 
-            // GPSDataに変換されたデータを設定
-            this.app.gpsData.setPointsFromExcelData(validatedData);
-
-            // 地図上にGPSポイントを表示
+            // 地図上にGPSポイントを表示（全データ再描画）
             if (this.app.mapCore && this.app.mapCore.getMap()) {
                 this.app.gpsData.displayPointsOnMap(this.app.mapCore.getMap());
             }
@@ -61,13 +77,16 @@ export class DataImporter {
             // GPS ポイント数を更新
             this.app.uiHandlers.updateGpsPointCount(this.app.gpsData);
 
-            this.logger.info(`GPS Excelファイル読み込み完了: ${validatedData.length}ポイント`);
-
-            // 成功メッセージを表示
-            this.app.showMessage(`${validatedData.length}個のポイントGPSを読み込みました`);
+            // 完了メッセージ
+            const currentTotal = this.app.gpsData.getPoints().length;
+            if (mode === 'append') {
+                this.app.showMessage(`${totalAdded}個のポイントを追加しました (現在合計: ${currentTotal}個)`);
+            } else {
+                this.app.showMessage(`${currentTotal}個のポイントを読み込みました`);
+            }
 
         } catch (error) {
-            this.logger.error('GPS Excel読み込みエラー', error);
+            this.logger.error('GPS Excel一括読み込みエラー', error);
             errorHandler.handle(error, error.message, 'GPS Excel読み込み');
         } finally {
             // 同じファイルを再選択できるようにファイル入力をリセット
