@@ -352,10 +352,10 @@ body,
 }
 
 #saveGeoJsonNote {
-    font-size: 10px;
+    font-size: 11px;
     color: #999;
     text-align: center;
-    margin-top: 4px;
+    margin-top: -10px;
     display: none;
     /* Initially hidden */
 }
