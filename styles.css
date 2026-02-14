@@ -351,6 +351,15 @@ body,
     margin-top: 10px;
 }
 
+#saveGeoJsonNote {
+    font-size: 10px;
+    color: #999;
+    text-align: center;
+    margin-top: 4px;
+    display: none;
+    /* Initially hidden */
+}
+
 #fetchElevationBtn {
     width: 80px !important;
     height: 40px !important;
