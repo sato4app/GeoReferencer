@@ -217,8 +217,12 @@ class GeoReferencerApp {
 
             // GeoJSON保存ボタンと標高取得ボタンを有効化
             const saveGeoJsonBtn = document.getElementById('saveGeoJsonBtn');
+            const saveGeoJsonNote = document.getElementById('saveGeoJsonNote');
             if (saveGeoJsonBtn) {
                 saveGeoJsonBtn.disabled = false;
+                if (saveGeoJsonNote) {
+                    saveGeoJsonNote.style.display = 'block';
+                }
             }
 
             const fetchElevationBtn = document.getElementById('fetchElevationBtn');
