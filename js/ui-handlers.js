@@ -121,4 +121,33 @@ export class UIHandlers {
         }
     }
 
+    clearAllCounts() {
+        try {
+            // ポイント・ルート・スポット・エリア数（既存メソッド利用）
+            this.updatePointCoordCount(null);
+            this.updateRouteSpotCount({ getRouteCount: () => 0, getSpotCount: () => 0 });
+            this.updateAreaCount(0);
+
+            // マッチング結果
+            const matchedCountField = document.getElementById('matchedPointCountField');
+            const unmatchedPointsField = document.getElementById('unmatchedPointsField');
+            if (matchedCountField) matchedCountField.value = '0';
+            if (unmatchedPointsField) unmatchedPointsField.value = '';
+
+            // 標高未取得カウント
+            const elevationPointCount = document.getElementById('elevationPointCount');
+            const elevationRouteCount = document.getElementById('elevationRouteCount');
+            const elevationSpotCount = document.getElementById('elevationSpotCount');
+            const elevationAreaVertexCount = document.getElementById('elevationAreaVertexCount');
+
+            if (elevationPointCount) elevationPointCount.value = '0';
+            if (elevationRouteCount) elevationRouteCount.value = '0';
+            if (elevationSpotCount) elevationSpotCount.value = '0';
+            if (elevationAreaVertexCount) elevationAreaVertexCount.value = '0';
+
+        } catch (error) {
+            this.logger.error('全カウントクリアエラー', error);
+        }
+    }
+
 }

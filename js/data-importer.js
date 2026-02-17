@@ -161,10 +161,8 @@ export class DataImporter {
                     this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
                 }
 
-                // UIカウント更新 (0にリセット)
-                this.app.uiHandlers.updateRouteSpotCount(this.app.routeSpotHandler);
-                this.app.uiHandlers.updatePointCoordCount(null);
-                this.app.uiHandlers.updateAreaCount(0);
+                // UIカウント更新 (全クリア)
+                this.app.uiHandlers.clearAllCounts();
 
                 this.app.currentPngFileName = null;
             }
