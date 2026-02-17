@@ -38,6 +38,9 @@ export class UIHandlers {
                 }
 
                 pointCountField.value = count;
+            } else if (pointCountField && !pointJsonData) {
+                // データが空またはnullの場合は0にリセット
+                pointCountField.value = 0;
             }
         } catch (error) {
             this.logger.error('ポイント座標数更新エラー', error);
