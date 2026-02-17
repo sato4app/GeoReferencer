@@ -155,10 +155,11 @@ export class DataImporter {
                     this.app.areaHandler.clearAreaLayers();
                 }
 
-                // Georeferencingポイントマーカークリア
+                // Georeferencingポイントマーカークリア (関連するすべてのマーカーをクリア)
                 this.app.imageCoordinateMarkers = [];
                 if (this.app.georeferencing) {
-                    this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                    this.app.georeferencing.clearImageCoordinateMarkers('all');
+                    this.app.georeferencing.setPointJsonData(null);
                 }
 
                 // UIカウント更新 (全クリア)
