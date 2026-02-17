@@ -146,6 +146,26 @@ export class DataImporter {
                     this.app.routeSpotHandler.clearAllMarkers();
                 }
 
+                // ポイント(JSON)データクリア
+                this.app.pointJsonData = null;
+
+                // エリアデータクリア
+                if (this.app.areaHandler) {
+                    this.app.areaHandler.areas = []; // Reset areas array
+                    this.app.areaHandler.clearAreaLayers();
+                }
+
+                // Georeferencingポイントマーカークリア
+                this.app.imageCoordinateMarkers = [];
+                if (this.app.georeferencing) {
+                    this.app.georeferencing.clearImageCoordinateMarkers('georeference-point');
+                }
+
+                // UIカウント更新 (0にリセット)
+                this.app.uiHandlers.updateRouteSpotCount(this.app.routeSpotHandler);
+                this.app.uiHandlers.updatePointCoordCount(null);
+                this.app.uiHandlers.updateAreaCount(0);
+
                 this.app.currentPngFileName = null;
             }
 
