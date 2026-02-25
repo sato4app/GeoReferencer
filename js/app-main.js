@@ -587,7 +587,7 @@ class GeoReferencerApp {
                         type: 'Feature',
                         properties: {
                             id: fullRouteId,
-                            name: `${startPoint} → ${endPoint}`,
+                            name: `${startPoint} ～ ${endPoint}`,
                             type: 'route_waypoint',
                             startPoint: startPoint,
                             endPoint: endPoint,
@@ -701,7 +701,7 @@ class GeoReferencerApp {
                                 type: 'Feature',
                                 properties: {
                                     id: routeId,
-                                    name: `${spStart} → ${spEnd}`,
+                                    name: `${spStart} ～ ${spEnd}`,
                                     type: 'route_waypoint',
                                     startPoint: spStart,
                                     endPoint: spEnd,
