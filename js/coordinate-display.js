@@ -150,7 +150,9 @@ export class CoordinateDisplay {
                                             description: '',
                                             type: 'waypoint',
                                             id: null,
-                                            index: null
+                                            index: null,
+                                            startPoint: (route.startPoint && route.startPoint.id) || (route.routeInfo && route.routeInfo.startPoint) || route.startPoint || null,
+                                            endPoint: (route.endPoint && route.endPoint.id) || (route.routeInfo && route.routeInfo.endPoint) || route.endPoint || null
                                         });
                                     }
                                 });

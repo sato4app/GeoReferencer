@@ -588,7 +588,9 @@ class GeoReferencerApp {
                         properties: {
                             id: fullRouteId,
                             name: `${startPoint} → ${endPoint}`,
-                            type: 'route',
+                            type: 'route_waypoint',
+                            startPoint: startPoint,
+                            endPoint: endPoint,
                             source: 'image_transformed',
                             description: 'ルート（GPS変換済）'
                         },
@@ -679,7 +681,7 @@ class GeoReferencerApp {
                         }
                         routeGroups.get(routeName).push(markerInfo);
                     }
-                    for (const [routeName, markerInfos] of routeGroups) {
+                    for (const [, markerInfos] of routeGroups) {
                         const lineCoordinates = [];
                         for (const markerInfo of markerInfos) {
                             const latLng = markerInfo.marker.getLatLng();
@@ -691,12 +693,18 @@ class GeoReferencerApp {
                             lineCoordinates.push(coords);
                         }
                         if (lineCoordinates.length > 0) {
+                            const firstData = markerInfos[0].data;
+                            const spStart = firstData.startPoint || 'unknown_start';
+                            const spEnd = firstData.endPoint || 'unknown_end';
+                            const routeId = `route_${spStart}_to_${spEnd}`;
                             features.push({
                                 type: 'Feature',
                                 properties: {
-                                    id: routeName,
-                                    name: routeName,
-                                    type: 'route',
+                                    id: routeId,
+                                    name: `${spStart} → ${spEnd}`,
+                                    type: 'route_waypoint',
+                                    startPoint: spStart,
+                                    endPoint: spEnd,
                                     source: 'image_transformed',
                                     description: 'ルート（GPS変換済）'
                                 },
