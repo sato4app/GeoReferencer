@@ -588,7 +588,7 @@ class GeoReferencerApp {
                         properties: {
                             id: fullRouteId,
                             name: `${startPoint} ～ ${endPoint}`,
-                            type: 'route_waypoint',
+                            type: 'route',
                             startPoint: startPoint,
                             endPoint: endPoint,
                             source: 'image_transformed',
@@ -702,7 +702,7 @@ class GeoReferencerApp {
                                 properties: {
                                     id: routeId,
                                     name: `${spStart} ～ ${spEnd}`,
-                                    type: 'route_waypoint',
+                                    type: 'route',
                                     startPoint: spStart,
                                     endPoint: spEnd,
                                     source: 'image_transformed',
