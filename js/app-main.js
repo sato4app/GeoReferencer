@@ -264,9 +264,7 @@ class GeoReferencerApp {
             }
 
             // ファイルとして保存
-            const geoJsonFileName = this.getGeoJsonFileName();
-            // fileHandler.saveDataWithUserChoiceを使ってGeoJSON保存（拡張子は .json か .geojson か確認。saveDataWithUserChoiceは通常json）
-            // 明示的にGeoJSONとして保存したい場合は拡張子をつけるなど
+            const geoJsonFileName = this.getGeoJsonFileName(geoJsonData);
             const result = await this.fileHandler.saveDataWithUserChoice(geoJsonData, geoJsonFileName);
 
             if (result.success) {
@@ -806,9 +804,10 @@ class GeoReferencerApp {
 
     /**
      * GeoJSONファイル名を生成
+     * @param {Object} geoJsonData - GeoJSONデータ（features配列を含む）
      * @returns {string} GeoJSONファイル名
      */
-    getGeoJsonFileName() {
+    getGeoJsonFileName(geoJsonData) {
         // 日付フォーマット YYYYMMDD
         const now = new Date();
         const yyyy = now.getFullYear();
@@ -816,10 +815,27 @@ class GeoReferencerApp {
         const dd = String(now.getDate()).padStart(2, '0');
         const dateStr = `${yyyy}${mm}${dd}`;
 
-        // PNG画像が読み込まれている前提（ボタン有効化条件により）
-        // 区切り文字（-, _, space, .）で分割して先頭部分を取得
+        // PNG画像ファイル名から略称を取得（先頭から区切り文字の前まで）
         const abbreviation = this.currentPngFileName.split(/[-_\s.]/)[0];
-        return `${abbreviation}-GPS-${dateStr}`;
+
+        // featuresからポイント・ルート・スポット・エリアの件数を集計
+        const features = (geoJsonData && geoJsonData.features) || [];
+        const pointCount = features.filter(f => f.properties?.type === 'point').length;
+        const routeCount = features.filter(f => f.properties?.type === 'route').length;
+        const spotCount  = features.filter(f => f.properties?.type === 'spot').length;
+        const areaCount  = features.filter(f => f.properties?.type === 'area').length;
+
+        // 件数が1以上の項目のみ含める（0の場合は省略）
+        const parts = [];
+        if (pointCount > 0) parts.push(`P${pointCount}`);
+        if (routeCount > 0) parts.push(`R${routeCount}`);
+        if (spotCount  > 0) parts.push(`S${spotCount}`);
+        if (areaCount  > 0) parts.push(`A${areaCount}`);
+
+        const countStr = parts.join('_');
+        return countStr
+            ? `${abbreviation}-GPS-${countStr}-${dateStr}`
+            : `${abbreviation}-GPS-${dateStr}`;
     }
 
     /**
