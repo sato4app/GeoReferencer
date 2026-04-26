@@ -522,8 +522,26 @@ class GeoReferencerApp {
                 }
             }
 
+            // ポイントID/名称 → GPS座標 のルックアップマップを構築するヘルパー
+            // ルートのstartPoint/endPointのGPS値を取得するために使用
+            const buildPointGpsMap = () => {
+                const map = new Map();
+                for (const f of features) {
+                    if (f.properties && f.properties.type === 'point') {
+                        const coords = f.geometry.coordinates;
+                        if (f.properties.id) map.set(f.properties.id, coords);
+                        if (f.properties.name && f.properties.name !== f.properties.id) {
+                            map.set(f.properties.name, coords);
+                        }
+                    }
+                }
+                return map;
+            };
+
             // 2. ルート（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
+                const pointGpsMap = buildPointGpsMap();
+
                 // ルートデータから開始・終了ポイント情報を取得
                 const routeGroupMap = new Map();
 
@@ -580,6 +598,10 @@ class GeoReferencerApp {
                         // 中間点もPointとして出力したければここに追加可能だが、LineStringにする
                     });
 
+                    // 開始・終了ポイントのGPS値をポイント収集結果から検索
+                    const startPointGps = pointGpsMap.get(startPoint) || null;
+                    const endPointGps = pointGpsMap.get(endPoint) || null;
+
                     // LineStringとして出力
                     features.push({
                         type: 'Feature',
@@ -589,6 +611,8 @@ class GeoReferencerApp {
                             type: 'route',
                             startPoint: startPoint,
                             endPoint: endPoint,
+                            startPointGps: startPointGps,
+                            endPointGps: endPointGps,
                             source: 'image_transformed',
                             description: 'ルート（GPS変換済）'
                         },
@@ -671,6 +695,7 @@ class GeoReferencerApp {
 
                 // 4b. ルート中間点（waypoint型）→ ルート名でグループ化してLineStringとして出力
                 if (waypointInfos.length > 0 && (!this.routeSpotHandler.routeMarkers || this.routeSpotHandler.routeMarkers.length === 0)) {
+                    const pointGpsMapCombined = buildPointGpsMap();
                     const routeGroups = new Map();
                     for (const markerInfo of waypointInfos) {
                         const routeName = markerInfo.data.name || 'unknown_route';
@@ -695,6 +720,8 @@ class GeoReferencerApp {
                             const spStart = firstData.startPoint || 'unknown_start';
                             const spEnd = firstData.endPoint || 'unknown_end';
                             const routeId = `route_${spStart}_to_${spEnd}`;
+                            const startPointGps = pointGpsMapCombined.get(spStart) || null;
+                            const endPointGps = pointGpsMapCombined.get(spEnd) || null;
                             features.push({
                                 type: 'Feature',
                                 properties: {
@@ -703,6 +730,8 @@ class GeoReferencerApp {
                                     type: 'route',
                                     startPoint: spStart,
                                     endPoint: spEnd,
+                                    startPointGps: startPointGps,
+                                    endPointGps: endPointGps,
                                     source: 'image_transformed',
                                     description: 'ルート（GPS変換済）'
                                 },
