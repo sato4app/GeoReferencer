@@ -562,20 +562,21 @@ class GeoReferencerApp {
                     // ルートデータから開始・終了ポイント情報を検索
                     let startPoint = 'unknown_start';
                     let endPoint = 'unknown_end';
+                    let routeDataMatched = null;
 
                     if (this.routeSpotHandler.routeData) {
-                        const routeData = this.routeSpotHandler.routeData.find(route =>
+                        routeDataMatched = this.routeSpotHandler.routeData.find(route =>
                             (route.routeId === routeId) ||
                             (route.name === routeId) ||
                             (route.fileName && route.fileName.replace('.json', '') === routeId)
                         );
 
-                        if (routeData) {
-                            startPoint = (routeData.startPoint && routeData.startPoint.id) ||
-                                (routeData.routeInfo && routeData.routeInfo.startPoint) ||
+                        if (routeDataMatched) {
+                            startPoint = (routeDataMatched.startPoint && routeDataMatched.startPoint.id) ||
+                                (routeDataMatched.routeInfo && routeDataMatched.routeInfo.startPoint) ||
                                 'unknown_start';
-                            endPoint = (routeData.endPoint && routeData.endPoint.id) ||
-                                (routeData.routeInfo && routeData.routeInfo.endPoint) ||
+                            endPoint = (routeDataMatched.endPoint && routeDataMatched.endPoint.id) ||
+                                (routeDataMatched.routeInfo && routeDataMatched.routeInfo.endPoint) ||
                                 'unknown_end';
                         }
                     }
@@ -598,9 +599,20 @@ class GeoReferencerApp {
                         // 中間点もPointとして出力したければここに追加可能だが、LineStringにする
                     });
 
-                    // 開始・終了ポイントのGPS値をポイント収集結果から検索
-                    const startPointGps = pointGpsMap.get(startPoint) || null;
-                    const endPointGps = pointGpsMap.get(endPoint) || null;
+                    // 開始・終了ポイントのGPS値を取得
+                    // 優先順: ① ポイント収集結果(features)からのIDルックアップ
+                    //         ② routeData.startPoint/endPoint オブジェクトに含まれるlat/lng
+                    //         ③ 取得できなければ null
+                    const resolvePointGps = (id, fallbackPointObj) => {
+                        const fromMap = pointGpsMap.get(id);
+                        if (fromMap) return fromMap;
+                        if (fallbackPointObj && fallbackPointObj.lat != null && fallbackPointObj.lng != null) {
+                            return [this.roundCoordinate(fallbackPointObj.lng), this.roundCoordinate(fallbackPointObj.lat)];
+                        }
+                        return null;
+                    };
+                    const startPointGPS = resolvePointGps(startPoint, routeDataMatched && routeDataMatched.startPoint);
+                    const endPointGPS = resolvePointGps(endPoint, routeDataMatched && routeDataMatched.endPoint);
 
                     // LineStringとして出力
                     features.push({
@@ -611,8 +623,8 @@ class GeoReferencerApp {
                             type: 'route',
                             startPoint: startPoint,
                             endPoint: endPoint,
-                            startPointGps: startPointGps,
-                            endPointGps: endPointGps,
+                            startPointGPS: startPointGPS,
+                            endPointGPS: endPointGPS,
                             source: 'image_transformed',
                             description: 'ルート（GPS変換済）'
                         },
@@ -720,8 +732,8 @@ class GeoReferencerApp {
                             const spStart = firstData.startPoint || 'unknown_start';
                             const spEnd = firstData.endPoint || 'unknown_end';
                             const routeId = `route_${spStart}_to_${spEnd}`;
-                            const startPointGps = pointGpsMapCombined.get(spStart) || null;
-                            const endPointGps = pointGpsMapCombined.get(spEnd) || null;
+                            const startPointGPS = pointGpsMapCombined.get(spStart) || null;
+                            const endPointGPS = pointGpsMapCombined.get(spEnd) || null;
                             features.push({
                                 type: 'Feature',
                                 properties: {
@@ -730,8 +742,8 @@ class GeoReferencerApp {
                                     type: 'route',
                                     startPoint: spStart,
                                     endPoint: spEnd,
-                                    startPointGps: startPointGps,
-                                    endPointGps: endPointGps,
+                                    startPointGPS: startPointGPS,
+                                    endPointGPS: endPointGPS,
                                     source: 'image_transformed',
                                     description: 'ルート（GPS変換済）'
                                 },
