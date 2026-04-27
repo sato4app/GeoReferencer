@@ -302,7 +302,8 @@ export class AreaHandler {
      * エリアの全頂点を取得（標高取得用）
      * 信頼源は this.areas（importAreas で必ず設定される）。areaPolygons は表示時に
      * 座標変換が0件になると空のままになる場合があるため、areas をベースに集計する。
-     * @returns {Array} 頂点配列 [{areaName, vertexIndex, lat, lng, elevation}, ...]
+     * 一意キーには areaId を使う（name は重複しうるため setVertexElevation で取り違える）。
+     * @returns {Array} 頂点配列 [{areaId, areaName, vertexIndex, lat, lng, elevation}, ...]
      */
     getAllVertices() {
         const vertices = [];
@@ -316,6 +317,7 @@ export class AreaHandler {
                 return;
             }
 
+            const areaId = area.id;
             const areaName = area.name || area.id || 'Unknown';
 
             // 各頂点をGPS座標に変換
@@ -335,6 +337,7 @@ export class AreaHandler {
                     const lng = Array.isArray(latLng) ? latLng[1] : latLng.lng;
 
                     vertices.push({
+                        areaId: areaId,
                         areaName: areaName,
                         vertexIndex: index,
                         lat: lat,
@@ -352,19 +355,20 @@ export class AreaHandler {
     /**
      * エリア頂点に標高を設定
      * areaPolygons が無い／一致しない場合でも areas 側には必ず反映する。
-     * （updateElevationCounts は this.areas を参照するため、表示と取得結果を整合させる）
-     * @param {string} areaName - エリア名
+     * 一意キーは areaId（name は重複しうるため使わない）。areaName はログ用。
+     * @param {string} areaId - エリアID（一意）
      * @param {number} vertexIndex - 頂点インデックス
      * @param {number} elevation - 標高値
+     * @param {string} [areaName] - ログ表示用のエリア名（任意）
      */
-    setVertexElevation(areaName, vertexIndex, elevation) {
+    setVertexElevation(areaId, vertexIndex, elevation, areaName) {
         let updated = false;
 
         // areaPolygons の対応 meta.vertices を更新（存在すれば）
         if (this.areaPolygons) {
             const polygon = this.areaPolygons.find(p => {
                 const meta = p.__meta;
-                return meta && (meta.name === areaName || meta.areaId === areaName);
+                return meta && meta.areaId === areaId;
             });
             if (polygon && polygon.__meta && polygon.__meta.vertices && polygon.__meta.vertices[vertexIndex]) {
                 polygon.__meta.vertices[vertexIndex].elevation = elevation;
@@ -374,17 +378,18 @@ export class AreaHandler {
 
         // areas（信頼源）にも反映
         if (this.areas) {
-            const area = this.areas.find(a => a.name === areaName || a.id === areaName);
+            const area = this.areas.find(a => a.id === areaId);
             if (area && area.vertices && area.vertices[vertexIndex]) {
                 area.vertices[vertexIndex].elevation = elevation;
                 updated = true;
             }
         }
 
+        const label = areaName ? `${areaName}(${areaId})` : areaId;
         if (updated) {
-            this.logger.info(`標高設定: area=${areaName}, index=${vertexIndex}, elevation=${elevation}m`);
+            this.logger.info(`標高設定: area=${label}, index=${vertexIndex}, elevation=${elevation}m`);
         } else {
-            this.logger.warn(`標高設定先が見つかりません: area=${areaName}, index=${vertexIndex}`);
+            this.logger.warn(`標高設定先が見つかりません: area=${label}, index=${vertexIndex}`);
         }
     }
 }
