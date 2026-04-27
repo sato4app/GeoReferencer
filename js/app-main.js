@@ -522,12 +522,13 @@ class GeoReferencerApp {
                 }
             }
 
-            // ポイントID/名称 → GPS座標 のルックアップマップを構築するヘルパー
+            // ポイント/スポットID/名称 → GPS座標 のルックアップマップを構築するヘルパー
             // ルートのstartPoint/endPointのGPS値を取得するために使用
+            // ルートのstart/endはポイントだけでなくスポットを指す場合もあるため、両方を対象にする
             const buildPointGpsMap = () => {
                 const map = new Map();
                 for (const f of features) {
-                    if (f.properties && f.properties.type === 'point') {
+                    if (f.properties && (f.properties.type === 'point' || f.properties.type === 'spot')) {
                         const coords = f.geometry.coordinates;
                         if (f.properties.id) map.set(f.properties.id, coords);
                         if (f.properties.name && f.properties.name !== f.properties.id) {
@@ -538,7 +539,44 @@ class GeoReferencerApp {
                 return map;
             };
 
-            // 2. ルート（ジオリファレンス変換済み）を収集
+            // 2. スポット（ジオリファレンス変換済み）を収集
+            // ※ ルートのstart/endがスポットIDを指す場合があるため、ルートより先に収集する
+            if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
+                const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
+                let spotCounter = 1;
+
+                for (const marker of latestSpots) {
+                    const meta = marker.__meta;
+                    if (meta && (meta.origin === 'image' || meta.origin === 'firebase')) {
+                        const latLng = marker.getLatLng();
+                        const spotName = meta.spotId || `spot${String(spotCounter).padStart(2, '0')}`;
+                        const elevation = meta.elevation;
+
+                        let coords = [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)];
+                        if (elevation !== undefined && elevation !== null) {
+                            coords.push(this.roundCoordinate(elevation));
+                        }
+
+                        features.push({
+                            type: 'Feature',
+                            properties: {
+                                id: `spot${String(spotCounter).padStart(2, '0')}_${spotName}`,
+                                name: spotName,
+                                type: 'spot',
+                                source: 'image_transformed',
+                                description: 'スポット（GPS変換済）'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: coords
+                            }
+                        });
+                        spotCounter++;
+                    }
+                }
+            }
+
+            // 3. ルート（ジオリファレンス変換済み）を収集
             if (this.routeSpotHandler && this.routeSpotHandler.routeMarkers) {
                 const pointGpsMap = buildPointGpsMap();
 
@@ -600,7 +638,7 @@ class GeoReferencerApp {
                     });
 
                     // 開始・終了ポイントのGPS値を取得
-                    // 優先順: ① ポイント収集結果(features)からのIDルックアップ
+                    // 優先順: ① ポイント/スポット収集結果(features)からのIDルックアップ
                     //         ② routeData.startPoint/endPoint オブジェクトに含まれるlat/lng
                     //         ③ 取得できなければ null
                     const resolvePointGps = (id, fallbackPointObj) => {
@@ -633,42 +671,6 @@ class GeoReferencerApp {
                             coordinates: lineCoordinates
                         }
                     });
-                }
-            }
-
-            // 3. スポット（ジオリファレンス変換済み）を収集
-            if (this.routeSpotHandler && this.routeSpotHandler.spotMarkers) {
-                const latestSpots = this.getLatestSpots(this.routeSpotHandler.spotMarkers);
-                let spotCounter = 1;
-
-                for (const marker of latestSpots) {
-                    const meta = marker.__meta;
-                    if (meta && (meta.origin === 'image' || meta.origin === 'firebase')) {
-                        const latLng = marker.getLatLng();
-                        const spotName = meta.spotId || `spot${String(spotCounter).padStart(2, '0')}`;
-                        const elevation = meta.elevation;
-
-                        let coords = [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)];
-                        if (elevation !== undefined && elevation !== null) {
-                            coords.push(this.roundCoordinate(elevation));
-                        }
-
-                        features.push({
-                            type: 'Feature',
-                            properties: {
-                                id: `spot${String(spotCounter).padStart(2, '0')}_${spotName}`,
-                                name: spotName,
-                                type: 'spot',
-                                source: 'image_transformed',
-                                description: 'スポット（GPS変換済）'
-                            },
-                            geometry: {
-                                type: 'Point',
-                                coordinates: coords
-                            }
-                        });
-                        spotCounter++;
-                    }
                 }
             }
 
@@ -705,7 +707,37 @@ class GeoReferencerApp {
                     }
                 }
 
-                // 4b. ルート中間点（waypoint型）→ ルート名でグループ化してLineStringとして出力
+                // 4b. スポット（spot型）
+                // ※ ルートのstart/endがスポットIDを指す場合があるため、ルートより先に収集する
+                if (spotInfosCombined.length > 0 && (!this.routeSpotHandler.spotMarkers || this.routeSpotHandler.spotMarkers.length === 0)) {
+                    let spotCounter = 1;
+                    for (const markerInfo of spotInfosCombined) {
+                        const latLng = markerInfo.marker.getLatLng();
+                        const elevation = markerInfo.data.elevation;
+                        const spotName = markerInfo.data.name || markerInfo.data.id || `spot${String(spotCounter).padStart(2, '0')}`;
+                        let coords = [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)];
+                        if (elevation !== undefined && elevation !== null) {
+                            coords.push(this.roundCoordinate(elevation));
+                        }
+                        features.push({
+                            type: 'Feature',
+                            properties: {
+                                id: spotName,
+                                name: spotName,
+                                type: 'spot',
+                                source: 'image_transformed',
+                                description: 'スポット（GPS変換済）'
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: coords
+                            }
+                        });
+                        spotCounter++;
+                    }
+                }
+
+                // 4c. ルート中間点（waypoint型）→ ルート名でグループ化してLineStringとして出力
                 if (waypointInfos.length > 0 && (!this.routeSpotHandler.routeMarkers || this.routeSpotHandler.routeMarkers.length === 0)) {
                     const pointGpsMapCombined = buildPointGpsMap();
                     const routeGroups = new Map();
@@ -753,35 +785,6 @@ class GeoReferencerApp {
                                 }
                             });
                         }
-                    }
-                }
-
-                // 4c. スポット（spot型）
-                if (spotInfosCombined.length > 0 && (!this.routeSpotHandler.spotMarkers || this.routeSpotHandler.spotMarkers.length === 0)) {
-                    let spotCounter = 1;
-                    for (const markerInfo of spotInfosCombined) {
-                        const latLng = markerInfo.marker.getLatLng();
-                        const elevation = markerInfo.data.elevation;
-                        const spotName = markerInfo.data.name || markerInfo.data.id || `spot${String(spotCounter).padStart(2, '0')}`;
-                        let coords = [this.roundCoordinate(latLng.lng), this.roundCoordinate(latLng.lat)];
-                        if (elevation !== undefined && elevation !== null) {
-                            coords.push(this.roundCoordinate(elevation));
-                        }
-                        features.push({
-                            type: 'Feature',
-                            properties: {
-                                id: spotName,
-                                name: spotName,
-                                type: 'spot',
-                                source: 'image_transformed',
-                                description: 'スポット（GPS変換済）'
-                            },
-                            geometry: {
-                                type: 'Point',
-                                coordinates: coords
-                            }
-                        });
-                        spotCounter++;
                     }
                 }
             }
