@@ -300,21 +300,26 @@ export class AreaHandler {
 
     /**
      * エリアの全頂点を取得（標高取得用）
+     * 信頼源は this.areas（importAreas で必ず設定される）。areaPolygons は表示時に
+     * 座標変換が0件になると空のままになる場合があるため、areas をベースに集計する。
      * @returns {Array} 頂点配列 [{areaName, vertexIndex, lat, lng, elevation}, ...]
      */
     getAllVertices() {
         const vertices = [];
 
-        this.areaPolygons.forEach((polygon) => {
-            const meta = polygon.__meta;
-            if (!meta || !meta.vertices || !Array.isArray(meta.vertices)) {
+        if (!this.areas || this.areas.length === 0) {
+            return vertices;
+        }
+
+        this.areas.forEach((area) => {
+            if (!area.vertices || !Array.isArray(area.vertices)) {
                 return;
             }
 
-            const areaName = meta.name || meta.areaId || 'Unknown';
+            const areaName = area.name || area.id || 'Unknown';
 
             // 各頂点をGPS座標に変換
-            meta.vertices.forEach((vertex, index) => {
+            area.vertices.forEach((vertex, index) => {
                 let latLng;
                 if (this.currentTransformation) {
                     // アフィン変換を使用
@@ -334,7 +339,8 @@ export class AreaHandler {
                         vertexIndex: index,
                         lat: lat,
                         lng: lng,
-                        elevation: vertex.elevation || null
+                        // 標高 0m を null 扱いしないよう undefined だけを未設定とみなす
+                        elevation: vertex.elevation !== undefined ? vertex.elevation : null
                     });
                 }
             });
@@ -345,36 +351,40 @@ export class AreaHandler {
 
     /**
      * エリア頂点に標高を設定
+     * areaPolygons が無い／一致しない場合でも areas 側には必ず反映する。
+     * （updateElevationCounts は this.areas を参照するため、表示と取得結果を整合させる）
      * @param {string} areaName - エリア名
      * @param {number} vertexIndex - 頂点インデックス
      * @param {number} elevation - 標高値
      */
     setVertexElevation(areaName, vertexIndex, elevation) {
-        // 対象のポリゴンを検索
-        const polygon = this.areaPolygons.find(p => {
-            const meta = p.__meta;
-            return meta && (meta.name === areaName || meta.areaId === areaName);
-        });
+        let updated = false;
 
-        if (!polygon) {
-            this.logger.warn(`エリアが見つかりません: ${areaName}`);
-            return;
+        // areaPolygons の対応 meta.vertices を更新（存在すれば）
+        if (this.areaPolygons) {
+            const polygon = this.areaPolygons.find(p => {
+                const meta = p.__meta;
+                return meta && (meta.name === areaName || meta.areaId === areaName);
+            });
+            if (polygon && polygon.__meta && polygon.__meta.vertices && polygon.__meta.vertices[vertexIndex]) {
+                polygon.__meta.vertices[vertexIndex].elevation = elevation;
+                updated = true;
+            }
         }
 
-        const meta = polygon.__meta;
-        if (!meta.vertices || !meta.vertices[vertexIndex]) {
-            this.logger.warn(`頂点が見つかりません: area=${areaName}, index=${vertexIndex}`);
-            return;
+        // areas（信頼源）にも反映
+        if (this.areas) {
+            const area = this.areas.find(a => a.name === areaName || a.id === areaName);
+            if (area && area.vertices && area.vertices[vertexIndex]) {
+                area.vertices[vertexIndex].elevation = elevation;
+                updated = true;
+            }
         }
 
-        // 標高を設定
-        meta.vertices[vertexIndex].elevation = elevation;
-        this.logger.info(`標高設定: area=${areaName}, index=${vertexIndex}, elevation=${elevation}m`);
-
-        // areasにも反映（loadFromFirebaseDataで読み込まれたデータ）
-        const area = this.areas.find(a => a.name === areaName || a.id === areaName);
-        if (area && area.vertices && area.vertices[vertexIndex]) {
-            area.vertices[vertexIndex].elevation = elevation;
+        if (updated) {
+            this.logger.info(`標高設定: area=${areaName}, index=${vertexIndex}, elevation=${elevation}m`);
+        } else {
+            this.logger.warn(`標高設定先が見つかりません: area=${areaName}, index=${vertexIndex}`);
         }
     }
 }
