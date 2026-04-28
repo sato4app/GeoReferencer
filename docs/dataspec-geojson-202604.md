@@ -319,21 +319,34 @@ Excel(.xlsx) から読み込んだ GPS ポイントデータ。MapEditor 独自�
 
 #### 4.2.3 ルート（`type: "route"`）
 
-ルート編集結果。内部の中間点群を順序通りに並べた LineString として出力。
+ルート編集結果。内部の中間点群を順序通りに並べた LineString として出力。GeoReferencer 出力仕様（[3.2.2 節](#322-ルートtype-route)）と整合する形で、ID と座標を分離して保持します。
 
 | プロパティ | 値・型 | 説明 |
 |-----------|--------|------|
 | `type` | `"route"` | 固定、必須 |
-| `id` | String | ルート ID。フォーマット: `route_{startPointGPS}_to_{endPointGPS}` |
-| `startPointGPS` | String | 開始ポイントの GPS ポイント ID（`id` から正規表現で抽出） |
-| `endPointGPS` | String | 終了ポイントの GPS ポイント ID（`id` から正規表現で抽出） |
+| `id` | String | ルート ID。フォーマット: `route_{startPoint}_to_{endPoint}`。`startPoint` / `endPoint` と常に一致 |
+| `startPoint` | String | 開始ポイント ID（**真の参照情報**） |
+| `endPoint` | String | 終了ポイント ID（**真の参照情報**） |
+| `startPointGPS` | `[lng, lat]` / `[lng, lat, elevation]` / `null` | 開始ポイントの GPS 座標。出力時点での `startPoint` 解決結果のスナップショット。解決失敗時は `null` または省略 |
+| `endPointGPS` | `[lng, lat]` / `[lng, lat, elevation]` / `null` | 終了ポイントの GPS 座標。出力時点での `endPoint` 解決結果のスナップショット。解決失敗時は `null` または省略 |
 
 座標は中間点の座標を順番に並べたもの。各座標は `[経度, 緯度]` または `[経度, 緯度, 標高]`。
 
-**開始・終了ポイントの解決順序**: `startPointGPS` / `endPointGPS` の値をキーとして、以下の優先順位で対応する Feature を検索し、その座標を LineString 描画の始点・終点に使用します。
+**ID と座標の関係（補完ルール）**:
+- `startPoint` / `endPoint`（ID）が **真の参照情報源** です。
+- `startPointGPS` / `endPointGPS`（座標）は出力時点でのスナップショットであり、参照先ポイントが移動・改名された場合は古くなり得ます。
+- **読み込み時の優先順位**:
+  1. `startPoint` / `endPoint` の ID で動的解決を試み、解決できればその **現在座標** を採用（ポイント追随を維持）
+  2. ID で解決できない場合のみ、`startPointGPS` / `endPointGPS` の **座標値** にフォールバック
+- **出力時の整合保証**:
+  - `id`（routeId）に含まれる ID と `startPoint` / `endPoint` は常に一致させて出力
+  - `startPointGPS` / `endPointGPS` は、`startPoint` / `endPoint` から下記解決順序で **引き直した現在座標** で書き出す
+
+**開始・終了ポイントの ID 解決順序**: `startPoint` / `endPoint` の値をキーとして、以下の優先順位で対応する Feature を検索します。
 1. `type: "ポイントGPS"` の `id` に一致
 2. `type: "point"` の `id` に一致
 3. `type: "spot"` の `id` または `name` に一致（同名スポットが複数ある場合は、相手側端点に最も近いものを採用）
+4. 上記すべてで解決できない場合は `startPointGPS` / `endPointGPS` の座標値にフォールバック
 
 ```json
 {
@@ -341,8 +354,10 @@ Excel(.xlsx) から読み込んだ GPS ポイントデータ。MapEditor 独自�
   "properties": {
     "type": "route",
     "id": "route_A-01_to_A-05",
-    "startPointGPS": "A-01",
-    "endPointGPS": "A-05"
+    "startPoint": "A-01",
+    "endPoint": "A-05",
+    "startPointGPS": [135.472041, 34.853667, 150.5],
+    "endPointGPS": [135.474000, 34.855000, 170.0]
   },
   "geometry": {
     "type": "LineString",
@@ -458,7 +473,10 @@ GeoJSON 読み込み時、MapEditor はファイルレベルで次の処理を�
 1. **`type: "route_waypoint"` Point** をすべて除外する。
 2. **`type: "route"` LineString** をすべて除外する（再生成のため）。
 3. 除外した `route_waypoint` Point を `route_id` でグループ化し、`waypoint_number` 昇順に並べて LineString へ集約する。
-4. 集約された LineString を `type: "route"` Feature として追加する（プロパティ `type` / `id` / `startPointGPS` / `endPointGPS` を付与）。
+4. 集約された LineString を `type: "route"` Feature として追加する。プロパティは以下の通り付与する：
+   - `type` / `id` を付与（`id` は `route_{startPoint}_to_{endPoint}` 形式）
+   - `startPoint` / `endPoint`（ID）を `id`（routeId）から抽出して付与
+   - `startPointGPS` / `endPointGPS`（座標）を、`startPoint` / `endPoint` の ID から [4.2.3 ID 解決順序](#423-ルートtype-route) に従って引き直した現在座標で付与（解決失敗時は `null` または省略）
 5. その他の Feature（`point`、`ポイントGPS`、`spot`、`area`）はそのまま保持する。
 
 ---
@@ -466,22 +484,23 @@ GeoJSON 読み込み時、MapEditor はファイルレベルで次の処理を�
 ## 7. 補足
 
 - **`source` / `description` フィールド**: 入力 GeoJSON に含まれていれば保持して再出力されますが、MapEditor が新規生成するルート（`route`）、スポット（`spot`）、エリア（`area`）の Feature には付与されません。
-- **`name` フィールド**: ルート（`route`）Feature にはエクスポート時に付与されません（`startPointGPS` / `endPointGPS` で識別）。
+- **`name` フィールド**: ルート（`route`）Feature にはエクスポート時に付与されません（`startPoint` / `endPoint` で識別）。
 - **ポイントGPS** は MapEditor 独自の中間種別であり、GeoReferencer 標準仕様には含まれません。Excel 読み込み機能の入力データとして使用されます。
 
 ## 8. 関連ドキュメント
 
 - 入力 JSON 仕様: `dataspec-json-202604.md`
 - Firebase DB 仕様: `firebase-dbspec-202512.md`
-- 機能仕様: `funcspec-202602.md`
-- 前バージョン: `dataspec-geojson-202602.md`
+- 機能仕様: `funcspec-202604.md`
+- 利用者の手引: `UsersGuide-202604.md`
 
 ---
 
-**作成日**: 2026 年 4 月 27 日
-**バージョン**: 2.3（GeoReferencer 出力仕様 + MapEditor 入出力仕様の統合版）
+**作成日**: 2026 年 4 月 28 日
+**バージョン**: 2.4（GeoReferencer 形式に統合：ID と座標の分離）
 
 **変更履歴**:
+- v2.4 (2026-04-28): MapEditor の `route` Feature に `startPoint` / `endPoint`（ID）プロパティを追加し、`startPointGPS` / `endPointGPS` を座標値（`[lng, lat]` または `[lng, lat, elevation]`）に変更（GeoReferencer 形式に統合）。ID を真の参照情報、座標を出力時スナップショットとする補完ルールを追記（読み込み時は ID 動的解決を優先、解決失敗時のみ座標フォールバック。出力時は ID から現在座標を引き直して書き出し）。
 - v2.3 (2026-04-27): GeoReferencer 出力仕様（旧 `tmp/dataspec-geojson-202604.md`）と MapEditor 入出力仕様を統合し、データフローを明示。コード構造に関する記述を除外し、ファイル仕様に絞った内容に再構成。
 - v2.2 (2026-04-27): ルート Feature のプロパティ名を `startPoint` / `endPoint` から `startPointGPS` / `endPointGPS` に変更。開始・終了ポイントの解決優先順位（ポイントGPS → point → spot）を追記。エリア新規作成時の初期名 `"エリア{連番}"` を明記。
 - v2.1 (2026-04-26): MapEditor 現状コード準拠版を作成。
