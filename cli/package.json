@@ -1,0 +1,13 @@
+{
+  "name": "georeferencer-cli",
+  "version": "1.0.0",
+  "description": "GeoReferencer CLI - PNG+JSONペアをコマンドラインでジオリファレンスしGeoJSONを出力",
+  "type": "module",
+  "main": "georef-cli.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}
