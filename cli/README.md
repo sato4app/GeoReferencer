@@ -13,6 +13,8 @@ cd cli
 npm install
 ```
 
+Node.jsをインストールしていないPCで使う場合は、後述の「単一実行ファイル（exe）の作成」を参照してください。
+
 ## 使い方
 
 ```
@@ -63,6 +65,34 @@ node georef-cli.js "C:\data\maps" takao-map.png takao-marks.json pointGPS.xlsx "
 4. **アフィン変換** — 最小二乗法による6パラメータ変換（Web Mercator経由）、精度（平均・最大・最小誤差）を表示
 5. **標高取得** — 国土地理院標高APIから全要素（ポイント・ルート中間点・スポット・エリア頂点）の標高を取得。0.5秒/件待機。標高設定済みの要素はスキップ
 6. **GeoJSON出力** — `dataspec-geojson-202604.md` 第3章準拠。ファイル名は `{略称}-GPS-P{n}_R{n}_S{n}_A{n}-{YYYYMMDD}.geojson`
+
+## 単一実行ファイル（exe）の作成
+
+Node.js環境のないPCでも実行できるよう、`georef-cli.exe` 1ファイルにまとめられます
+（Node.js公式のSEA機能を使用。ビルドにはNode.js 20以上が必要）。
+
+```bash
+cd cli
+npm install
+npm run build:exe
+```
+
+`dist\georef-cli.exe`（約83MB）が生成されます。**このファイル1個を別PCへコピーするだけ**で、
+Node.jsのインストールや`npm install`なしで実行できます。
+
+```bat
+georef-cli.exe "C:\data\maps" minoh-map.png minoh-marks.json pointGPS.xlsx "C:\data\output"
+```
+
+引数・オプションは `node georef-cli.js` と完全に同一です。バッチ実行も
+`node georef-cli.js` の部分を `georef-cli.exe` に置き換えるだけです。
+
+注意事項:
+- 初回実行時にWindows SmartScreenの警告が出る場合があります（未署名のexeのため）。
+  「詳細情報」→「実行」で起動できます
+- ビルド時の「The signature seems corrupted!」警告は、元のnode.exeの署名が
+  無効化されたことを示すもので、動作に影響はありません
+- georef-cli.jsを変更した場合は再ビルドが必要です
 
 ## 動作確認用サンプル
 
